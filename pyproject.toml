@@ -16,6 +16,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.8.0",
+    "basedpyright>=1.36.0",
 ]
 
 [project.scripts]
@@ -60,6 +61,26 @@ known-first-party = ["src"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+# Basedpyright configuration
+[tool.basedpyright]
+pythonVersion = "3.12"
+include = ["src"]
+typeCheckingMode = "standard"
+
+# Suppress warnings for upstream/library typing issues
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportMissingParameterType = "none"
+reportAny = "none"
+reportExplicitAny = "none"
+reportImplicitOverride = "none"
+reportUnusedCallResult = "none"
+reportImplicitStringConcatenation = "none"
+reportUnnecessaryIsInstance = "none"
+reportIncompatibleVariableOverride = "none"
 
 # Pytest configuration
 [tool.pytest.ini_options]

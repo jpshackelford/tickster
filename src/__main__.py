@@ -982,5 +982,6 @@ def _read_issue_refs_from_stdin() -> list[str]:
     """
     return _read_refs_from_stdin("issues")
 
+
 if __name__ == "__main__":
     sys.exit(main())

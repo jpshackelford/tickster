@@ -40,10 +40,25 @@ tkt --version
 Run `tkt <command> --help` for the full set of options on each subcommand
 (`issue`, `pr`, `review`, `board`, `repo`).
 
+See **[doc/usage.md](doc/usage.md)** for the complete usage guide: every command
+and option, configuration, stdin piping, and environment variables.
+
 ## Development
 
 ```bash
 pip install -e ".[dev]"
 pytest                             # run the test suite
-ruff check .                       # lint
+ruff check src tests               # lint
+ruff format --check src tests      # format check
+basedpyright src                   # type check
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, format check, type check, and tests
+on every push and pull request. Releases are automated with
+[release-please](https://github.com/googleapis/release-please) via
+`.github/workflows/release-please.yml`; the version lives in `src/_version.py`.
+
+An optional automated PR reviewer
+(`.github/workflows/pr-review-by-openhands.yml`) runs when a PR is opened,
+marked ready for review, or labelled `review-this`. It requires an `LLM_API_KEY`
+repository secret.
