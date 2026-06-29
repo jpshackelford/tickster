@@ -28,37 +28,37 @@ class TestApiLoggingEnabled:
     def test_disabled_by_default(self):
         """API logging is disabled when env var is not set."""
         with patch.dict(os.environ, {}, clear=True):
-            os.environ.pop("LXA_LOG_API", None)
+            os.environ.pop("TKT_LOG_API", None)
             assert is_api_logging_enabled() is False
 
     def test_enabled_with_1(self):
-        """API logging is enabled when LXA_LOG_API=1."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "1"}):
+        """API logging is enabled when TKT_LOG_API=1."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "1"}):
             assert is_api_logging_enabled() is True
 
     def test_enabled_with_true(self):
-        """API logging is enabled when LXA_LOG_API=true."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "true"}):
+        """API logging is enabled when TKT_LOG_API=true."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "true"}):
             assert is_api_logging_enabled() is True
 
     def test_enabled_with_yes(self):
-        """API logging is enabled when LXA_LOG_API=yes."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "yes"}):
+        """API logging is enabled when TKT_LOG_API=yes."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "yes"}):
             assert is_api_logging_enabled() is True
 
     def test_enabled_with_on(self):
-        """API logging is enabled when LXA_LOG_API=on."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "ON"}):
+        """API logging is enabled when TKT_LOG_API=on."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "ON"}):
             assert is_api_logging_enabled() is True
 
     def test_disabled_with_0(self):
-        """API logging is disabled when LXA_LOG_API=0."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "0"}):
+        """API logging is disabled when TKT_LOG_API=0."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "0"}):
             assert is_api_logging_enabled() is False
 
     def test_disabled_with_false(self):
-        """API logging is disabled when LXA_LOG_API=false."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "false"}):
+        """API logging is disabled when TKT_LOG_API=false."""
+        with patch.dict(os.environ, {"TKT_LOG_API": "false"}):
             assert is_api_logging_enabled() is False
 
 
@@ -66,15 +66,15 @@ class TestLogDirectory:
     """Tests for get_log_directory()."""
 
     def test_default_directory(self):
-        """Default log directory is ~/.lxa/api_logs/."""
+        """Default log directory is ~/.tkt/api_logs/."""
         with patch.dict(os.environ, {}, clear=True):
-            os.environ.pop("LXA_LOG_API_DIR", None)
+            os.environ.pop("TKT_LOG_API_DIR", None)
             result = get_log_directory()
-            assert result == Path.home() / ".lxa" / "api_logs"
+            assert result == Path.home() / ".tkt" / "api_logs"
 
     def test_custom_directory(self):
-        """Custom log directory via LXA_LOG_API_DIR."""
-        with patch.dict(os.environ, {"LXA_LOG_API_DIR": "/tmp/my_logs"}):
+        """Custom log directory via TKT_LOG_API_DIR."""
+        with patch.dict(os.environ, {"TKT_LOG_API_DIR": "/tmp/my_logs"}):
             result = get_log_directory()
             assert result == Path("/tmp/my_logs")
 
@@ -123,7 +123,7 @@ class TestLogRequestResponse:
 
     def test_logs_request_when_enabled(self, temp_log_dir):
         """Request is logged to file when logging is enabled."""
-        env = {"LXA_LOG_API": "1", "LXA_LOG_API_DIR": temp_log_dir}
+        env = {"TKT_LOG_API": "1", "TKT_LOG_API_DIR": temp_log_dir}
         with patch.dict(os.environ, env):
             request = httpx.Request(
                 "GET",
@@ -146,7 +146,7 @@ class TestLogRequestResponse:
 
     def test_logs_graphql_request(self, temp_log_dir):
         """GraphQL request is logged with correct api_type."""
-        env = {"LXA_LOG_API": "1", "LXA_LOG_API_DIR": temp_log_dir}
+        env = {"TKT_LOG_API": "1", "TKT_LOG_API_DIR": temp_log_dir}
         with patch.dict(os.environ, env):
             request = httpx.Request(
                 "POST",
@@ -164,7 +164,7 @@ class TestLogRequestResponse:
 
     def test_no_log_when_disabled(self, temp_log_dir):
         """No file is created when logging is disabled."""
-        env = {"LXA_LOG_API": "0", "LXA_LOG_API_DIR": temp_log_dir}
+        env = {"TKT_LOG_API": "0", "TKT_LOG_API_DIR": temp_log_dir}
         with patch.dict(os.environ, env):
             request = httpx.Request("GET", "https://api.github.com/user")
             log_request(request)
@@ -174,7 +174,7 @@ class TestLogRequestResponse:
 
     def test_sequence_increments(self, temp_log_dir):
         """Sequence number increments with each request."""
-        env = {"LXA_LOG_API": "1", "LXA_LOG_API_DIR": temp_log_dir}
+        env = {"TKT_LOG_API": "1", "TKT_LOG_API_DIR": temp_log_dir}
         with patch.dict(os.environ, env):
             for i in range(3):
                 request = httpx.Request("GET", f"https://api.github.com/test{i}")
@@ -199,7 +199,7 @@ class TestLoggingTransport:
 
     def test_logs_response_directly(self, temp_log_dir):
         """Response logging works when called directly."""
-        env = {"LXA_LOG_API": "1", "LXA_LOG_API_DIR": temp_log_dir}
+        env = {"TKT_LOG_API": "1", "TKT_LOG_API_DIR": temp_log_dir}
         with patch.dict(os.environ, env):
             # Create a mock request with sequence
             request = httpx.Request("GET", "https://api.github.com/user")
@@ -247,7 +247,7 @@ class TestClearLogs:
             (log_dir / "0001_response.json").write_text("{}")
             (log_dir / "0002_request.json").write_text("{}")
 
-            with patch.dict(os.environ, {"LXA_LOG_API_DIR": tmpdir}):
+            with patch.dict(os.environ, {"TKT_LOG_API_DIR": tmpdir}):
                 count = clear_logs()
 
             assert count == 3
@@ -255,7 +255,7 @@ class TestClearLogs:
 
     def test_returns_zero_for_nonexistent_dir(self):
         """Returns 0 when log directory doesn't exist."""
-        with patch.dict(os.environ, {"LXA_LOG_API_DIR": "/nonexistent/path"}):
+        with patch.dict(os.environ, {"TKT_LOG_API_DIR": "/nonexistent/path"}):
             count = clear_logs()
             assert count == 0
 
@@ -265,7 +265,7 @@ class TestCreateLoggingClient:
 
     def test_returns_regular_client_when_disabled(self):
         """Returns standard httpx.Client when logging disabled."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "0"}):
+        with patch.dict(os.environ, {"TKT_LOG_API": "0"}):
             client = create_logging_client()
             # Should be a regular client without logging transport
             assert isinstance(client, httpx.Client)
@@ -273,7 +273,7 @@ class TestCreateLoggingClient:
 
     def test_returns_logging_client_when_enabled(self):
         """Returns client with LoggingTransport when enabled."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "1"}):
+        with patch.dict(os.environ, {"TKT_LOG_API": "1"}):
             client = create_logging_client()
             assert isinstance(client, httpx.Client)
             # Transport should be LoggingTransport
@@ -282,7 +282,7 @@ class TestCreateLoggingClient:
 
     def test_passes_headers(self):
         """Headers are passed to the client."""
-        with patch.dict(os.environ, {"LXA_LOG_API": "0"}):
+        with patch.dict(os.environ, {"TKT_LOG_API": "0"}):
             client = create_logging_client(headers={"X-Custom": "test"})
             assert client.headers.get("X-Custom") == "test"
             client.close()

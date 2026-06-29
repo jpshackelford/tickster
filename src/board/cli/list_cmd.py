@@ -15,13 +15,13 @@ def cmd_list() -> int:
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board list")
+    print_command_header("tkt board list")
 
     boards_list = list_boards()
 
     if not boards_list:
         console.print("\n[yellow]No boards configured.[/]")
-        console.print("Create one with: lxa board init --create 'Project Name'")
+        console.print("Create one with: tkt board init --create 'Project Name'")
         return 0
 
     console.print()
@@ -45,6 +45,6 @@ def cmd_list() -> int:
     console.print(table)
 
     console.print()
-    console.print("[dim]Switch default: lxa board config default <name>[/]")
+    console.print("[dim]Switch default: tkt board config default <name>[/]")
 
     return 0

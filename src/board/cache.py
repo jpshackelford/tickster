@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from src.board.config import CACHE_FILE, ensure_lxa_home
+from src.board.config import CACHE_FILE, ensure_tkt_home
 from src.board.models import CachedItem, ItemType, ProjectInfo
 
 SCHEMA = """
@@ -82,7 +82,7 @@ class BoardCache:
 
     def _ensure_schema(self) -> None:
         """Create database and tables if they don't exist."""
-        ensure_lxa_home()
+        ensure_tkt_home()
         with self._connection() as conn:
             conn.executescript(SCHEMA)
 

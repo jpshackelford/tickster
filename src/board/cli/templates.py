@@ -16,7 +16,7 @@ def cmd_templates() -> int:
     """
     from src.board.yaml_config import list_templates
 
-    print_command_header("lxa board templates")
+    print_command_header("tkt board templates")
     console.print()
 
     templates = list_templates()
@@ -30,7 +30,7 @@ def cmd_templates() -> int:
 
     console.print(table)
     console.print()
-    console.print("[dim]Usage: lxa board apply --template <name>[/]")
+    console.print("[dim]Usage: tkt board apply --template <name>[/]")
 
     return 0
 
@@ -43,7 +43,7 @@ def cmd_macros() -> int:
     """
     from src.board.macros import get_macro_help
 
-    print_command_header("lxa board macros")
+    print_command_header("tkt board macros")
     console.print()
 
     macros = get_macro_help()

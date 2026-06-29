@@ -43,7 +43,7 @@ def cmd_add_item(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board add-item")
+    print_command_header("tkt board add-item")
 
     config, username = load_and_validate_config(board_name)
     assert username is not None

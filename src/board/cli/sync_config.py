@@ -35,7 +35,7 @@ def cmd_sync_config(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board sync")
+    print_command_header("tkt board sync")
 
     if dry_run:
         console.print("[yellow]Dry run mode[/]")

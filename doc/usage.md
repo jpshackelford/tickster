@@ -44,8 +44,8 @@ Persistent configuration (watched repos, board definitions, defaults) is stored
 in:
 
 ```
-~/.lxa/config.toml          # board, issue, and pr settings
-~/.lxa/board-cache.db       # local board cache
+~/.tkt/config.toml          # board, issue, and pr settings
+~/.tkt/board-cache.db       # local board cache
 ```
 
 You normally do not edit these by hand — `tkt repo`, `tkt board config`, and
@@ -221,5 +221,5 @@ cat my-issues.txt | tkt issue list --title
 | `GITHUB_TOKEN` | GitHub API token (required) |
 | `GIST_TOKEN` | Optional scoped token used for `board sync-config` gists; falls back to `GITHUB_TOKEN` |
 | `GITHUB_USERNAME` | Override the detected current user |
-| `LXA_LOG_API` | Set to `1`/`true` to log raw GitHub API calls (debugging) |
-| `LXA_LOG_API_DIR` | Directory for API logs when `LXA_LOG_API` is enabled |
+| `TKT_LOG_API` | Set to `1`/`true` to log raw GitHub API calls (debugging) |
+| `TKT_LOG_API_DIR` | Directory for API logs when `TKT_LOG_API` is enabled |

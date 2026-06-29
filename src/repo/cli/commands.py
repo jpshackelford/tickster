@@ -56,7 +56,7 @@ def cmd_add(
     # Show board creation message if we created an unnamed board
     if created_board and target_board and target_board.startswith(UNNAMED_BOARD_PREFIX):
         console.print(f"[blue]Created board:[/] {target_board}")
-        console.print(f'[dim]Rename with: lxa board rename "{target_board}" "New Name"[/]')
+        console.print(f'[dim]Rename with: tkt board rename "{target_board}" "New Name"[/]')
 
     if added:
         for repo in added:
@@ -130,7 +130,7 @@ def cmd_list(
         boards = list_boards_with_repos()
         if not boards:
             console.print("[dim]No boards configured.[/]")
-            console.print("[dim]Run 'lxa repo add owner/repo' to add repos.[/]")
+            console.print("[dim]Run 'tkt repo add owner/repo' to add repos.[/]")
             return 0
 
         for name, is_default, repos in boards:
@@ -147,7 +147,7 @@ def cmd_list(
     if not repos:
         board_display = board_name or "default"
         console.print(f"[dim]No repos in {board_display}.[/]")
-        console.print("[dim]Run 'lxa repo add owner/repo' to add repos.[/]")
+        console.print("[dim]Run 'tkt repo add owner/repo' to add repos.[/]")
         return 0
 
     for repo in repos:

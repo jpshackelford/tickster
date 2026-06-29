@@ -19,7 +19,7 @@ def temp_config_dir(tmp_path, monkeypatch):
     """Create a temporary config directory."""
     config_file = tmp_path / "config.toml"
     monkeypatch.setattr("src.board.config.CONFIG_FILE", config_file)
-    monkeypatch.setattr("src.board.config.LXA_HOME", tmp_path)
+    monkeypatch.setattr("src.board.config.TKT_HOME", tmp_path)
     return tmp_path, config_file
 
 

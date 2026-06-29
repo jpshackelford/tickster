@@ -41,7 +41,7 @@ def cmd_config(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board config")
+    print_command_header("tkt board config")
 
     # Handle "default" action to set the default board
     if action == "default" and key:
@@ -148,4 +148,4 @@ def _show_configuration(config) -> None:
         console.print("  [dim](none)[/]")
 
     console.print()
-    console.print("[dim]Config file: ~/.lxa/config.toml[/]")
+    console.print("[dim]Config file: ~/.tkt/config.toml[/]")

@@ -19,10 +19,10 @@ import src.board.config as config_module
 @pytest.fixture
 def mock_config_dir(tmp_path: Path, monkeypatch):
     """Set up a temporary config directory."""
-    config_dir = tmp_path / ".lxa"
+    config_dir = tmp_path / ".tkt"
     config_dir.mkdir()
 
-    monkeypatch.setattr(config_module, "LXA_HOME", config_dir)
+    monkeypatch.setattr(config_module, "TKT_HOME", config_dir)
     monkeypatch.setattr(config_module, "CONFIG_FILE", config_dir / "config.toml")
     monkeypatch.setattr(config_module, "CACHE_FILE", config_dir / "board-cache.db")
     monkeypatch.setattr(cache_module, "CACHE_FILE", config_dir / "board-cache.db")

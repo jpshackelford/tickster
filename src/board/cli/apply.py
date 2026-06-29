@@ -36,7 +36,7 @@ def cmd_apply(
     and optionally removes columns not in the config.
 
     Args:
-        config_file: Path to YAML config file (default: ~/.lxa/boards/agent-workflow.yaml)
+        config_file: Path to YAML config file (default: ~/.tkt/boards/agent-workflow.yaml)
         template: Use built-in template instead of file
         board_name: Name of board to apply to (default: default board)
         dry_run: Show what would be done without making changes
@@ -47,7 +47,7 @@ def cmd_apply(
     """
     from src.board.rules import validate_rules
 
-    print_command_header("lxa board apply")
+    print_command_header("tkt board apply")
 
     # Load board definition
     board_def = _load_board_definition(template, config_file, dry_run)
@@ -78,10 +78,10 @@ def cmd_apply(
 
     cache = BoardCache()
     if not config.project_id:
-        raise CommandError("No project configured. Run 'lxa board init' first.")
+        raise CommandError("No project configured. Run 'tkt board init' first.")
     project = cache.get_project_info(config.project_id)
     if not project:
-        raise CommandError("Project not in cache. Run 'lxa board init' first.")
+        raise CommandError("Project not in cache. Run 'tkt board init' first.")
 
     console.print(f"\nTarget project: [cyan]{project.title}[/]")
     console.print(f"URL: {project.url}")
@@ -187,7 +187,7 @@ def _apply_changes(
     console.print("\n[bold]Applying changes...[/]")
 
     if not project.status_field_id:
-        raise CommandError("No Status field configured. Run 'lxa board init' first.")
+        raise CommandError("No Status field configured. Run 'tkt board init' first.")
 
     with GitHubClient() as client:
         if columns_to_add:

@@ -42,7 +42,7 @@ def load_and_validate_config(
     if require_project and not config.project_id:
         if board_name:
             raise CommandError(f"Board '{board_name}' not found.")
-        raise CommandError("No board configured. Run 'lxa board init' first.")
+        raise CommandError("No board configured. Run 'tkt board init' first.")
 
     username = None
     if require_username:
@@ -57,7 +57,7 @@ def print_command_header(title: str) -> None:
     """Print a command header panel.
 
     Args:
-        title: Command title (e.g., "lxa board scan")
+        title: Command title (e.g., "tkt board scan")
     """
     console.print(Panel(f"[bold blue]{title}[/]", expand=False))
 

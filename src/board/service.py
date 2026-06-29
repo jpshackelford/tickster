@@ -67,7 +67,7 @@ def validate_board_config(
         if board_name:
             return ValidationResult(success=False, error=f"Board '{board_name}' not found.")
         return ValidationResult(
-            success=False, error="No board configured. Run 'lxa board init' first."
+            success=False, error="No board configured. Run 'tkt board init' first."
         )
 
     username = config.username or get_github_username()

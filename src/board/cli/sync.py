@@ -43,7 +43,7 @@ def cmd_sync(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board sync")
+    print_command_header("tkt board sync")
 
     config, username = load_and_validate_config(board_name)
     cache = BoardCache()

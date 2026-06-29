@@ -1,6 +1,6 @@
 """Board configuration management.
 
-Configuration is stored in ~/.lxa/config.toml under the [board] section.
+Configuration is stored in ~/.tkt/config.toml under the [board] section.
 
 Multi-board configuration structure:
     [meta]
@@ -44,9 +44,9 @@ except ImportError:
 import tomli_w
 
 # Default location for user-level config
-LXA_HOME = Path.home() / ".lxa"
-CONFIG_FILE = LXA_HOME / "config.toml"
-CACHE_FILE = LXA_HOME / "board-cache.db"
+TKT_HOME = Path.home() / ".tkt"
+CONFIG_FILE = TKT_HOME / "config.toml"
+CACHE_FILE = TKT_HOME / "board-cache.db"
 
 
 def atomic_write(path: Path, content: bytes) -> None:
@@ -297,10 +297,10 @@ class BoardsConfig:
         return len(old_tombstones)
 
 
-def ensure_lxa_home() -> Path:
-    """Ensure ~/.lxa directory exists."""
-    LXA_HOME.mkdir(parents=True, exist_ok=True)
-    return LXA_HOME
+def ensure_tkt_home() -> Path:
+    """Ensure ~/.tkt directory exists."""
+    TKT_HOME.mkdir(parents=True, exist_ok=True)
+    return TKT_HOME
 
 
 def _load_raw_config() -> dict:
@@ -379,7 +379,7 @@ def _format_datetime(dt: datetime | None) -> str | None:
 
 
 def load_boards_config() -> BoardsConfig:
-    """Load all board configurations from ~/.lxa/config.toml.
+    """Load all board configurations from ~/.tkt/config.toml.
 
     Handles migration from legacy single-board format.
 
@@ -455,12 +455,12 @@ def load_board_config(board_name: str | None = None) -> BoardConfig:
 
 
 def save_boards_config(config: BoardsConfig) -> None:
-    """Save all board configurations to ~/.lxa/config.toml.
+    """Save all board configurations to ~/.tkt/config.toml.
 
     Preserves other sections in the config file.
     Uses atomic write to prevent partial writes.
     """
-    ensure_lxa_home()
+    ensure_tkt_home()
 
     # Load existing config to preserve other sections
     existing_data = _load_raw_config()

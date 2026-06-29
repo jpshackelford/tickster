@@ -91,7 +91,7 @@ def cmd_scan(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board scan")
+    print_command_header("tkt board scan")
 
     config, username = load_and_validate_config(board_name)
     assert username is not None  # guaranteed by load_and_validate_config
@@ -143,7 +143,7 @@ def cmd_scan(
             # No repos to scan
             print_warning("No repos to scan")
             console.print(
-                "Add repos with: lxa board config repos add owner/repo\n"
+                "Add repos with: tkt board config repos add owner/repo\n"
                 "Or use --user USERNAME or --org ORGNAME to auto-discover repos"
             )
             return 0
@@ -254,7 +254,7 @@ def _scan_project_scoped(
                 print_success(f"Overview item is on the board: {overview_ref.short_ref}")
             else:
                 print_warning(f"Overview item is not on the board: {overview_ref.short_ref}")
-                console.print(f"Add it with: [dim]lxa board add-item {overview_ref.short_ref}[/]")
+                console.print(f"Add it with: [dim]tkt board add-item {overview_ref.short_ref}[/]")
 
         console.print("\nChecking references from board items...")
         discovery = discover_outbound_refs(client, board_refs, config.repos)
@@ -285,7 +285,7 @@ def _scan_project_scoped(
                     print_info(f'    "{context.surrounding_text}"', dim=True)
 
             console.print("\nTo add a candidate manually:")
-            console.print("  [dim]lxa board add-item " + " ".join(candidate_refs) + "[/]")
+            console.print("  [dim]tkt board add-item " + " ".join(candidate_refs) + "[/]")
 
     console.print(
         "\n[dim]Next milestone: evaluate candidates against the mission and add "

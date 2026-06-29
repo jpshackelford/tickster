@@ -1,1 +1,1 @@
-"""Tests for LXA (Long Execution Agent)."""
+"""Tests for tickster (tkt)."""

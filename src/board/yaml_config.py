@@ -1,6 +1,6 @@
 """YAML-based board configuration.
 
-Loads board definitions from YAML files in ~/.lxa/boards/.
+Loads board definitions from YAML files in ~/.tkt/boards/.
 """
 
 from dataclasses import dataclass, field
@@ -9,11 +9,11 @@ from typing import Any
 
 import yaml
 
-from src.board.config import LXA_HOME
+from src.board.config import TKT_HOME
 from src.board.rules import Rule
 
 # Default location for board configurations
-BOARDS_DIR = LXA_HOME / "boards"
+BOARDS_DIR = TKT_HOME / "boards"
 
 # Default agent-workflow template
 DEFAULT_TEMPLATE = """\
@@ -172,7 +172,7 @@ class BoardDefinition:
 
 
 def ensure_boards_dir() -> Path:
-    """Ensure ~/.lxa/boards directory exists."""
+    """Ensure ~/.tkt/boards directory exists."""
     BOARDS_DIR.mkdir(parents=True, exist_ok=True)
     return BOARDS_DIR
 

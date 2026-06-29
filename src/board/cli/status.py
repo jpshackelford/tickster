@@ -46,7 +46,7 @@ def cmd_status(
         console.print(json.dumps(data, indent=2))
         return 0
 
-    print_command_header("lxa board status")
+    print_command_header("tkt board status")
 
     # Display project metadata for project-scoped boards
     if config.is_project_scoped:
@@ -108,7 +108,7 @@ def _print_last_sync_info(cache: BoardCache) -> None:
     if last_sync:
         console.print(f"[dim]Last sync: {last_sync}[/]")
     else:
-        console.print("[yellow]No sync recorded. Run 'lxa board sync' first.[/]")
+        console.print("[yellow]No sync recorded. Run 'tkt board sync' first.[/]")
 
 
 def _print_status_table(counts: dict[str, int], attention_only: bool) -> None:

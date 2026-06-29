@@ -4,8 +4,8 @@ This module handles saving and loading board configuration to/from GitHub Gists,
 enabling config persistence across ephemeral environments.
 
 Convention:
-- Filename: lxa-config.toml
-- Description: LXA Board Configuration
+- Filename: tkt-config.toml
+- Description: tkt Board Configuration
 - Visibility: Secret (private gist)
 """
 
@@ -29,8 +29,8 @@ from src.board.config import (
 )
 
 # Well-known filename for config gist
-CONFIG_GIST_FILENAME = "lxa-config.toml"
-CONFIG_GIST_DESCRIPTION = "LXA Board Configuration"
+CONFIG_GIST_FILENAME = "tkt-config.toml"
+CONFIG_GIST_DESCRIPTION = "tkt Board Configuration"
 
 
 def _get_gist_token() -> str:

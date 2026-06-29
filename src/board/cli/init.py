@@ -58,7 +58,7 @@ def cmd_init(
     Returns:
         Exit code (0 for success)
     """
-    print_command_header("lxa board init")
+    print_command_header("tkt board init")
 
     # Validate scope and overview combination
     if scope == BoardScope.PROJECT and not overview:
@@ -118,12 +118,12 @@ def cmd_init(
         # No project specified
         print_error("No project specified")
         console.print("\nUsage:")
-        console.print("  lxa board init --create 'Project Name'  # Create new")
+        console.print("  tkt board init --create 'Project Name'  # Create new")
         console.print(
-            "  lxa board init --create 'Name' --scope project --overview <url>  # Project-scoped"
+            "  tkt board init --create 'Name' --scope project --overview <url>  # Project-scoped"
         )
-        console.print("  lxa board init --project-number 5       # Configure existing")
-        console.print("  lxa board init --project-id PVT_xxx     # Configure by ID")
+        console.print("  tkt board init --project-number 5       # Configure existing")
+        console.print("  tkt board init --project-id PVT_xxx     # Configure by ID")
         return 1
 
 
@@ -304,14 +304,14 @@ def _print_next_steps(is_project_scoped: bool = False) -> None:
     """Print next steps after project creation."""
     console.print("\n[bold]Next steps:[/]")
     console.print("  1. Add repos to watch:")
-    console.print("     [dim]lxa board config repos add owner/repo[/]")
+    console.print("     [dim]tkt board config repos add owner/repo[/]")
     if is_project_scoped:
         console.print("  2. Add items manually:")
-        console.print("     [dim]lxa board add-item <url>[/]")
+        console.print("     [dim]tkt board add-item <url>[/]")
         console.print("  3. Check board status:")
-        console.print("     [dim]lxa board status[/]")
+        console.print("     [dim]tkt board status[/]")
     else:
         console.print("  2. Scan for issues and PRs:")
-        console.print("     [dim]lxa board scan[/]")
+        console.print("     [dim]tkt board scan[/]")
         console.print("  3. Check board status:")
-        console.print("     [dim]lxa board status[/]")
+        console.print("     [dim]tkt board status[/]")

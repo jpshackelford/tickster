@@ -42,10 +42,10 @@ class MockResponse:
 @pytest.fixture
 def mock_config_dir(tmp_path: Path, monkeypatch):
     """Set up a temporary config directory."""
-    config_dir = tmp_path / ".lxa"
+    config_dir = tmp_path / ".tkt"
     config_dir.mkdir()
 
-    monkeypatch.setattr(config_module, "LXA_HOME", config_dir)
+    monkeypatch.setattr(config_module, "TKT_HOME", config_dir)
     monkeypatch.setattr(config_module, "CONFIG_FILE", config_dir / "config.toml")
     monkeypatch.setattr(config_module, "CACHE_FILE", config_dir / "board-cache.db")
     monkeypatch.setattr(cache_module, "CACHE_FILE", config_dir / "board-cache.db")
@@ -380,7 +380,7 @@ class TestCmdScanIntegration:
         assert result == 0
         captured = capsys.readouterr()
         assert "Overview item is not on the board: owner/repo#1" in captured.out
-        assert "lxa board add-item owner/repo#1" in captured.out
+        assert "tkt board add-item owner/repo#1" in captured.out
 
 
 class TestCmdStatusIntegration:

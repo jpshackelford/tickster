@@ -248,7 +248,7 @@ Examples:
         "--config",
         "-c",
         dest="config_file",
-        help="Path to YAML config file (default: ~/.lxa/boards/agent-workflow.yaml)",
+        help="Path to YAML config file (default: ~/.tkt/boards/agent-workflow.yaml)",
     )
     board_apply_parser.add_argument(
         "--template",

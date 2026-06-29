@@ -1,1 +1,1 @@
-"""Long Horizon Agent - Autonomous agent using OpenHands SDK."""
+"""tickster (tkt) - token-efficient GitHub issue/PR/board tooling."""

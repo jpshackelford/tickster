@@ -1,4 +1,4 @@
-"""Version information for LXA.
+"""Version information for tkt.
 
 This module provides version information that can distinguish between:
 - CI builds: have git SHA and clean build info
@@ -69,10 +69,10 @@ def get_full_version_string() -> str:
     """Get a human-readable version string with build info.
 
     Returns:
-        String like "lxa 0.1.0 (abc1234)" or "lxa 0.1.0 (abc1234, local)"
+        String like "tkt 0.1.0 (abc1234)" or "tkt 0.1.0 (abc1234, local)"
     """
     info = get_version_info()
-    parts = [f"lxa {info['version']}"]
+    parts = [f"tkt {info['version']}"]
 
     details = []
     if info["git_sha"]:

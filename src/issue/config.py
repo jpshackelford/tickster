@@ -1,6 +1,6 @@
 """Issue-specific configuration management.
 
-Configuration is stored in ~/.lxa/config.toml under the [issue] section.
+Configuration is stored in ~/.tkt/config.toml under the [issue] section.
 
 Configuration structure:
     [issue]
