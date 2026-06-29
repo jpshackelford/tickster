@@ -13,6 +13,7 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt review`](#tkt-review)
 - [`tkt board`](#tkt-board)
 - [`tkt repo`](#tkt-repo)
+- [History strings](#history-strings)
 - [Piping refs from stdin](#piping-refs-from-stdin)
 - [Environment variables](#environment-variables)
 
@@ -149,6 +150,22 @@ tkt review --all --title                    # full queue with titles
 tkt review -X "dependabot[bot]"             # hide dependabot PRs
 ```
 
+The output computes, for each PR, **what action you owe it** rather than dumping
+raw review state:
+
+- **Status**
+  - `review` — initial review requested, you have not reviewed yet
+  - `re-review` — new commits were pushed after your last review
+  - `hold` — you requested changes, waiting on the author (no new commits)
+  - `approved` — you approved, no action needed
+- **Wait** — how long the PR has been waiting for action, colour-coded: red
+  above 48h, yellow above 24h, default below 24h.
+- **CI** — `green` / `red` / `pending` / `conflict`.
+- **💬** — count of unresolved review threads.
+
+By default only actionable PRs (`review`, `re-review`) are shown; `--all`
+includes `hold` and `approved`.
+
 ## `tkt board`
 
 Manage a GitHub Project board used to track development workflow.
@@ -185,6 +202,12 @@ tkt board status --json                     # machine-readable status
 tkt board add-item octocat/hello-world#42   # add an item
 ```
 
+Boards auto-organise items into workflow columns based on their state
+(Icebox → Backlog → Agent Coding → Human Review → Agent Refinement →
+Final Review → Approved → Done / Closed). For the full board reference —
+scopes, column assignment rules, YAML configuration, macros, gist sync, and
+config/cache locations — see **[doc/board.md](board.md)**.
+
 ## `tkt repo`
 
 Manage the repositories tracked by a board.
@@ -202,6 +225,71 @@ tkt repo list --all                         # repos across all boards
 ```
 
 ---
+
+## History strings
+
+The most token-dense feature of `tkt`: instead of a verbose timeline, every
+issue and PR row carries a compact **history string** that encodes its whole
+lifecycle as one character per event. An entire review-and-merge cycle fits in a
+handful of characters (e.g. a PR history of `oRfAM`).
+
+Two conventions apply to every history string:
+
+- **Case = who acted.** Lowercase = the reference user (you, or whoever
+  `--reviewer`/`--author` selects); UPPERCASE = someone else.
+- **Consecutive duplicates collapse.** Ten review comments in a row render as a
+  single `C`, so the string stays short and skimmable.
+
+### PR history characters
+
+Used by `tkt pr list` and `tkt review`.
+
+| Char | Meaning |
+| --- | --- |
+| `o` | Opened |
+| `h` | Review requested |
+| `r` | Changes requested (a review) |
+| `a` | Approved |
+| `c` | Comment |
+| `f` | Fix — commits pushed after a review (commits before the first review are ignored) |
+| `m` | Merged |
+| `k` | Killed — closed without merging (not shown if merged) |
+
+Example: `oRfAM` = *you* opened the PR, someone requested changes (`R`), *you*
+pushed fixes (`f`), someone approved (`A`), someone merged (`M`).
+
+### Issue history characters
+
+Used by `tkt issue list`.
+
+| Char | Meaning |
+| --- | --- |
+| `o` | Opened |
+| `c` / `C` | Comment (lowercase = you, uppercase = other human) |
+| `B` | Bot comment (always uppercase) |
+| `l` / `L` | Label added (lowercase = you, uppercase = other human or bot) |
+| `a` | Assigned |
+| `x` | Closed |
+| `r` | Reopened |
+| `p` | Linked to an implementing PR |
+
+Examples:
+
+- `oCLx` — opened, another user commented, labelled, then closed.
+- `oclBLx` — opened, you commented and labelled, a bot commented (`B`) and
+  labelled (`L`), then closed.
+- `oCpx` — opened, got a comment, linked to a PR, closed.
+
+### Bot detection
+
+Bot **comments** get the distinct `B` marker (bot labels use `L`, like other
+humans). A username is treated as a bot when it ends in `[bot]` or appears in the
+configurable list under `[issue]` in `~/.tkt/config.toml`. Default recognised
+bots include `github-actions[bot]`, `stale[bot]`, `dependabot[bot]`,
+`renovate[bot]`, `allcontributors[bot]`, `codecov[bot]`, and `sonarcloud[bot]`.
+
+`tkt issue list` also prints a one-line legend beneath the table, so the
+encoding is self-documenting at the terminal.
 
 ## Piping refs from stdin
 
