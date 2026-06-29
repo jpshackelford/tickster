@@ -1,0 +1,690 @@
+"""Board configuration management.
+
+Configuration is stored in ~/.lxa/config.toml under the [board] section.
+
+Multi-board configuration structure:
+    [meta]
+    gist_id = "abc123"  # Cached gist ID for sync
+    last_sync = "2026-03-17T12:00:00Z"
+
+    [board]
+    default = "my-project"  # Name of the default board
+
+    [board.my-project]
+    project_id = "PVT_xxx"
+    project_number = 5
+    username = "user"
+    repos = ["owner/repo1", "owner/repo2"]
+    _updated_at = "2026-03-17T12:00:00Z"  # For sync merge
+
+    [board.another-project]
+    project_id = "PVT_yyy"
+    project_number = 6
+    username = "user"
+    repos = ["owner/repo3"]
+
+    [board._deleted]  # Tombstones for deleted boards
+    old-board = "2026-03-17T12:00:00Z"
+"""
+
+import contextlib
+import io
+import os
+import re
+import tempfile
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore[import-not-found]
+
+import tomli_w
+
+# Default location for user-level config
+LXA_HOME = Path.home() / ".lxa"
+CONFIG_FILE = LXA_HOME / "config.toml"
+CACHE_FILE = LXA_HOME / "board-cache.db"
+
+
+def atomic_write(path: Path, content: bytes) -> None:
+    """Write content to a file atomically using temp file + rename.
+
+    This prevents partial writes and race conditions where concurrent
+    processes might read an incomplete file. The rename operation is
+    atomic on POSIX systems.
+
+    Args:
+        path: Target file path
+        content: Bytes to write
+    """
+    # Ensure parent directory exists
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create temp file in same directory (required for atomic rename)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=".tmp_",
+        suffix=path.suffix,
+    )
+    try:
+        os.write(fd, content)
+        os.close(fd)
+        # Atomic rename on POSIX; on Windows this may fail if target exists
+        # but Windows users are rare for CLI tools
+        os.replace(tmp_path, path)
+    except Exception:
+        # Clean up temp file on failure
+        with contextlib.suppress(OSError):
+            os.close(fd)
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def slugify(name: str) -> str:
+    """Convert a project name to a valid TOML key (slug).
+
+    Args:
+        name: Project name (e.g., "My Project")
+
+    Returns:
+        Slugified name (e.g., "my-project")
+    """
+    # Lowercase and replace spaces/underscores with hyphens
+    slug = name.lower().strip()
+    slug = re.sub(r"[\s_]+", "-", slug)
+    # Remove non-alphanumeric characters except hyphens
+    slug = re.sub(r"[^a-z0-9-]", "", slug)
+    # Remove leading/trailing hyphens and collapse multiple hyphens
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "board"
+
+
+class BoardScope:
+    """Board scope types."""
+
+    USER = "user"
+    PROJECT = "project"
+
+
+@dataclass
+class BoardConfig:
+    """Configuration for a single board."""
+
+    # Board name (used as key in config file)
+    name: str = ""
+
+    # GitHub Project ID (GraphQL node ID like "PVT_xxx")
+    project_id: str | None = None
+
+    # GitHub Project number (for user projects)
+    project_number: int | None = None
+
+    # GitHub username (for notifications/search)
+    username: str | None = None
+
+    # Watched repositories (scoped to this board)
+    repos: list[str] = field(default_factory=list)
+
+    # Default scan lookback in days
+    scan_lookback_days: int = 90
+
+    # Agent username pattern (for detecting agent assignments)
+    agent_username_pattern: str = "openhands"
+
+    # Custom column name mappings (optional overrides)
+    column_names: dict[str, str] = field(default_factory=dict)
+
+    # Sync metadata: when this board config was last updated
+    updated_at: datetime | None = None
+
+    # Board scope: "user" (default, current behavior) or "project"
+    scope: str = BoardScope.USER
+
+    # The anchor item that defines the project (for project-scoped boards)
+    # URL to a GitHub issue/PR that serves as the project overview
+    overview_item: str | None = None
+
+    # Human-readable project mission (for agent context and smart scanning)
+    mission: str | None = None
+
+    def touch(self) -> None:
+        """Update the updated_at timestamp to now."""
+        self.updated_at = datetime.now(tz=UTC)
+
+    @property
+    def is_project_scoped(self) -> bool:
+        """Check if this is a project-scoped board."""
+        return self.scope == BoardScope.PROJECT
+
+    def get_column_name(self, column_key: str) -> str:
+        """Get the column name, using custom mapping if set."""
+        from src.board.models import (
+            COLUMN_AGENT_CODING,
+            COLUMN_AGENT_REFINEMENT,
+            COLUMN_APPROVED,
+            COLUMN_BACKLOG,
+            COLUMN_CLOSED,
+            COLUMN_DONE,
+            COLUMN_FINAL_REVIEW,
+            COLUMN_HUMAN_REVIEW,
+            COLUMN_ICEBOX,
+            COLUMN_TRIAGE,
+        )
+
+        # Use custom mapping if provided
+        if column_key in self.column_names:
+            return self.column_names[column_key]
+
+        # Default mapping
+        defaults = {
+            "triage": COLUMN_TRIAGE,
+            "icebox": COLUMN_ICEBOX,
+            "backlog": COLUMN_BACKLOG,
+            "agent_coding": COLUMN_AGENT_CODING,
+            "human_review": COLUMN_HUMAN_REVIEW,
+            "agent_refinement": COLUMN_AGENT_REFINEMENT,
+            "final_review": COLUMN_FINAL_REVIEW,
+            "approved": COLUMN_APPROVED,
+            "done": COLUMN_DONE,
+            "closed": COLUMN_CLOSED,
+        }
+        return defaults.get(column_key, column_key)
+
+    # Legacy compatibility - alias repos as watched_repos
+    @property
+    def watched_repos(self) -> list[str]:
+        """Alias for repos (legacy compatibility)."""
+        return self.repos
+
+    @watched_repos.setter
+    def watched_repos(self, value: list[str]) -> None:
+        """Alias for repos (legacy compatibility)."""
+        self.repos = value
+
+
+@dataclass
+class BoardsConfig:
+    """Configuration for all boards."""
+
+    # Name of the default board
+    default: str | None = None
+
+    # All board configurations, keyed by name
+    boards: dict[str, BoardConfig] = field(default_factory=dict)
+
+    # Sync metadata
+    gist_id: str | None = None  # Cached gist ID for sync
+    last_sync: datetime | None = None  # When we last synced with gist
+
+    # Tombstones for deleted boards (board_name -> deleted_at timestamp)
+    deleted: dict[str, datetime] = field(default_factory=dict)
+
+    def get_board(self, name: str | None = None) -> BoardConfig | None:
+        """Get a board by name, or the default board.
+
+        Args:
+            name: Board name, or None to get the default
+
+        Returns:
+            BoardConfig or None if not found
+        """
+        if name:
+            return self.boards.get(name)
+        if self.default:
+            return self.boards.get(self.default)
+        return None
+
+    def get_default_board(self) -> BoardConfig | None:
+        """Get the default board."""
+        return self.get_board(None)
+
+    def list_boards(self) -> list[str]:
+        """List all board names."""
+        return list(self.boards.keys())
+
+    def set_default(self, name: str) -> bool:
+        """Set the default board.
+
+        Args:
+            name: Board name
+
+        Returns:
+            True if set, False if board doesn't exist
+        """
+        if name not in self.boards:
+            return False
+        self.default = name
+        return True
+
+    def delete_board(self, name: str) -> bool:
+        """Delete a board and record tombstone for sync.
+
+        Args:
+            name: Board name to delete
+
+        Returns:
+            True if deleted, False if not found
+        """
+        if name not in self.boards:
+            return False
+
+        del self.boards[name]
+        self.deleted[name] = datetime.now(tz=UTC)
+
+        # Update default if we deleted it
+        if self.default == name:
+            self.default = next(iter(self.boards), None)
+
+        return True
+
+    def cleanup_old_tombstones(self, max_age_days: int = 90) -> int:
+        """Remove tombstones older than max_age_days.
+
+        Args:
+            max_age_days: Maximum age of tombstones to keep
+
+        Returns:
+            Number of tombstones removed
+        """
+        cutoff = datetime.now(tz=UTC) - __import__("datetime").timedelta(days=max_age_days)
+        old_tombstones = [name for name, ts in self.deleted.items() if ts < cutoff]
+        for name in old_tombstones:
+            del self.deleted[name]
+        return len(old_tombstones)
+
+
+def ensure_lxa_home() -> Path:
+    """Ensure ~/.lxa directory exists."""
+    LXA_HOME.mkdir(parents=True, exist_ok=True)
+    return LXA_HOME
+
+
+def _load_raw_config() -> dict:
+    """Load raw config data from file."""
+    if not CONFIG_FILE.exists():
+        return {}
+    with open(CONFIG_FILE, "rb") as f:
+        return tomllib.load(f)
+
+
+def _is_legacy_config(board_data: dict) -> bool:
+    """Check if config is in legacy single-board format."""
+    # Legacy format has project_id directly under [board]
+    # New format has named boards as sub-tables
+    return "project_id" in board_data or "project_number" in board_data
+
+
+def _migrate_legacy_config(board_data: dict) -> dict:
+    """Migrate legacy single-board config to multi-board format.
+
+    Args:
+        board_data: Legacy [board] section data
+
+    Returns:
+        New format data with boards dict
+    """
+    # Extract legacy fields
+    repos_data = board_data.get("repos", {})
+    columns_data = board_data.get("columns", {})
+
+    # Create a board entry from legacy data
+    # Use "main" as the board name to avoid collision with "default" key
+    board_name = "main"
+    board_entry = {
+        "project_id": board_data.get("project_id"),
+        "project_number": board_data.get("project_number"),
+        "username": board_data.get("username"),
+        "repos": repos_data.get("watched", []),
+    }
+
+    # Include non-default settings
+    if board_data.get("scan_lookback_days", 90) != 90:
+        board_entry["scan_lookback_days"] = board_data["scan_lookback_days"]
+    if board_data.get("agent_username_pattern", "openhands") != "openhands":
+        board_entry["agent_username_pattern"] = board_data["agent_username_pattern"]
+    if columns_data:
+        board_entry["columns"] = columns_data
+
+    # Remove None values
+    board_entry = {k: v for k, v in board_entry.items() if v is not None}
+
+    return {
+        "default": board_name,
+        board_name: board_entry,
+    }
+
+
+def _parse_datetime(value: str | None) -> datetime | None:
+    """Parse an ISO format datetime string."""
+    if not value:
+        return None
+    try:
+        # Handle both with and without timezone
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        return datetime.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _format_datetime(dt: datetime | None) -> str | None:
+    """Format a datetime as ISO string for TOML."""
+    if not dt:
+        return None
+    return dt.isoformat()
+
+
+def load_boards_config() -> BoardsConfig:
+    """Load all board configurations from ~/.lxa/config.toml.
+
+    Handles migration from legacy single-board format.
+
+    Returns:
+        BoardsConfig with all boards
+    """
+    data = _load_raw_config()
+    board_data = data.get("board", {})
+    meta_data = data.get("meta", {})
+
+    if not board_data:
+        return BoardsConfig(
+            gist_id=meta_data.get("gist_id"),
+            last_sync=_parse_datetime(meta_data.get("last_sync")),
+        )
+
+    # Check for and migrate legacy format
+    if _is_legacy_config(board_data):
+        board_data = _migrate_legacy_config(board_data)
+
+    # Parse multi-board format
+    default_name = board_data.get("default")
+    boards: dict[str, BoardConfig] = {}
+
+    # Parse tombstones
+    deleted_data = board_data.get("_deleted", {})
+    deleted: dict[str, datetime] = {}
+    for name, ts_str in deleted_data.items():
+        ts = _parse_datetime(ts_str)
+        if ts:
+            deleted[name] = ts
+
+    for key, value in board_data.items():
+        if key in ("default", "_deleted"):
+            continue
+        if isinstance(value, dict):
+            boards[key] = BoardConfig(
+                name=key,
+                project_id=value.get("project_id"),
+                project_number=value.get("project_number"),
+                username=value.get("username"),
+                repos=value.get("repos", []),
+                scan_lookback_days=value.get("scan_lookback_days", 90),
+                agent_username_pattern=value.get("agent_username_pattern", "openhands"),
+                column_names=value.get("columns", {}),
+                updated_at=_parse_datetime(value.get("_updated_at")),
+                scope=value.get("scope", BoardScope.USER),
+                overview_item=value.get("overview_item"),
+                mission=value.get("mission"),
+            )
+
+    return BoardsConfig(
+        default=default_name,
+        boards=boards,
+        gist_id=meta_data.get("gist_id"),
+        last_sync=_parse_datetime(meta_data.get("last_sync")),
+        deleted=deleted,
+    )
+
+
+def load_board_config(board_name: str | None = None) -> BoardConfig:
+    """Load a single board configuration.
+
+    Args:
+        board_name: Name of board to load, or None for default
+
+    Returns:
+        BoardConfig (may be empty if board not found)
+    """
+    boards = load_boards_config()
+    board = boards.get_board(board_name)
+    return board if board else BoardConfig()
+
+
+def save_boards_config(config: BoardsConfig) -> None:
+    """Save all board configurations to ~/.lxa/config.toml.
+
+    Preserves other sections in the config file.
+    Uses atomic write to prevent partial writes.
+    """
+    ensure_lxa_home()
+
+    # Load existing config to preserve other sections
+    existing_data = _load_raw_config()
+
+    # Build meta section for sync data
+    meta_data: dict = existing_data.get("meta", {})
+    if config.gist_id:
+        meta_data["gist_id"] = config.gist_id
+    elif "gist_id" in meta_data:
+        del meta_data["gist_id"]
+
+    if config.last_sync:
+        meta_data["last_sync"] = _format_datetime(config.last_sync)
+    elif "last_sync" in meta_data:
+        del meta_data["last_sync"]
+
+    if meta_data:
+        existing_data["meta"] = meta_data
+    elif "meta" in existing_data:
+        del existing_data["meta"]
+
+    # Build board section
+    board_data: dict = {}
+
+    if config.default:
+        board_data["default"] = config.default
+
+    for name, board in config.boards.items():
+        entry: dict = {}
+
+        if board.project_id:
+            entry["project_id"] = board.project_id
+        if board.project_number:
+            entry["project_number"] = board.project_number
+        if board.username:
+            entry["username"] = board.username
+        if board.repos:
+            entry["repos"] = board.repos
+        if board.scan_lookback_days != 90:
+            entry["scan_lookback_days"] = board.scan_lookback_days
+        if board.agent_username_pattern != "openhands":
+            entry["agent_username_pattern"] = board.agent_username_pattern
+        if board.column_names:
+            entry["columns"] = board.column_names
+        if board.updated_at:
+            entry["_updated_at"] = _format_datetime(board.updated_at)
+        if board.scope != BoardScope.USER:
+            entry["scope"] = board.scope
+        if board.overview_item:
+            entry["overview_item"] = board.overview_item
+        if board.mission:
+            entry["mission"] = board.mission
+
+        board_data[name] = entry
+
+    # Add tombstones for deleted boards
+    if config.deleted:
+        deleted_data = {name: _format_datetime(ts) for name, ts in config.deleted.items()}
+        board_data["_deleted"] = deleted_data
+
+    # Update existing data
+    existing_data["board"] = board_data
+
+    # Write atomically to prevent partial writes
+    buffer = io.BytesIO()
+    tomli_w.dump(existing_data, buffer)
+    atomic_write(CONFIG_FILE, buffer.getvalue())
+
+
+def save_board_config(config: BoardConfig, board_name: str | None = None) -> None:
+    """Save a single board configuration.
+
+    Args:
+        config: Board configuration to save
+        board_name: Name to save as (uses config.name if not provided)
+    """
+    name = board_name or config.name
+    if not name:
+        raise ValueError("Board name is required")
+
+    boards = load_boards_config()
+    config.name = name
+    config.touch()  # Update timestamp for sync
+    boards.boards[name] = config
+
+    # Set as default if it's the first board
+    if not boards.default:
+        boards.default = name
+
+    save_boards_config(boards)
+
+
+def add_watched_repo(repo: str, board_name: str | None = None) -> bool:
+    """Add a repository to a board's watch list.
+
+    Args:
+        repo: Repository in "owner/repo" format
+        board_name: Board name, or None for default
+
+    Returns:
+        True if added, False if already present
+    """
+    boards = load_boards_config()
+    board = boards.get_board(board_name)
+
+    if not board:
+        return False
+
+    if repo in board.repos:
+        return False
+
+    board.repos.append(repo)
+    board.touch()
+    save_boards_config(boards)
+    return True
+
+
+def remove_watched_repo(repo: str, board_name: str | None = None) -> bool:
+    """Remove a repository from a board's watch list.
+
+    Args:
+        repo: Repository in "owner/repo" format
+        board_name: Board name, or None for default
+
+    Returns:
+        True if removed, False if not present
+    """
+    boards = load_boards_config()
+    board = boards.get_board(board_name)
+
+    if not board:
+        return False
+
+    if repo not in board.repos:
+        return False
+
+    board.repos.remove(repo)
+    board.touch()
+    save_boards_config(boards)
+    return True
+
+
+def set_default_board(board_name: str) -> bool:
+    """Set the default board.
+
+    Args:
+        board_name: Name of board to set as default
+
+    Returns:
+        True if set, False if board doesn't exist
+    """
+    boards = load_boards_config()
+    if not boards.set_default(board_name):
+        return False
+    save_boards_config(boards)
+    return True
+
+
+def list_boards() -> list[tuple[str, bool]]:
+    """List all boards with their default status.
+
+    Returns:
+        List of (board_name, is_default) tuples
+    """
+    boards = load_boards_config()
+    return [(name, name == boards.default) for name in boards.list_boards()]
+
+
+def rename_board(old_name: str, new_name: str) -> bool:
+    """Rename a board.
+
+    Args:
+        old_name: Current board name
+        new_name: New board name
+
+    Returns:
+        True if renamed, False if old_name not found or new_name exists
+    """
+    boards = load_boards_config()
+
+    if old_name not in boards.boards:
+        return False
+
+    if new_name in boards.boards:
+        return False
+
+    # Get the board and update its name
+    board = boards.boards.pop(old_name)
+    board.name = new_name
+    boards.boards[new_name] = board
+
+    # Update default if needed
+    if boards.default == old_name:
+        boards.default = new_name
+
+    save_boards_config(boards)
+    return True
+
+
+def delete_board(name: str) -> tuple[bool, str | None]:
+    """Delete a board.
+
+    Args:
+        name: Board name to delete
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    boards = load_boards_config()
+
+    if name not in boards.boards:
+        return False, f"Board '{name}' not found"
+
+    # Don't allow deleting the last board? Or allow it?
+    # For now, allow deleting any board
+
+    del boards.boards[name]
+
+    # If we deleted the default, pick a new default
+    if boards.default == name:
+        if boards.boards:
+            boards.default = next(iter(boards.boards.keys()))
+        else:
+            boards.default = None
+
+    save_boards_config(boards)
+    return True, None
