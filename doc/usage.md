@@ -19,11 +19,23 @@ compact and structured so it is cheap to feed to an LLM agent.
 
 ## Install
 
+Tickster is managed with [uv](https://docs.astral.sh/uv/). Python 3.12+ is
+required (uv fetches a suitable interpreter automatically).
+
+Install the `tkt` command globally as a uv tool:
+
 ```bash
-pip install -e ".[dev]"     # from a checkout
+uv tool install git+https://github.com/jpshackelford/tickster
+# or, from a local checkout:
+uv tool install .
 ```
 
-This installs the `tkt` console command. Python 3.12+ is required.
+For development, sync the project environment and run through uv:
+
+```bash
+uv sync --extra dev
+uv run tkt --help
+```
 
 ## Authentication
 

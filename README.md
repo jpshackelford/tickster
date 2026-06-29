@@ -49,11 +49,24 @@ model.
 
 ## Install
 
+Tickster is managed with [uv](https://docs.astral.sh/uv/). Install the `tkt`
+command globally as a uv tool:
+
 ```bash
-pip install -e ".[dev]"
+uv tool install git+https://github.com/jpshackelford/tickster
 ```
 
-This installs the `tkt` command.
+Or from a local checkout:
+
+```bash
+git clone https://github.com/jpshackelford/tickster
+cd tickster
+uv tool install .
+```
+
+This puts `tkt` on your PATH (run `uv tool update-shell` once if your shell
+can't find it yet). Python 3.12+ is required; uv fetches a suitable interpreter
+automatically.
 
 ## Authentication
 
@@ -90,11 +103,11 @@ Documentation:
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-pytest                             # run the test suite
-ruff check src tests               # lint
-ruff format --check src tests      # format check
-basedpyright src                   # type check
+uv sync --extra dev                   # create .venv with dev dependencies
+uv run pytest                         # run the test suite
+uv run ruff check src tests           # lint
+uv run ruff format --check src tests  # format check
+uv run basedpyright src               # type check
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint, format check, type check, and tests
