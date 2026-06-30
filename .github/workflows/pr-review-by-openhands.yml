@@ -12,9 +12,12 @@ permissions:
 
 jobs:
     pr-review:
-        # Skip fork PRs (no access to secrets) and draft PRs
+        # Skip fork PRs (no access to secrets), draft PRs, and automated
+        # release-please PRs (auto-generated version/changelog, nothing to review)
         if: |
             github.event.pull_request.head.repo.full_name == github.repository &&
+            github.event.pull_request.user.login != 'github-actions[bot]' &&
+            !startsWith(github.head_ref, 'release-please--') &&
             (
                 (github.event.action == 'opened' && github.event.pull_request.draft == false) ||
                 github.event.action == 'ready_for_review' ||
