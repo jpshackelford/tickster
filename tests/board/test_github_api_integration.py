@@ -493,6 +493,37 @@ class TestGitHubClientGraphQL:
 
             client.close()
 
+    def test_graphql_partial_data_with_errors_returns_data(self):
+        """Partial per-field errors (e.g. FORBIDDEN on a timeline node's
+        requestedReviewer team) should not discard the usable data GitHub
+        returns alongside them."""
+        partial_response = {
+            "data": {"pr0": {"pullRequest": {"number": 1184}}},
+            "errors": [
+                {
+                    "type": "FORBIDDEN",
+                    "message": "Resource not accessible by integration",
+                    "path": [
+                        "pr0",
+                        "pullRequest",
+                        "timelineItems",
+                        "nodes",
+                        5,
+                        "requestedReviewer",
+                    ],
+                }
+            ],
+        }
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(partial_response)
+
+            client = GitHubClient(token="test-token")
+            data = client.graphql("query { pr0 { ... } }")
+
+            assert data["pr0"]["pullRequest"]["number"] == 1184
+            client.close()
+
 
 class TestGitHubClientAuthentication:
     """Test authentication-related functionality."""
