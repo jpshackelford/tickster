@@ -18,6 +18,32 @@ load_dotenv()
 console = Console()
 
 
+def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
+    """Add the shared date-window options to a list subparser."""
+    parser.add_argument(
+        "--since",
+        type=int,
+        metavar="DAYS",
+        help="Only include items within the last N days",
+    )
+    parser.add_argument(
+        "--after",
+        metavar="YYYY-MM-DD",
+        help="Only include items on/after this date (inclusive)",
+    )
+    parser.add_argument(
+        "--before",
+        metavar="YYYY-MM-DD",
+        help="Only include items on/before this date (inclusive)",
+    )
+    parser.add_argument(
+        "--date-field",
+        dest="date_field",
+        choices=["created", "updated", "merged", "closed"],
+        help="Date field to filter on (default: inferred from state)",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the CLI.
 
@@ -449,6 +475,7 @@ Examples:
         action="store_true",
         help="Show weekly merge/age graph (only works with --merged)",
     )
+    _add_date_window_args(pr_list_parser)
 
     # review command - reviewer's view of PR queue
     review_parser = subparsers.add_parser(
@@ -524,6 +551,7 @@ Examples:
         action="store_true",
         help="Show closed (unmerged) PRs you've reviewed",
     )
+    _add_date_window_args(review_parser)
 
     # issue command - issue history visualization
     issue_parser = subparsers.add_parser(
@@ -617,6 +645,7 @@ Examples:
         action="store_true",
         help="Sort by recent activity instead of creation date",
     )
+    _add_date_window_args(issue_list_parser)
 
     # repo command
     repo_parser = subparsers.add_parser(
@@ -833,6 +862,10 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 show_graph=args.show_graph,
+                since_days=args.since,
+                after=args.after,
+                before=args.before,
+                date_field=args.date_field,
             )
 
     # Handle review command
@@ -865,6 +898,10 @@ Examples:
             limit=args.limit,
             show_title=args.show_title,
             states=review_states,
+            since_days=args.since,
+            after=args.after,
+            before=args.before,
+            date_field=args.date_field,
         )
 
     # Handle issue command
@@ -899,6 +936,10 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 sort_by_activity=args.sort_by_activity,
+                since_days=args.since,
+                after=args.after,
+                before=args.before,
+                date_field=args.date_field,
             )
 
     # Handle repo command

@@ -120,3 +120,13 @@ class TestBuildSearchQuery:
         """Test query with label containing space."""
         query = _build_search_query("testuser", None, None, ["help wanted"])
         assert 'label:"help wanted"' in query
+
+    def test_with_date_qualifier(self):
+        """Test query includes the date qualifier when provided."""
+        query = _build_search_query("testuser", None, ["closed"], None, "closed:>=2026-08-01")
+        assert "closed:>=2026-08-01" in query
+
+    def test_without_date_qualifier(self):
+        """Test query has no stray date qualifier when omitted."""
+        query = _build_search_query("testuser", None, None, None)
+        assert ":>=" not in query

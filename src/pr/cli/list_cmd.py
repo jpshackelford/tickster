@@ -7,6 +7,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.date_window import DateWindowError, build_date_qualifier
 from src.pr.cli.graph import render_merged_graph
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
@@ -26,6 +27,10 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     show_graph: bool = False,
+    since_days: int | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    date_field: str | None = None,
 ) -> int:
     """List PRs with history visualization.
 
@@ -39,6 +44,11 @@ def cmd_list(
         limit: Maximum number of PRs to show
         show_title: Include PR titles in output
         show_graph: Show weekly merge/age graph (only for merged PRs)
+        since_days: Only include PRs within the last N days
+        after: Only include PRs on/after this date (YYYY-MM-DD)
+        before: Only include PRs on/before this date (YYYY-MM-DD)
+        date_field: Search date field to filter on
+            (created/updated/merged/closed)
 
     Returns:
         Exit code (0 for success)
@@ -46,6 +56,18 @@ def cmd_list(
     # Validate graph flag - only works with merged state
     if show_graph and (not states or "merged" not in states):
         console.print("[red]Error:[/] --graph only works with --merged flag")
+        return 1
+
+    try:
+        date_qualifier = build_date_qualifier(
+            states,
+            since_days=since_days,
+            after=after,
+            before=before,
+            date_field=date_field,
+        )
+    except DateWindowError as e:
+        console.print(f"[red]Error:[/] {e}")
         return 1
 
     try:
@@ -57,7 +79,12 @@ def cmd_list(
             elif reviewer:
                 # Use case 2: PRs requesting review
                 target_repos = _get_repos(repos, board_name)
-                result = client.list_prs_for_reviewer(reviewer, repos=target_repos, limit=limit)
+                result = client.list_prs_for_reviewer(
+                    reviewer,
+                    repos=target_repos,
+                    limit=limit,
+                    date_qualifier=date_qualifier,
+                )
             elif author:
                 # Use case 1 & 4: PRs by author
                 target_repos = _get_repos(repos, board_name)
@@ -66,6 +93,7 @@ def cmd_list(
                     repos=target_repos,
                     states=states,
                     limit=limit,
+                    date_qualifier=date_qualifier,
                 )
             else:
                 # Default: current user's PRs from default board's repos
@@ -75,6 +103,7 @@ def cmd_list(
                     repos=target_repos,
                     states=states,
                     limit=limit,
+                    date_qualifier=date_qualifier,
                 )
 
             if not result.prs:
