@@ -6,6 +6,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.date_window import DateWindowError, build_date_qualifier
 from src.pr.models import CIStatus
 from src.review.github_api import ReviewClient
 from src.review.models import ReviewInfo, ReviewStatus
@@ -38,6 +39,10 @@ def cmd_list(
     diff_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
+    since_days: int | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    date_field: str | None = None,
 ) -> int:
     """List PRs needing review with status visualization.
 
@@ -51,10 +56,27 @@ def cmd_list(
         limit: Maximum number of PRs to show
         show_title: Include PR titles in output
         states: List of states to include ("open", "merged", "closed")
+        since_days: Only include PRs within the last N days
+        after: Only include PRs on/after this date (YYYY-MM-DD)
+        before: Only include PRs on/before this date (YYYY-MM-DD)
+        date_field: Search date field to filter on
+            (created/updated/merged/closed)
 
     Returns:
         Exit code (0 for success)
     """
+    try:
+        date_qualifier = build_date_qualifier(
+            states,
+            since_days=since_days,
+            after=after,
+            before=before,
+            date_field=date_field,
+        )
+    except DateWindowError as e:
+        console.print(f"[red]Error:[/] {e}")
+        return 1
+
     try:
         with ReviewClient() as client:
             # Resolve reviewer to actual username (needed for legend)
@@ -71,6 +93,7 @@ def cmd_list(
                 limit=limit,
                 include_all=all_reviews,
                 states=states,
+                date_qualifier=date_qualifier,
             )
 
             # Determine whose queue we're showing for user-facing messages

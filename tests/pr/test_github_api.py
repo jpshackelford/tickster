@@ -181,6 +181,58 @@ class TestListPRsByAuthor:
             assert "author:currentuser" in query_vars["query"]
 
 
+class TestDateQualifier:
+    """Tests that date qualifiers are injected into the search query."""
+
+    def _client_with_empty_response(self):
+        mock_client = MagicMock()
+        mock_client.graphql.return_value = {
+            "search": {
+                "issueCount": 0,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                "nodes": [],
+            }
+        }
+        return mock_client
+
+    def test_author_query_includes_date_qualifier(self):
+        with (
+            patch("src.pr.github_api.get_github_token", return_value="test-token"),
+            patch("src.pr.github_api.GitHubClient") as mock_client_class,
+            patch("src.pr.github_api.get_github_username", return_value="currentuser"),
+        ):
+            mock_client = self._client_with_empty_response()
+            mock_client_class.return_value = mock_client
+
+            client = PRClient(token="test-token")
+            client.list_prs_by_author(
+                "ak684",
+                states=["merged"],
+                date_qualifier="merged:>=2026-08-25",
+            )
+
+            query = mock_client.graphql.call_args[0][1]["query"]
+            assert "merged:>=2026-08-25" in query
+            assert "author:ak684" in query
+
+    def test_reviewer_query_includes_date_qualifier(self):
+        with (
+            patch("src.pr.github_api.get_github_token", return_value="test-token"),
+            patch("src.pr.github_api.GitHubClient") as mock_client_class,
+        ):
+            mock_client = self._client_with_empty_response()
+            mock_client_class.return_value = mock_client
+
+            client = PRClient(token="test-token")
+            client.list_prs_for_reviewer(
+                "bob",
+                date_qualifier="updated:>=2026-08-25",
+            )
+
+            query = mock_client.graphql.call_args[0][1]["query"]
+            assert "updated:>=2026-08-25" in query
+
+
 class TestGetPRsByRef:
     """Tests for getting PRs by reference."""
 

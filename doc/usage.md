@@ -15,6 +15,7 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt repo`](#tkt-repo)
 - [`tkt snapshot`](#tkt-snapshot)
 - [Snapshots & diffs](#snapshots--diffs)
+- [Date-window filtering](#date-window-filtering)
 - [History strings](#history-strings)
 - [Piping refs from stdin](#piping-refs-from-stdin)
 - [Environment variables](#environment-variables)
@@ -109,16 +110,24 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max issues to show (default: 100) |
 | `--title, -t` | Show issue titles |
 | `--activity, -s` | Sort by recent activity instead of creation date |
+| `--since DAYS` | Only issues within the last N days |
+| `--after YYYY-MM-DD` | Only issues on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only issues on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt issue list                              # your open issues
 tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
+tkt issue list --since 14                    # issues touched in the last 2 weeks
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 ## `tkt pr`
 
@@ -142,15 +151,23 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max PRs to show (default: 100) |
 | `--title, -t` | Show PR titles |
 | `--graph, -g` | Weekly merge/age graph (use with `--merged`) |
+| `--since DAYS` | Only PRs within the last N days |
+| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
+tkt pr list --author ak684 --merged --since 14   # merged in the last 2 weeks
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 ### `tkt pr checks`
 
@@ -236,12 +253,20 @@ tkt review [options]
 | `--title, -t` | Show PR titles |
 | `--merged, -M` | Show merged PRs you've reviewed |
 | `--closed, -C` | Show closed (unmerged) PRs you've reviewed |
+| `--since DAYS` | Only PRs within the last N days |
+| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt review                                  # your actionable review queue
 tkt review --all --title                    # full queue with titles
 tkt review -X "dependabot[bot]"             # hide dependabot PRs
+tkt review --merged --since 7               # PRs you reviewed that merged this week
 ```
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 The output computes, for each PR, **what action you owe it** rather than dumping
 raw review state:
@@ -435,6 +460,42 @@ if you want to share. Overwriting an existing name is atomic.
 tkt pr list    --board oh --watch hourly
 tkt issue list --board oh --watch hourly
 tkt review                 --watch hourly
+```
+
+---
+
+## Date-window filtering
+
+`tkt issue list`, `tkt pr list`, and `tkt review` accept a shared set of options
+to restrict results to a recent time window. They translate directly into the
+GitHub search date qualifiers (`created:`, `updated:`, `merged:`, `closed:`), so
+you no longer have to run a separate GitHub search and pipe refs back in.
+
+| Option | Description |
+| --- | --- |
+| `--since DAYS` | Relative window: items within the last N days |
+| `--after YYYY-MM-DD` | Absolute lower bound (inclusive) |
+| `--before YYYY-MM-DD` | Absolute upper bound (inclusive) |
+| `--date-field FIELD` | Which date to filter on: `created`, `updated`, `merged`, `closed` |
+
+Semantics:
+
+- `--since N` is shorthand for `--after <today minus N days>` and mirrors the
+  `--since` flag already used by `tkt board scan`.
+- `--after` and `--before` may be combined to express a closed interval; using
+  both renders as `field:AFTER..BEFORE`.
+- `--since` cannot be combined with `--after`/`--before`.
+- **Date field selection.** If `--date-field` is not given, the field is
+  inferred from the state being queried: a `--merged`-only listing filters on
+  `merged:`, a `--closed`-only listing on `closed:`, and everything else on
+  `updated:`. Pass `--date-field` to override (for example, filter merged PRs by
+  when they were `created`).
+
+```bash
+tkt pr list --author ak684 --merged --since 14        # merged in the last 2 weeks
+tkt issue list --after 2026-08-01 --before 2026-08-31 # opened/updated in August
+tkt pr list --merged --date-field created --since 30  # merged, created in last 30d
+tkt review --merged --since 7                         # reviewed & merged this week
 ```
 
 ---

@@ -7,6 +7,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.date_window import DateWindowError, build_date_qualifier
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
 from src.snapshot.convert import snapshot_from_issues
@@ -34,6 +35,10 @@ def cmd_list(
     diff_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
+    since_days: int | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    date_field: str | None = None,
 ) -> int:
     """List issues with history visualization.
 
@@ -47,10 +52,26 @@ def cmd_list(
         limit: Maximum number of issues to show
         show_title: Include issue titles in output
         sort_by_activity: Sort by recent activity instead of creation date
+        since_days: Only include issues within the last N days
+        after: Only include issues on/after this date (YYYY-MM-DD)
+        before: Only include issues on/before this date (YYYY-MM-DD)
+        date_field: Search date field to filter on (created/updated/closed)
 
     Returns:
         Exit code (0 for success)
     """
+    try:
+        date_qualifier = build_date_qualifier(
+            states,
+            since_days=since_days,
+            after=after,
+            before=before,
+            date_field=date_field,
+        )
+    except DateWindowError as e:
+        console.print(f"[red]Error:[/] {e}")
+        return 1
+
     try:
         with IssueClient() as client:
             target_repos = None if issue_refs else _get_repos(repos, board_name)
@@ -68,6 +89,7 @@ def cmd_list(
                     labels=labels,
                     limit=limit,
                     sort_by_activity=sort_by_activity,
+                    date_qualifier=date_qualifier,
                 )
 
             plan = SnapshotPlan.from_args(
