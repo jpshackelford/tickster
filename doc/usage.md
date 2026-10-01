@@ -107,6 +107,9 @@ tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
 ```
 
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
+
 ## `tkt pr`
 
 List pull requests with a compact history visualization. Accepts PR refs as
@@ -135,6 +138,9 @@ tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
 ```
+
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
 
 ## `tkt review`
 
@@ -179,6 +185,9 @@ raw review state:
 
 By default only actionable PRs (`review`, `re-review`) are shown; `--all`
 includes `hold` and `approved`.
+
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
 
 ## `tkt board`
 
