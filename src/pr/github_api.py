@@ -61,10 +61,6 @@ fragment PRFields on PullRequest {
             }
             ... on ReviewRequestedEvent {
                 createdAt
-                requestedReviewer {
-                    ... on User { login }
-                    ... on Team { name }
-                }
                 actor { login }
             }
             ... on ClosedEvent {
