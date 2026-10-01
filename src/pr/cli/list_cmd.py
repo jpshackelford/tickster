@@ -10,6 +10,9 @@ from rich.table import Table
 from src.pr.cli.graph import render_merged_graph
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
+from src.snapshot.convert import snapshot_from_prs
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_PR, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -26,6 +29,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     show_graph: bool = False,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_all: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List PRs with history visualization.
 
@@ -79,6 +88,38 @@ def cmd_list(
 
             if not result.prs:
                 console.print("[dim]No PRs found.[/]")
+                return 0
+
+            plan = SnapshotPlan.from_args(
+                kind=KIND_PR,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_all=diff_show_all,
+                force=diff_force,
+            )
+
+            if plan is not None:
+                scope = SnapshotScope(
+                    board=board_name,
+                    author=author,
+                    reviewer=reviewer,
+                    repos=tuple(repos) if repos else None,
+                    states=tuple(states) if states else None,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_prs(result.prs, scope=scope, name=save_name)
+
+                if plan.wants_diff:
+                    rc = plan.render_diff(curr_snapshot, console)
+                    if plan.wants_save:
+                        plan.save(curr_snapshot)
+                    return rc
+                # --snapshot only: print normal table then persist.
+                _print_pr_table(result.prs, show_title=show_title)
+                plan.save(curr_snapshot)
                 return 0
 
             # Show graph above table if requested

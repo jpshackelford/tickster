@@ -9,6 +9,9 @@ from rich.table import Table
 
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
+from src.snapshot.convert import snapshot_from_issues
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_ISSUE, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -25,6 +28,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     sort_by_activity: bool = False,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_all: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List issues with history visualization.
 
@@ -63,6 +72,35 @@ def cmd_list(
 
             if not result.issues:
                 console.print("[dim]No issues found.[/]")
+                return 0
+
+            plan = SnapshotPlan.from_args(
+                kind=KIND_ISSUE,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_all=diff_show_all,
+                force=diff_force,
+            )
+            if plan is not None:
+                scope = SnapshotScope(
+                    board=board_name,
+                    author=author,
+                    repos=tuple(repos) if repos else None,
+                    states=tuple(states) if states else None,
+                    labels=tuple(labels) if labels else None,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_issues(result.issues, scope=scope, name=save_name)
+                if plan.wants_diff:
+                    rc = plan.render_diff(curr_snapshot, console)
+                    if plan.wants_save:
+                        plan.save(curr_snapshot)
+                    return rc
+                _print_issue_table(result.issues, show_title=show_title)
+                plan.save(curr_snapshot)
                 return 0
 
             _print_issue_table(result.issues, show_title=show_title)

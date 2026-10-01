@@ -9,6 +9,9 @@ from rich.table import Table
 from src.pr.models import CIStatus
 from src.review.github_api import ReviewClient
 from src.review.models import ReviewInfo, ReviewStatus
+from src.snapshot.convert import snapshot_from_reviews
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_REVIEW, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -29,6 +32,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     states: list[str] | None = None,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_all: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List PRs needing review with status visualization.
 
@@ -81,6 +90,39 @@ def cmd_list(
                     console.print(f"[dim]No PRs found in {target_possessive} review queue.[/]")
                 else:
                     console.print(f"[dim]No PRs needing {target_possessive} review.[/]")
+                return 0
+
+            plan = SnapshotPlan.from_args(
+                kind=KIND_REVIEW,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_all=diff_show_all,
+                force=diff_force,
+            )
+            if plan is not None:
+                scope = SnapshotScope(
+                    board=board_name,
+                    author=author,
+                    reviewer=reviewer,
+                    repos=tuple(repos) if repos else None,
+                    states=tuple(states) if states else None,
+                    exclude_authors=(tuple(exclude_authors) if exclude_authors else None),
+                    include_all=all_reviews,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_reviews(result.reviews, scope=scope, name=save_name)
+                if plan.wants_diff:
+                    rc = plan.render_diff(curr_snapshot, console)
+                    if plan.wants_save:
+                        plan.save(curr_snapshot)
+                    return rc
+                _print_review_table(
+                    result.reviews, reviewer=resolved_reviewer, show_title=show_title
+                )
+                plan.save(curr_snapshot)
                 return 0
 
             _print_review_table(result.reviews, reviewer=resolved_reviewer, show_title=show_title)

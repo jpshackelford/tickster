@@ -86,11 +86,29 @@ tkt pr list                        # list open pull requests
 tkt review                         # list PRs awaiting your review
 tkt board status                   # show project board status
 tkt repo add owner/name            # track a repo on a board
+tkt snapshot list                  # list stored query snapshots
 tkt --version
 ```
 
 Run `tkt <command> --help` for the full set of options on each subcommand
-(`issue`, `pr`, `review`, `board`, `repo`).
+(`issue`, `pr`, `review`, `board`, `repo`, `snapshot`).
+
+## What changed since last run?
+
+For agents (or humans) polling on a schedule, `tkt` can snapshot a query's
+result and diff a later run against it. The output stays the same dense
+table — new rows are marked `+`, changed rows `*`, vanished rows `-`, and
+only the characters appended to each history string since the previous
+snapshot are `[bracketed]`. See
+[doc/usage.md#snapshots--diffs](doc/usage.md#snapshots--diffs) for the full
+reference.
+
+```bash
+# hourly cron: diff against last hour, then overwrite "hourly"
+tkt pr list    --board oh --watch hourly
+tkt issue list --board oh --watch hourly
+tkt review                 --watch hourly
+```
 
 Documentation:
 
