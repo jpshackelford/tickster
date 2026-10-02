@@ -173,9 +173,7 @@ def _render_history(history: str, d: ItemDelta) -> str:
     # Unreachable: diff.diff_snapshots either returns tail == "" (no growth)
     # or tail that is a suffix of curr.history. Raise rather than silently
     # drop the user-requested bracketing.
-    raise AssertionError(
-        f"new_history_tail {tail!r} is not a suffix of history {history!r}"
-    )
+    raise AssertionError(f"new_history_tail {tail!r} is not a suffix of history {history!r}")
 
 
 def _render_field(value: str, changed: bool) -> str:
