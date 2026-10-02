@@ -493,6 +493,88 @@ class TestGitHubClientGraphQL:
 
             client.close()
 
+    def test_graphql_errors_without_data_key_raises(self):
+        error_response = {"errors": [{"message": "Rate limited"}]}
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(error_response)
+
+            client = GitHubClient(token="test-token")
+            with pytest.raises(RuntimeError, match="Rate limited"):
+                client.graphql("query { viewer { login } }")
+
+            client.close()
+
+    def test_graphql_partial_data_warns_and_returns_data(self, caplog):
+        partial_response = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "number": 9,
+                        "timelineItems": {"nodes": [{"requestedReviewer": None}]},
+                    }
+                }
+            },
+            "errors": [
+                {
+                    "type": "FORBIDDEN",
+                    "path": [
+                        "repository",
+                        "pullRequest",
+                        "timelineItems",
+                        "nodes",
+                        0,
+                        "requestedReviewer",
+                    ],
+                    "message": "Resource not accessible by integration",
+                }
+            ],
+        }
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(partial_response)
+
+            client = GitHubClient(token="test-token")
+            with caplog.at_level("WARNING", logger="src.board.github_api"):
+                data = client.graphql("query { ... }")
+            client.close()
+
+        assert data == partial_response["data"]
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 1
+        message = warnings[0].getMessage()
+        assert "FORBIDDEN" in message
+        assert "repository.pullRequest.timelineItems.nodes.0.requestedReviewer" in message
+        assert "Resource not accessible by integration" in message
+
+    _USER_NOT_FOUND = {
+        "data": {"user": None},
+        "errors": [
+            {
+                "type": "NOT_FOUND",
+                "path": ["user"],
+                "message": "Could not resolve to a User with the login of 'ghost-user'.",
+            }
+        ],
+    }
+
+    def test_get_user_project_returns_none_for_unknown_user(self):
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(self._USER_NOT_FOUND)
+
+            client = GitHubClient(token="test-token")
+            assert client.get_user_project("ghost-user", 1) is None
+            client.close()
+
+    def test_get_user_id_raises_for_unknown_user(self):
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(self._USER_NOT_FOUND)
+
+            client = GitHubClient(token="test-token")
+            with pytest.raises(RuntimeError, match="GitHub user not found: ghost-user"):
+                client.get_user_id("ghost-user")
+            client.close()
+
 
 class TestGitHubClientAuthentication:
     """Test authentication-related functionality."""
