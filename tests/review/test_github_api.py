@@ -43,7 +43,6 @@ class TestProcessPrForReviewer:
                     "__typename": "ReviewRequestedEvent",
                     "createdAt": "2024-01-01T12:00:00Z",
                     "actor": {"login": "alice"},
-                    "requestedReviewer": {"login": "bob"},
                 },
             ]
         )
@@ -134,7 +133,6 @@ class TestProcessPrForReviewer:
                     "__typename": "ReviewRequestedEvent",
                     "createdAt": "2024-01-01T12:00:00Z",
                     "actor": {"login": "alice"},
-                    "requestedReviewer": {"login": "bob"},
                 },
                 {
                     "__typename": "PullRequestReview",
@@ -167,7 +165,6 @@ class TestProcessPrForReviewer:
                     "__typename": "ReviewRequestedEvent",
                     "createdAt": "2024-01-01T12:00:00Z",
                     "actor": {"login": "alice"},
-                    "requestedReviewer": {"login": "bob"},
                 },
                 {
                     "__typename": "PullRequestReview",
@@ -213,7 +210,6 @@ class TestProcessPrForReviewer:
                     "__typename": "ReviewRequestedEvent",
                     "createdAt": "2024-01-01T12:00:00Z",
                     "actor": {"login": "alice"},
-                    "requestedReviewer": {"login": "bob"},
                 },
                 {
                     "__typename": "PullRequestReview",

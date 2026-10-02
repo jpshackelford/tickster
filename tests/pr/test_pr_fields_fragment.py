@@ -1,46 +1,52 @@
 """Regression tests for the GraphQL PR_FIELDS_FRAGMENT.
 
-Context: tkt's PR_FIELDS_FRAGMENT previously requested
-``requestedReviewer { ... on User { login } ... on Team { name } }``
-on every ``ReviewRequestedEvent``. The field was never consumed by
-Python downstream, but when a team was the requested reviewer GitHub
-required team-read permission to resolve any part of it. GitHub App
-installation tokens (which many users rely on in sandboxed
-environments) lack that permission and the API returned a
-partial-data response with a top-level ``errors`` entry of type
-``FORBIDDEN`` — "Resource not accessible by integration". tkt's
-graphql client treats any ``errors`` as fatal, so ``tkt pr list``
-would blow up on any board containing a repo whose recent PRs had
-been assigned to a team for review.
-
-The fix is to drop the unused field from the fragment entirely.
-These tests are the guard that keeps it dropped.
+Full context is in the PR / commit that dropped ``requestedReviewer`` from the
+fragment. Short version: the field was unused in Python but caused GitHub to
+return a FORBIDDEN partial-data response when a Team was the requested
+reviewer, which ``GitHubClient.graphql()`` currently treats as fatal.
 """
+
+import re
 
 from src.pr.github_api import PR_FIELDS_FRAGMENT
 from src.pr.history import process_pr_data
+from src.pr.models import ActionType
+
+
+def _strip_graphql_comments(fragment: str) -> str:
+    """Drop ``#`` comments so assertions see only the selected fields."""
+    return re.sub(r"#[^\n]*", "", fragment)
+
+
+def _extract_review_requested_block(fragment: str) -> str:
+    """Return the body of the ``... on ReviewRequestedEvent { ... }`` block.
+
+    Handles one level of nested braces so sub-selections like ``actor { login }``
+    don't trip up the match.
+    """
+    match = re.search(
+        r"ReviewRequestedEvent\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
+        fragment,
+    )
+    assert match is not None, "ReviewRequestedEvent block not found in fragment"
+    return match.group(1)
 
 
 def test_fragment_does_not_request_requested_reviewer():
-    """requestedReviewer is unused in Python and triggers FORBIDDEN on team
-    reviewer-requests when tkt runs with a GitHub App installation token."""
-    assert "requestedReviewer" not in PR_FIELDS_FRAGMENT
+    assert "requestedReviewer" not in _strip_graphql_comments(PR_FIELDS_FRAGMENT)
 
 
-def test_fragment_still_requests_fields_history_processing_consumes():
-    """Guard against over-pruning: process_pr_data reads these from the
-    ReviewRequestedEvent node, so the fragment must keep asking for them."""
-    assert "ReviewRequestedEvent" in PR_FIELDS_FRAGMENT
-    # The ReviewRequestedEvent sub-selection must still include createdAt + actor.
-    rre_section = PR_FIELDS_FRAGMENT.split("ReviewRequestedEvent", 1)[1].split("}", 2)
-    rre_body = rre_section[0] + "}" + rre_section[1] + "}"
-    assert "createdAt" in rre_body
-    assert "actor" in rre_body
+def test_review_requested_block_keeps_fields_history_processing_needs():
+    """Guard against over-pruning: _parse_timeline_item reads createdAt and
+    actor.login from the ReviewRequestedEvent node."""
+    block = _extract_review_requested_block(PR_FIELDS_FRAGMENT)
+    assert "createdAt" in block
+    assert "actor" in block
 
 
 def test_process_pr_data_handles_review_requested_without_requested_reviewer():
-    """process_pr_data must correctly process a ReviewRequestedEvent node that
-    contains only the fields the pruned fragment now asks for."""
+    """End-to-end: process_pr_data must consume a ReviewRequestedEvent node
+    shaped like what the pruned fragment now returns."""
     pr_data = {
         "repository": {"nameWithOwner": "OpenHands/OpenHands"},
         "number": 17813,
@@ -72,9 +78,12 @@ def test_process_pr_data_handles_review_requested_without_requested_reviewer():
     }
 
     info = process_pr_data(pr_data, reference_user="jpshackelford")
+
     assert info.number == 17813
-    # 'o' = opened by reference user; the HELP glyph for ReviewRequestedEvent is
-    # consumed in-sequence by _filter_timeline_events, so we assert the
-    # resulting history string contains the subsequent APPROVED event rather
-    # than crashing on the missing requestedReviewer field.
-    assert "A" in info.history
+    # Assert on structured action types, not on display glyphs: the history
+    # string's uppercase/lowercase convention is a presentation detail and
+    # shouldn't own a regression test for a GraphQL change.
+    action_chars = {a.value for a in ActionType}
+    seen_actions = {ch.lower() for ch in info.history if ch.lower() in action_chars}
+    assert ActionType.OPENED.value in seen_actions
+    assert ActionType.APPROVED.value in seen_actions
