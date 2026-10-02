@@ -312,8 +312,8 @@ All three list commands accept the same snapshot flags:
 | `--diff NAME` | Diff the current query result against snapshot NAME. |
 | `--watch NAME` | Shortcut for `--diff NAME --snapshot NAME` — the hourly-cron idiom. |
 | `--diff-format {table,json}` | Format for `--diff`/`--watch` output (default `table`). |
-| `--diff-all` | Include unchanged rows in the diff view (default: only changes shown). |
-| `--diff-force` | Emit JSON diff even if snapshot scope doesn't match current query. |
+| `--diff-include-unchanged` | Include unchanged rows in the diff view (default: only changes shown). |
+| `--diff-force` | Proceed with the diff even if the snapshot scope doesn't match the current query. |
 
 `--watch NAME` is the common agent idiom: it diffs against the previous
 `NAME` and then overwrites `NAME` with the fresh result, so the next hour
@@ -323,9 +323,9 @@ diffs against *this* hour.
 
 The query filter set (board, author, reviewer, repos, states, labels,
 `--all`, limit) is persisted with every snapshot. If the current query's
-scope doesn't match the snapshot's scope, the diff still renders but the
-summary is tagged `[scope-changed]`; JSON output additionally requires
-`--diff-force` so pipelines don't silently consume a mis-scoped diff.
+scope doesn't match the snapshot's scope, the diff refuses to render in
+either table or JSON mode; pass `--diff-force` to proceed (the summary
+is tagged `[scope-changed]` so you can see what happened).
 
 ### Storage
 

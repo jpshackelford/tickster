@@ -93,20 +93,25 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
 
 
 def cmd_rm(refs: list[str]) -> int:
-    """Delete one or more snapshots."""
+    """Delete one or more snapshots.
+
+    Exit code reports the most severe failure across all refs so the
+    result is independent of argv ordering: 2 if any ref failed to parse,
+    1 if any (otherwise-valid) ref was not found, 0 on complete success.
+    """
     exit_code = 0
     for ref in refs:
         try:
             kind, name = _parse_ref(ref)
         except ValueError as e:
             console.print(f"[red]Error:[/] {e}")
-            exit_code = 2
+            exit_code = max(exit_code, 2)
             continue
         if store.delete(kind, name):
             console.print(f"removed {kind}/{name}")
         else:
             console.print(f"[yellow]not found:[/] {kind}/{name}")
-            exit_code = 1
+            exit_code = max(exit_code, 1)
     return exit_code
 
 

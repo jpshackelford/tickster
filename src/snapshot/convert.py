@@ -6,7 +6,7 @@ opt-in sidecar.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from src.issue.models import IssueInfo, IssueState
 from src.pr.models import CIStatus, PRInfo, PRState
@@ -21,19 +21,16 @@ from src.snapshot.models import (
 )
 
 
-def _iso(dt: datetime) -> str:
-    """Serialize a datetime as ISO-8601, Z-suffixed UTC."""
-    if dt.tzinfo is None:
-        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-    return dt.astimezone(tz=None).astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
-
-
 def _iso_utc(dt: datetime) -> str:
-    """ISO-8601 UTC with trailing Z (stable comparisons)."""
-    if dt.tzinfo is None:
-        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-    from datetime import UTC
+    """ISO-8601 UTC with trailing Z (stable comparisons).
 
+    Rejects naive datetimes. Upstream `last_activity` fields on PRInfo /
+    IssueInfo / ReviewInfo are populated from GitHub ISO-8601 strings and
+    always carry a tzinfo; a naive datetime here is a programming error
+    that would silently stamp `Z` onto wall-clock time.
+    """
+    if dt.tzinfo is None:
+        raise ValueError(f"_iso_utc requires an aware datetime; got naive {dt!r}")
     return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -130,7 +127,3 @@ def _ci_value(status: CIStatus) -> str:
 
 def _review_status_value(status: ReviewStatus) -> str:
     return status.value
-
-
-# Suppress unused-import warning
-_ = _iso

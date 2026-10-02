@@ -95,6 +95,18 @@ def test_rm_reports_missing(seed, capsys):  # noqa: ARG001
     assert "not found" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    "refs",
+    [
+        ["bogus-no-slash", "pr/nope"],  # parse error first, then not-found
+        ["pr/nope", "bogus-no-slash"],  # not-found first, then parse error
+    ],
+)
+def test_rm_exit_code_is_max_severity_regardless_of_order(seed, refs):  # noqa: ARG001
+    # Parse error (2) should always dominate not-found (1), independent of argv order.
+    assert cli.cmd_rm(refs) == 2
+
+
 def test_diff_two_snapshots_renders_changes(seed, capsys):  # noqa: ARG001
     rc = cli.cmd_diff("pr/hourly", "pr/later")
     out = capsys.readouterr().out

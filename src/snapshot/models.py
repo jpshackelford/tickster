@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
 
@@ -37,8 +37,14 @@ class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author, repos, states, labels, limit). `hash_` yields a
-    stable short digest used to detect scope drift between runs.
+    (same board, author, repos, states, labels, limit). `fingerprint`
+    yields a stable short digest used to detect scope drift between runs.
+
+    The `from_{pr,issue,review}_args` factories are the only supported way
+    to build a scope from CLI inputs — they encode which filter fields each
+    kind actually honors, so new CLI filters can't silently diverge from the
+    scope hash. Constructing `SnapshotScope(...)` directly is still allowed
+    for tests and round-trips but discouraged elsewhere.
     """
 
     board: str | None = None
@@ -80,7 +86,75 @@ class SnapshotScope:
             limit=int(data.get("limit", 100)),
         )
 
-    def hash_(self) -> str:
+    @classmethod
+    def from_pr_args(
+        cls,
+        *,
+        board: str | None,
+        author: str | None,
+        reviewer: str | None,
+        repos: list[str] | None,
+        states: list[str] | None,
+        limit: int,
+    ) -> SnapshotScope:
+        """Build the scope that `pr list` queries contribute to the hash."""
+        return cls(
+            board=board,
+            author=author,
+            reviewer=reviewer,
+            repos=tuple(repos) if repos else None,
+            states=tuple(states) if states else None,
+            limit=limit,
+        )
+
+    @classmethod
+    def from_issue_args(
+        cls,
+        *,
+        board: str | None,
+        author: str | None,
+        repos: list[str] | None,
+        states: list[str] | None,
+        labels: list[str] | None,
+        limit: int,
+    ) -> SnapshotScope:
+        """Build the scope that `issue list` queries contribute to the hash."""
+        return cls(
+            board=board,
+            author=author,
+            repos=tuple(repos) if repos else None,
+            states=tuple(states) if states else None,
+            labels=tuple(labels) if labels else None,
+            limit=limit,
+        )
+
+    @classmethod
+    def from_review_args(
+        cls,
+        *,
+        board: str | None,
+        author: str | None,
+        reviewer: str | None,
+        repos: list[str] | None,
+        states: list[str] | None,
+        exclude_authors: list[str] | None,
+        include_all: bool,
+        limit: int,
+    ) -> SnapshotScope:
+        """Build the scope that `review` queries contribute to the hash."""
+        return cls(
+            board=board,
+            author=author,
+            reviewer=reviewer,
+            repos=tuple(repos) if repos else None,
+            states=tuple(states) if states else None,
+            exclude_authors=tuple(exclude_authors) if exclude_authors else None,
+            include_all=include_all,
+            limit=limit,
+        )
+
+    def fingerprint(self) -> str:
+        """Stable short digest of the scope, used to detect scope drift."""
         payload = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
 
@@ -148,7 +222,7 @@ class Snapshot:
 
     @property
     def scope_hash(self) -> str:
-        return self.scope.hash_()
+        return self.scope.fingerprint()
 
     @property
     def items_by_key(self) -> dict[str, ItemSnapshot]:
@@ -167,11 +241,18 @@ class Snapshot:
 
     @classmethod
     def from_dict(cls, data: dict) -> Snapshot:
+        schema = int(data.get("schema", SCHEMA_VERSION))
+        if schema != SCHEMA_VERSION:
+            raise ValueError(
+                f"unsupported snapshot schema version: {schema} "
+                f"(this build understands {SCHEMA_VERSION}); "
+                "delete the snapshot or upgrade/downgrade tkt"
+            )
         kind = data["kind"]
         if kind not in VALID_KINDS:
             raise ValueError(f"invalid snapshot kind: {kind!r}")
         return cls(
-            schema=int(data.get("schema", SCHEMA_VERSION)),
+            schema=schema,
             kind=kind,
             name=data["name"],
             captured_at=data["captured_at"],
@@ -260,20 +341,26 @@ class DiffResult:
             },
             "scope_matches": self.scope_matches,
             "counts": counts,
-            "deltas": [
-                {
-                    "key": d.key,
-                    "kind": d.kind.value,
-                    "new_history_tail": d.new_history_tail,
-                    "changed_fields": list(d.changed_fields),
-                    "disappearance_reason": d.disappearance_reason,
-                    "prev": d.prev.to_dict() if d.prev else None,
-                    "curr": d.curr.to_dict() if d.curr else None,
-                }
-                for d in self.deltas
-            ],
+            "deltas": [_delta_to_dict(d) for d in self.deltas],
         }
 
 
-# Suppress unused-import warnings for `field` (kept for future extensions).
-_ = field
+def _delta_to_dict(d: ItemDelta) -> dict:
+    """Serialize a delta.
+
+    For UNCHANGED entries we skip the full `prev`/`curr` bodies — they are
+    byte-for-byte duplicates of each other, and a 100-row snapshot would
+    otherwise emit ~200 full item bodies to describe "nothing happened".
+    Consumers can always re-load the baseline/current snapshots to recover
+    the untouched rows.
+    """
+    include_bodies = d.kind is not ChangeKind.UNCHANGED
+    return {
+        "key": d.key,
+        "kind": d.kind.value,
+        "new_history_tail": d.new_history_tail,
+        "changed_fields": list(d.changed_fields),
+        "disappearance_reason": d.disappearance_reason,
+        "prev": d.prev.to_dict() if (include_bodies and d.prev) else None,
+        "curr": d.curr.to_dict() if (include_bodies and d.curr) else None,
+    }

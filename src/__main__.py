@@ -752,6 +752,7 @@ Examples:
     )
 
     args = parser.parse_args(argv)
+    _validate_snapshot_args(parser, args)
 
     # Handle board command
     if args.command == "board":
@@ -899,7 +900,7 @@ Examples:
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
                 diff_format=args.diff_format,
-                diff_show_all=args.diff_show_all,
+                diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
             )
 
@@ -937,7 +938,7 @@ Examples:
             diff_name=args.diff_name,
             watch_name=args.watch_name,
             diff_format=args.diff_format,
-            diff_show_all=args.diff_show_all,
+            diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
         )
 
@@ -977,7 +978,7 @@ Examples:
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
                 diff_format=args.diff_format,
-                diff_show_all=args.diff_show_all,
+                diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
             )
 
@@ -1077,8 +1078,8 @@ def _add_snapshot_flags(parser) -> None:
         help="Format for --diff / --watch output (default: table).",
     )
     group.add_argument(
-        "--diff-all",
-        dest="diff_show_all",
+        "--diff-include-unchanged",
+        dest="diff_show_unchanged",
         action="store_true",
         help="Include unchanged rows in the diff view (default: only changes).",
     )
@@ -1086,8 +1087,23 @@ def _add_snapshot_flags(parser) -> None:
         "--diff-force",
         dest="diff_force",
         action="store_true",
-        help="Emit JSON diff even if snapshot scope doesn't match current query.",
+        help="Proceed with --diff/--watch even if snapshot scope doesn't match the current query.",
     )
+
+
+def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Validate --snapshot/--diff/--watch mutex, routing errors through parser.error.
+
+    Mirrors `SnapshotPlan.from_args` so library callers still get a usable
+    ValueError, while CLI callers get argparse's standard error framing
+    (program name, usage line, exit code 2) instead of a Python traceback.
+    """
+    if getattr(args, "watch_name", None) is None:
+        return
+    if getattr(args, "snapshot_name", None) is not None or (
+        getattr(args, "diff_name", None) is not None
+    ):
+        parser.error("--watch cannot be combined with --snapshot or --diff")
 
 
 def _resolve_snapshot_name(name: str | None) -> str | None:

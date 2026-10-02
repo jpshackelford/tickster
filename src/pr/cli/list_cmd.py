@@ -33,7 +33,7 @@ def cmd_list(
     diff_name: str | None = None,
     watch_name: str | None = None,
     diff_format: str = "table",
-    diff_show_all: bool = False,
+    diff_show_unchanged: bool = False,
     diff_force: bool = False,
 ) -> int:
     """List PRs with history visualization.
@@ -96,17 +96,17 @@ def cmd_list(
                 diff_name=diff_name,
                 watch_name=watch_name,
                 output_format=diff_format,
-                show_all=diff_show_all,
+                show_unchanged=diff_show_unchanged,
                 force=diff_force,
             )
 
             if plan is not None:
-                scope = SnapshotScope(
+                scope = SnapshotScope.from_pr_args(
                     board=board_name,
                     author=author,
                     reviewer=reviewer,
-                    repos=tuple(repos) if repos else None,
-                    states=tuple(states) if states else None,
+                    repos=repos,
+                    states=states,
                     limit=limit,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"

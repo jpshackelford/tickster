@@ -21,7 +21,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from src.snapshot.models import ChangeKind, DiffResult, ItemDelta, ItemSnapshot
+from src.snapshot.models import ChangeKind, DiffResult, ItemDelta
 
 _KIND_GLYPH = {
     ChangeKind.ADDED: "[green]+[/]",
@@ -70,7 +70,9 @@ def render_diff(
 
 def _print_summary(diff: DiffResult, *, console: Console) -> None:
     counts = diff.counts
-    scope_tag = "" if diff.scope_matches else " [yellow][scope-changed][/]"
+    # Escape the literal `[` so Rich treats it as text, not a markup opener —
+    # otherwise `[scope-changed]` renders as an empty unknown tag.
+    scope_tag = "" if diff.scope_matches else r" [yellow]\[scope-changed][/]"
     header = (
         f"diff: {diff.prev.kind}/{diff.prev.name} @ {diff.prev.captured_at} → "
         f"{diff.curr.name} @ {diff.curr.captured_at}  "
@@ -86,7 +88,7 @@ def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
     table.add_column("Repo", style="cyan", no_wrap=True)
-    table.add_column("PR" if kind == "pr" else "PR", justify="right", no_wrap=True)
+    table.add_column("PR", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     table.add_column("CI", no_wrap=True)
     if kind == "review":
@@ -168,7 +170,12 @@ def _render_history(history: str, d: ItemDelta) -> str:
     if history.endswith(tail):
         head = history[: -len(tail)]
         return f"{head}[bold magenta]\\[{tail}][/]"
-    return history  # defensive; shouldn't reach
+    # Unreachable: diff.diff_snapshots either returns tail == "" (no growth)
+    # or tail that is a suffix of curr.history. Raise rather than silently
+    # drop the user-requested bracketing.
+    raise AssertionError(
+        f"new_history_tail {tail!r} is not a suffix of history {history!r}"
+    )
 
 
 def _render_field(value: str, changed: bool) -> str:
@@ -221,7 +228,3 @@ def _render_note(d: ItemDelta) -> str:
     if "history-rewritten" in d.changed_fields:
         return "[dim](history rewritten)[/]"
     return ""
-
-
-# Suppress unused-import warning on ItemSnapshot (kept for type context)
-_ = ItemSnapshot

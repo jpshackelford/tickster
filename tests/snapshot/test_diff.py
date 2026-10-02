@@ -156,3 +156,30 @@ def test_diff_result_json_contains_counts_and_scope_match():
     assert out["scope_matches"] is True
     assert out["counts"]["changed"] == 1
     assert out["deltas"][0]["new_history_tail"] == "r"
+
+
+def test_diff_result_json_skips_bodies_for_unchanged_deltas():
+    # UNCHANGED deltas would otherwise emit identical prev + curr bodies for
+    # every row — on a 100-row snapshot, that's ~200 full items to describe
+    # "nothing happened". Keep the delta entry (for schema stability) but
+    # drop the bodies.
+    prev = make_snapshot(
+        items=[
+            make_item(key="a/b#1", history="oC"),
+            make_item(key="a/b#2", history="oCr"),
+        ]
+    )
+    curr = make_snapshot(
+        items=[
+            make_item(key="a/b#1", history="oC"),  # unchanged
+            make_item(key="a/b#2", history="oCrfA"),  # changed
+        ]
+    )
+    deltas = diff_snapshots(prev, curr).to_dict()["deltas"]
+    by_key = {d["key"]: d for d in deltas}
+    assert by_key["a/b#1"]["kind"] == "unchanged"
+    assert by_key["a/b#1"]["prev"] is None
+    assert by_key["a/b#1"]["curr"] is None
+    # Changed deltas still carry bodies.
+    assert by_key["a/b#2"]["prev"] is not None
+    assert by_key["a/b#2"]["curr"] is not None

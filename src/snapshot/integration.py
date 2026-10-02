@@ -13,7 +13,7 @@ Call sites look like:
         diff_name=args.diff,
         watch_name=args.watch,
         output_format=args.format,
-        show_all=args.diff_all,
+        show_unchanged=args.diff_include_unchanged,
         force=args.force,
     )
     if plan and plan.wants_diff:
@@ -26,7 +26,7 @@ Call sites look like:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from rich.console import Console
 
@@ -64,17 +64,21 @@ class SnapshotPlan:
         diff_name: str | None,
         watch_name: str | None,
         output_format: str = "table",
-        show_all: bool = False,
+        show_unchanged: bool = False,
         force: bool = False,
     ) -> SnapshotPlan | None:
         """Build a plan from parsed CLI arguments, or None if no snapshot work.
 
-        Mutual-exclusion rules (enforced here, not in argparse, so the error
-        message is informative):
+        Mutual-exclusion rules:
 
         - `--watch` is `--diff + --snapshot` under the same name; cannot be
           combined with either.
         - `--snapshot` and `--diff` may be combined (save then diff).
+
+        CLI call sites should validate these up-front via
+        `_validate_snapshot_args(parser, args)` so argparse's `parser.error`
+        formats the message; this method still raises `ValueError` so
+        library/test callers get a usable exception.
         """
         if kind not in VALID_KINDS:
             raise ValueError(f"invalid snapshot kind: {kind!r}")
@@ -93,7 +97,7 @@ class SnapshotPlan:
             diff_name=diff,
             save_name=save,
             output_format=output_format,
-            show_unchanged=show_all,
+            show_unchanged=show_unchanged,
             force=force,
         )
 
@@ -112,9 +116,10 @@ class SnapshotPlan:
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
         result = diff_module.diff_snapshots(prev, curr)
-        if not result.scope_matches and not self.force and self.output_format == "json":
+        if not result.scope_matches and not self.force:
             console.print(
-                "[red]Error:[/] scope mismatch between snapshots (use --force to emit JSON anyway)"
+                "[red]Error:[/] scope mismatch between snapshots "
+                "(use --diff-force to proceed anyway)"
             )
             return 2
         render_module.render_diff(
@@ -129,13 +134,4 @@ class SnapshotPlan:
         """Persist `snapshot` under the configured save name."""
         if self.save_name is None:
             raise RuntimeError("save called without --snapshot / --watch")
-        # Rebuild with the requested name so the on-disk record matches.
-        named = Snapshot(
-            kind=snapshot.kind,
-            name=self.save_name,
-            captured_at=snapshot.captured_at,
-            scope=snapshot.scope,
-            items=snapshot.items,
-            schema=snapshot.schema,
-        )
-        store.save(named)
+        store.save(replace(snapshot, name=self.save_name))

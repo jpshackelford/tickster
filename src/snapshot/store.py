@@ -11,6 +11,7 @@ text editor; schema is versioned (see `models.SCHEMA_VERSION`).
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -60,11 +61,21 @@ def path_for(kind: str, name: str) -> Path:
 
 
 def save(snapshot: Snapshot) -> Path:
-    """Persist a snapshot to disk, atomically. Returns the written path."""
+    """Persist a snapshot to disk, atomically. Returns the written path.
+
+    Writes to a sibling `.tmp` and `rename`s into place. The `fsync`
+    before `replace` ensures the tmp file's contents actually hit the disk
+    before the rename, so a crash can't leave a zero-byte baseline file
+    that a watching agent would then trust for weeks.
+    """
     _validate_kind(snapshot.kind)
     dst = path_for(snapshot.kind, snapshot.name)
     tmp = dst.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(snapshot.to_dict(), indent=2, sort_keys=False))
+    payload = json.dumps(snapshot.to_dict(), indent=2, sort_keys=False)
+    with tmp.open("w", encoding="utf-8") as f:
+        f.write(payload)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(dst)
     return dst
 
