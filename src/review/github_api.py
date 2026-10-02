@@ -59,6 +59,7 @@ class ReviewClient:
         limit: int = 100,
         include_all: bool = False,
         states: list[str] | None = None,
+        date_qualifier: str | None = None,
     ) -> ReviewListResult:
         """List PRs from reviewer's perspective.
 
@@ -74,6 +75,8 @@ class ReviewClient:
             limit: Maximum number of PRs to fetch
             include_all: If True, include all PRs; if False, only actionable ones
             states: List of states to include ("open", "merged", "closed")
+            date_qualifier: Optional GitHub search date qualifier
+                (e.g. "updated:>=2026-08-01")
 
         Returns:
             ReviewListResult with processed ReviewInfo objects
@@ -94,8 +97,12 @@ class ReviewClient:
 
         # Fetch open PRs (both requested and reviewed)
         if include_open:
-            requested_prs = self._fetch_requested_reviews(reviewer, repos, author, limit)
-            reviewed_prs = self._fetch_reviewed_prs(reviewer, repos, author, limit, state="open")
+            requested_prs = self._fetch_requested_reviews(
+                reviewer, repos, author, limit, date_qualifier
+            )
+            reviewed_prs = self._fetch_reviewed_prs(
+                reviewer, repos, author, limit, state="open", date_qualifier=date_qualifier
+            )
             for pr_data in requested_prs + reviewed_prs:
                 repo = pr_data["repository"]["nameWithOwner"]
                 number = pr_data["number"]
@@ -105,7 +112,9 @@ class ReviewClient:
 
         # Fetch merged PRs
         if include_merged:
-            merged_prs = self._fetch_reviewed_prs(reviewer, repos, author, limit, state="merged")
+            merged_prs = self._fetch_reviewed_prs(
+                reviewer, repos, author, limit, state="merged", date_qualifier=date_qualifier
+            )
             for pr_data in merged_prs:
                 repo = pr_data["repository"]["nameWithOwner"]
                 number = pr_data["number"]
@@ -115,7 +124,9 @@ class ReviewClient:
 
         # Fetch closed (unmerged) PRs
         if include_closed:
-            closed_prs = self._fetch_reviewed_prs(reviewer, repos, author, limit, state="closed")
+            closed_prs = self._fetch_reviewed_prs(
+                reviewer, repos, author, limit, state="closed", date_qualifier=date_qualifier
+            )
             for pr_data in closed_prs:
                 repo = pr_data["repository"]["nameWithOwner"]
                 number = pr_data["number"]
@@ -155,6 +166,7 @@ class ReviewClient:
         repos: list[str] | None,
         author: str | None,
         limit: int,
+        date_qualifier: str | None = None,
     ) -> list[dict]:
         """Fetch PRs where reviewer is requested."""
         query_parts = [f"is:pr is:open review-requested:{reviewer}"]
@@ -168,6 +180,9 @@ class ReviewClient:
         if author:
             query_parts.append(f"author:{author}")
 
+        if date_qualifier:
+            query_parts.append(date_qualifier)
+
         search_query = " ".join(query_parts)
         return self._search_prs(search_query, limit)
 
@@ -178,6 +193,7 @@ class ReviewClient:
         author: str | None,
         limit: int,
         state: str = "open",
+        date_qualifier: str | None = None,
     ) -> list[dict]:
         """Fetch PRs that reviewer has reviewed.
 
@@ -187,6 +203,7 @@ class ReviewClient:
             author: Filter by PR author
             limit: Maximum number of PRs to fetch
             state: PR state - "open", "merged", or "closed" (unmerged)
+            date_qualifier: Optional GitHub search date qualifier
         """
         query_parts = [f"is:pr reviewed-by:{reviewer}"]
 
@@ -204,6 +221,9 @@ class ReviewClient:
 
         if author:
             query_parts.append(f"author:{author}")
+
+        if date_qualifier:
+            query_parts.append(date_qualifier)
 
         search_query = " ".join(query_parts)
         return self._search_prs(search_query, limit)
