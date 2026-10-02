@@ -288,7 +288,7 @@ is the same dense table you already read, with two added visual channels:
   are `[bracketed]` (and bold magenta in color output).
 
 A one-line summary header shows the counts and whether the two snapshots
-were produced by the same scope (same board, author, repos, states,
+were produced by the same scope (same board, author, repos, refs, states,
 labels, limit).
 
 ```
@@ -317,15 +317,20 @@ All three list commands accept the same snapshot flags:
 
 `--watch NAME` is the common agent idiom: it diffs against the previous
 `NAME` and then overwrites `NAME` with the fresh result, so the next hour
-diffs against *this* hour.
+diffs against *this* hour. An empty result is still a snapshot: when the
+last item in scope closes, `--watch` reports it as a `-` row and saves an
+empty baseline.
 
 ### Scope matching
 
-The query filter set (board, author, reviewer, repos, states, labels,
-`--all`, limit) is persisted with every snapshot. If the current query's
-scope doesn't match the snapshot's scope, the diff refuses to render in
-either table or JSON mode; pass `--diff-force` to proceed (the summary
-is tagged `[scope-changed]` so you can see what happened).
+The query filter set (board, author, reviewer, repos, explicit
+`owner/repo#N` refs, states, labels, `--all`, limit) is persisted with
+every snapshot. Refs are compared as a set, so their order on the command
+line doesn't matter. If the current query's scope doesn't match the
+snapshot's scope, the diff refuses to render in either table or JSON mode
+and exits 2 without touching the baseline, so you can rerun with
+`--diff-force` to proceed (the summary is tagged `[scope-changed]` so you
+can see what happened).
 
 ### Storage
 

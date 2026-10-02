@@ -86,10 +86,6 @@ def cmd_list(
                     limit=limit,
                 )
 
-            if not result.prs:
-                console.print("[dim]No PRs found.[/]")
-                return 0
-
             plan = SnapshotPlan.from_args(
                 kind=KIND_PR,
                 snapshot_name=snapshot_name,
@@ -106,21 +102,17 @@ def cmd_list(
                     author=author,
                     reviewer=reviewer,
                     repos=repos,
+                    refs=pr_refs,
                     states=states,
                     limit=limit,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_prs(result.prs, scope=scope, name=save_name)
-
-                if plan.wants_diff:
-                    rc = plan.render_diff(curr_snapshot, console)
-                    if plan.wants_save:
-                        plan.save(curr_snapshot)
-                    return rc
-                # --snapshot only: print normal table then persist.
-                _print_pr_table(result.prs, show_title=show_title)
-                plan.save(curr_snapshot)
-                return 0
+                return plan.execute(
+                    curr_snapshot,
+                    console,
+                    print_table=lambda: _print_pr_table(result.prs, show_title=show_title),
+                )
 
             # Show graph above table if requested
             if show_graph:
@@ -166,6 +158,9 @@ def _get_repos(
 
 def _print_pr_table(prs: list[PRInfo], *, show_title: bool = False) -> None:
     """Print PRs in a formatted table."""
+    if not prs:
+        console.print("[dim]No PRs found.[/]")
+        return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
     table.add_column("Repo", style="cyan", no_wrap=True)

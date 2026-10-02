@@ -70,10 +70,6 @@ def cmd_list(
                     sort_by_activity=sort_by_activity,
                 )
 
-            if not result.issues:
-                console.print("[dim]No issues found.[/]")
-                return 0
-
             plan = SnapshotPlan.from_args(
                 kind=KIND_ISSUE,
                 snapshot_name=snapshot_name,
@@ -88,22 +84,22 @@ def cmd_list(
                     board=board_name,
                     author=author,
                     repos=repos,
+                    refs=issue_refs,
                     states=states,
                     labels=labels,
                     limit=limit,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_issues(result.issues, scope=scope, name=save_name)
-                if plan.wants_diff:
-                    rc = plan.render_diff(curr_snapshot, console)
-                    if plan.wants_save:
-                        plan.save(curr_snapshot)
-                    return rc
-                _print_issue_table(result.issues, show_title=show_title)
-                plan.save(curr_snapshot)
-                return 0
+                return plan.execute(
+                    curr_snapshot,
+                    console,
+                    print_table=lambda: _print_issue_table(result.issues, show_title=show_title),
+                )
 
             _print_issue_table(result.issues, show_title=show_title)
+            if not result.issues:
+                return 0
 
             # Print legend
             console.print()
@@ -150,6 +146,9 @@ def _get_repos(
 
 def _print_issue_table(issues: list[IssueInfo], *, show_title: bool = False) -> None:
     """Print issues in a formatted table."""
+    if not issues:
+        console.print("[dim]No issues found.[/]")
+        return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
     table.add_column("Repo", style="cyan", no_wrap=True)

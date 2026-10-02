@@ -81,8 +81,12 @@ def cmd_list(
             showing_historical = "merged" in states_set or "closed" in states_set
             showing_open = "open" in states_set
 
-            if not result.reviews:
-                if showing_historical and not showing_open:
+            def print_table() -> None:
+                if result.reviews:
+                    _print_review_table(
+                        result.reviews, reviewer=resolved_reviewer, show_title=show_title
+                    )
+                elif showing_historical and not showing_open:
                     console.print(
                         f"[dim]No historical PRs found that {resolved_reviewer} reviewed.[/]"
                     )
@@ -90,7 +94,6 @@ def cmd_list(
                     console.print(f"[dim]No PRs found in {target_possessive} review queue.[/]")
                 else:
                     console.print(f"[dim]No PRs needing {target_possessive} review.[/]")
-                return 0
 
             plan = SnapshotPlan.from_args(
                 kind=KIND_REVIEW,
@@ -114,18 +117,11 @@ def cmd_list(
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_reviews(result.reviews, scope=scope, name=save_name)
-                if plan.wants_diff:
-                    rc = plan.render_diff(curr_snapshot, console)
-                    if plan.wants_save:
-                        plan.save(curr_snapshot)
-                    return rc
-                _print_review_table(
-                    result.reviews, reviewer=resolved_reviewer, show_title=show_title
-                )
-                plan.save(curr_snapshot)
-                return 0
+                return plan.execute(curr_snapshot, console, print_table=print_table)
 
-            _print_review_table(result.reviews, reviewer=resolved_reviewer, show_title=show_title)
+            print_table()
+            if not result.reviews:
+                return 0
 
             # Print summary
             if showing_historical and not showing_open:

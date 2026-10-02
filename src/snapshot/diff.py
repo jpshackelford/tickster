@@ -170,8 +170,9 @@ def _infer_removal_reason(
 
     - "scope": the two snapshots were produced by different scope filters,
       so the item may just have been filtered out.
-    - "closed": prev showed it open and the item is now outside the open
-      filter (common case for `--open` queries).
+    - "closed-or-gone": prev showed it open under a scope that still
+      includes open items, so it was most likely closed (or deleted /
+      transferred; the snapshot alone can't tell which).
     - "unknown": otherwise.
     """
     if prev_snapshot.scope_hash != curr_snapshot.scope_hash:

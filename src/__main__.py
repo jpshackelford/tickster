@@ -1039,7 +1039,7 @@ Examples:
 
 
 def _add_snapshot_flags(parser) -> None:
-    """Attach --snapshot / --diff / --watch / --format / --diff-all / --force.
+    """Attach the shared --snapshot / --diff / --watch / --diff-* flags.
 
     Shared by `pr list`, `issue list`, and `review` so the three commands
     speak the same snapshot UX. See src/snapshot/integration.py for the

@@ -9,23 +9,24 @@ Call sites look like:
 
     plan = SnapshotPlan.from_args(
         kind=KIND_PR,
-        snapshot_name=args.snapshot,
-        diff_name=args.diff,
-        watch_name=args.watch,
-        output_format=args.format,
-        show_unchanged=args.diff_include_unchanged,
-        force=args.force,
+        snapshot_name=snapshot_name,
+        diff_name=diff_name,
+        watch_name=watch_name,
+        output_format=diff_format,
+        show_unchanged=diff_show_unchanged,
+        force=diff_force,
     )
-    if plan and plan.wants_diff:
-        plan.render_diff(curr_snapshot, console)
-    else:
-        _print_normal_table(result)
-    if plan and plan.wants_save:
-        plan.save(curr_snapshot)
+    if plan is not None:
+        curr = snapshot_from_prs(result.prs, scope=scope, name=...)
+        return plan.execute(curr, console, print_table=lambda: _print_table(result))
+
+The plan must run even when the query returned no rows: an empty current
+snapshot is how `--watch` reports that the last item in scope went away.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from rich.console import Console
@@ -100,6 +101,22 @@ class SnapshotPlan:
             show_unchanged=show_unchanged,
             force=force,
         )
+
+    def execute(self, curr: Snapshot, console: Console, print_table: Callable[[], None]) -> int:
+        """Diff and/or save `curr` per the plan. Returns exit code.
+
+        With a diff, the diff output replaces the normal table, and the
+        baseline is only overwritten when the diff succeeded so that a
+        scope-mismatch error is safe to retry with `--diff-force`.
+        """
+        if self.wants_diff:
+            rc = self.render_diff(curr, console)
+            if rc == 0 and self.wants_save:
+                self.save(curr)
+            return rc
+        print_table()
+        self.save(curr)
+        return 0
 
     def render_diff(self, curr: Snapshot, console: Console) -> int:
         """Load the baseline, diff, render. Returns exit code."""

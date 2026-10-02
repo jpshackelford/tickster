@@ -37,7 +37,7 @@ class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author, repos, states, labels, limit). `fingerprint`
+    (same board, author, repos, refs, states, labels, limit). `fingerprint`
     yields a stable short digest used to detect scope drift between runs.
 
     The `from_{pr,issue,review}_args` factories are the only supported way
@@ -51,6 +51,7 @@ class SnapshotScope:
     author: str | None = None
     reviewer: str | None = None
     repos: tuple[str, ...] | None = None
+    refs: tuple[str, ...] | None = None  # explicit owner/repo#N args, sorted
     states: tuple[str, ...] | None = None
     labels: tuple[str, ...] | None = None
     exclude_authors: tuple[str, ...] | None = None
@@ -63,6 +64,7 @@ class SnapshotScope:
             "author": self.author,
             "reviewer": self.reviewer,
             "repos": list(self.repos) if self.repos else None,
+            "refs": list(self.refs) if self.refs else None,
             "states": list(self.states) if self.states else None,
             "labels": list(self.labels) if self.labels else None,
             "exclude_authors": (list(self.exclude_authors) if self.exclude_authors else None),
@@ -77,6 +79,7 @@ class SnapshotScope:
             author=data.get("author"),
             reviewer=data.get("reviewer"),
             repos=tuple(data["repos"]) if data.get("repos") else None,
+            refs=tuple(data["refs"]) if data.get("refs") else None,
             states=tuple(data["states"]) if data.get("states") else None,
             labels=tuple(data["labels"]) if data.get("labels") else None,
             exclude_authors=(
@@ -94,6 +97,7 @@ class SnapshotScope:
         author: str | None,
         reviewer: str | None,
         repos: list[str] | None,
+        refs: list[str] | None,
         states: list[str] | None,
         limit: int,
     ) -> SnapshotScope:
@@ -103,6 +107,7 @@ class SnapshotScope:
             author=author,
             reviewer=reviewer,
             repos=tuple(repos) if repos else None,
+            refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             limit=limit,
         )
@@ -114,6 +119,7 @@ class SnapshotScope:
         board: str | None,
         author: str | None,
         repos: list[str] | None,
+        refs: list[str] | None,
         states: list[str] | None,
         labels: list[str] | None,
         limit: int,
@@ -123,6 +129,7 @@ class SnapshotScope:
             board=board,
             author=author,
             repos=tuple(repos) if repos else None,
+            refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             labels=tuple(labels) if labels else None,
             limit=limit,

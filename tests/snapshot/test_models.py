@@ -30,6 +30,7 @@ def test_scope_from_pr_args_matches_direct_construction():
         author="me",
         reviewer="octocat",
         repos=["a/b"],
+        refs=None,
         states=["open"],
         limit=100,
     )
@@ -41,12 +42,38 @@ def test_scope_from_issue_args_includes_labels():
         board="oh",
         author="me",
         repos=["a/b"],
+        refs=None,
         states=["open"],
         labels=["bug"],
         limit=50,
     )
     assert scope.labels == ("bug",)
     assert scope.limit == 50
+
+
+def _pr_scope(refs: list[str] | None) -> SnapshotScope:
+    return SnapshotScope.from_pr_args(
+        board=None, author=None, reviewer=None, repos=None, refs=refs, states=None, limit=100
+    )
+
+
+def _issue_scope(refs: list[str] | None) -> SnapshotScope:
+    return SnapshotScope.from_issue_args(
+        board=None, author=None, repos=None, refs=refs, states=None, labels=None, limit=100
+    )
+
+
+def test_scope_fingerprint_distinguishes_explicit_refs():
+    for make in (_pr_scope, _issue_scope):
+        a = make(["o/r#1", "o/r#2"])
+        assert a.fingerprint() != make(["o/r#7"]).fingerprint()
+        assert a.fingerprint() != make(None).fingerprint()
+
+
+def test_scope_fingerprint_ignores_ref_order():
+    for make in (_pr_scope, _issue_scope):
+        assert make(["o/r#2", "o/r#1"]) == make(["o/r#1", "o/r#2"])
+        assert make(["o/r#2", "o/r#1"]).fingerprint() == make(["o/r#1", "o/r#2"]).fingerprint()
 
 
 def test_scope_from_review_args_includes_exclude_and_include_all():
@@ -70,6 +97,7 @@ def test_scope_roundtrip():
         author="me",
         reviewer="octocat",
         repos=("a/b",),
+        refs=("a/b#1", "a/b#2"),
         states=("open",),
         labels=("bug",),
         exclude_authors=("dependabot[bot]",),

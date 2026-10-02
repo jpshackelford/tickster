@@ -118,3 +118,52 @@ def test_scope_mismatch_renders_with_force(tkt_home, capsys):  # noqa: ARG001
     out = capsys.readouterr().out
     assert rc == 0
     assert "[scope-changed]" in out
+
+
+def _watch_plan(*, force: bool = False) -> SnapshotPlan:
+    plan = SnapshotPlan.from_args(
+        kind=KIND_PR, snapshot_name=None, diff_name=None, watch_name="hourly", force=force
+    )
+    assert plan is not None
+    return plan
+
+
+def test_execute_scope_mismatch_leaves_baseline_for_force_retry(tkt_home, capsys):  # noqa: ARG001
+    store.save(
+        make_snapshot(
+            kind=KIND_PR,
+            name="hourly",
+            items=[make_item(key="a/b#1", history="oC")],
+            scope=SnapshotScope(board="A"),
+        )
+    )
+    curr = make_snapshot(
+        items=[make_item(key="a/b#1", history="oCr")],
+        scope=SnapshotScope(board="B"),
+    )
+    console = Console(width=200, color_system=None)
+
+    assert _watch_plan().execute(curr, console, print_table=lambda: None) == 2
+    baseline = store.load(KIND_PR, "hourly")
+    assert baseline.scope.board == "A"
+    assert baseline.items[0].history == "oC"
+    capsys.readouterr()
+
+    assert _watch_plan(force=True).execute(curr, console, print_table=lambda: None) == 0
+    out = capsys.readouterr().out
+    assert "*1 changed" in out
+    assert "oC[r]" in out
+    assert store.load(KIND_PR, "hourly").scope.board == "B"
+
+
+def test_execute_snapshot_only_prints_table_and_saves(tkt_home):  # noqa: ARG001
+    plan = SnapshotPlan.from_args(
+        kind=KIND_PR, snapshot_name="nightly", diff_name=None, watch_name=None
+    )
+    assert plan is not None
+    printed: list[bool] = []
+    curr = make_snapshot(items=[make_item(key="a/b#1")])
+    rc = plan.execute(curr, Console(), print_table=lambda: printed.append(True))
+    assert rc == 0
+    assert printed == [True]
+    assert [it.key for it in store.load(KIND_PR, "nightly").items] == ["a/b#1"]
