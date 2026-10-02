@@ -15,7 +15,7 @@ Rendering choices (per the design in issue #6):
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from rich import box
 from rich.console import Console
@@ -28,6 +28,13 @@ _KIND_GLYPH = {
     ChangeKind.CHANGED: "[yellow]*[/]",
     ChangeKind.REMOVED: "[red]-[/]",
     ChangeKind.UNCHANGED: " ",
+}
+
+# The `-` glyph already says "gone"; the note only hints at why.
+_REMOVAL_LABEL = {
+    "closed-or-gone": "closed?",
+    "left-queue": "done?",
+    "scope": "scope",
 }
 
 
@@ -62,7 +69,7 @@ def render_diff(
 
     console.print()
     console.print(
-        "[dim]Δ: + new row, * changed, - gone, (blank) unchanged.  "
+        "[dim]Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  "
         "History: \\[bracketed] = new since last snapshot.  "
         "Field!: value changed; prior value via `tkt snapshot diff`.[/]"
     )
@@ -73,9 +80,15 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
     # Escape the literal `[` so Rich treats it as text, not a markup opener —
     # otherwise `[scope-changed]` renders as an empty unknown tag.
     scope_tag = "" if diff.scope_matches else r" [yellow]\[scope-changed][/]"
+    prev, curr = diff.prev, diff.curr
+    prev_when = relative_time(prev.captured_at)
+    curr_when = relative_time(curr.captured_at)
+    if prev.name == curr.name:
+        span = f"{prev.kind}/{prev.name}: {prev_when} → {curr_when}"
+    else:
+        span = f"{prev.kind}/{prev.name} ({prev_when}) → {curr.name} ({curr_when})"
     header = (
-        f"diff: {diff.prev.kind}/{diff.prev.name} @ {diff.prev.captured_at} → "
-        f"{diff.curr.name} @ {diff.curr.captured_at}  "
+        f"diff {span}  "
         f"([green]+{counts[ChangeKind.ADDED]}[/] new, "
         f"[yellow]*{counts[ChangeKind.CHANGED]}[/] changed, "
         f"[red]-{counts[ChangeKind.REMOVED]}[/] gone, "
@@ -84,16 +97,45 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
     console.print(header)
 
 
+def _add_shrinkable_column(table: Table, header: str, **kwargs) -> None:
+    """Add a column Rich may ellipsize when the table is too wide.
+
+    Rich only narrows wrap-able columns before falling back to shrinking every
+    column evenly, which erases the 1-char Δ column and the history tail. The
+    values here are single words, so allowing wrap never splits them across
+    lines; they just ellipsize.
+    """
+    table.add_column(header, no_wrap=False, overflow="ellipsis", **kwargs)
+
+
+def _print_table(table: Table, *, console: Console) -> None:
+    """Print `table`, never truncating it when output isn't a terminal.
+
+    Piped output (an agent's cron loop, a log) has no line width to fit, and
+    Rich's 80-column default would cut exactly the cells the diff exists for.
+    """
+    if console.is_terminal:
+        console.print(table)
+        return
+    natural = console.measure(table, options=console.options.update_width(10_000)).maximum
+    saved = console.width
+    console.width = max(saved, natural)
+    try:
+        console.print(table)
+    finally:
+        console.width = saved
+
+
 def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str) -> None:
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    _add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("PR", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
-    table.add_column("CI", no_wrap=True)
+    _add_shrinkable_column(table, "CI")
     if kind == "review":
-        table.add_column("Status", no_wrap=True)
-    table.add_column("State", no_wrap=True)
+        _add_shrinkable_column(table, "Status")
+    _add_shrinkable_column(table, "State")
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Last", no_wrap=True)
     table.add_column("Note", no_wrap=True)
@@ -115,24 +157,24 @@ def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str
             [
                 _render_field(item.state, "state" in d.changed_fields),
                 _render_thread_count(item.unresolved_thread_count, d),
-                _render_last_activity(item.last_activity),
+                relative_time(item.last_activity),
                 _render_note(d),
             ]
         )
         table.add_row(*row)
 
-    console.print(table)
+    _print_table(table, console=console)
 
 
 def _print_issue_table(deltas: list[ItemDelta], *, console: Console) -> None:
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    _add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("Issue", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     table.add_column("PR", no_wrap=True)
     table.add_column("Labels", no_wrap=True, overflow="ellipsis", max_width=25)
-    table.add_column("State", no_wrap=True)
+    _add_shrinkable_column(table, "State")
     table.add_column("Last", no_wrap=True)
     table.add_column("Note", no_wrap=True)
 
@@ -146,11 +188,11 @@ def _print_issue_table(deltas: list[ItemDelta], *, console: Console) -> None:
             _render_linked_pr(item.linked_pr),
             _render_labels(item.labels, "labels" in d.changed_fields),
             _render_field(item.state, "state" in d.changed_fields),
-            _render_last_activity(item.last_activity),
+            relative_time(item.last_activity),
             _render_note(d),
         )
 
-    console.print(table)
+    _print_table(table, console=console)
 
 
 def _render_history(history: str, d: ItemDelta) -> str:
@@ -201,13 +243,11 @@ def _render_labels(labels: tuple[str, ...], changed: bool) -> str:
     return _render_field(text, changed)
 
 
-def _render_last_activity(iso_timestamp: str) -> str:
+def relative_time(iso_timestamp: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
     except ValueError:
         return iso_timestamp
-    from datetime import UTC
-
     now = datetime.now(UTC)
     secs = (now - dt).total_seconds()
     if secs < 60:
@@ -221,8 +261,8 @@ def _render_last_activity(iso_timestamp: str) -> str:
 
 def _render_note(d: ItemDelta) -> str:
     if d.kind is ChangeKind.REMOVED:
-        reason = d.disappearance_reason or "gone"
-        return f"[dim](gone: {reason})[/]"
+        label = _REMOVAL_LABEL.get(d.disappearance_reason or "", "?")
+        return f"[dim]{label}[/]"
     if "history-rewritten" in d.changed_fields:
         return "[dim](history rewritten)[/]"
     return ""

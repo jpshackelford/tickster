@@ -58,6 +58,10 @@ def test_show_table_format(seed, capsys):  # noqa: ARG001
     out = capsys.readouterr().out
     assert rc == 0
     assert "pr/hourly" in out
+    rows = [line for line in out.splitlines() if "a/b" in line]
+    assert len(rows) == 2
+    assert all(line.rstrip().endswith(" ago") for line in rows)
+    assert "2026-09-30T22:00:00Z" not in "\n".join(rows)
 
 
 def test_show_json_format_is_parseable(seed, capsys):  # noqa: ARG001

@@ -35,6 +35,13 @@ def test_removed_item_marked_removed_with_reason():
     assert delta.disappearance_reason == "closed-or-gone"
 
 
+def test_removed_review_row_reason_is_left_queue():
+    # Review rows leave the queue mostly because the reviewer acted, not because the PR closed.
+    prev = make_snapshot(kind="review", items=[make_item(key="a/b#1", state="open")])
+    curr = make_snapshot(kind="review", items=[])
+    assert diff_snapshots(prev, curr).deltas[0].disappearance_reason == "left-queue"
+
+
 def test_removed_item_scope_mismatch_reason_is_scope():
     prev = make_snapshot(items=[make_item(key="a/b#1")], scope=SnapshotScope(board="oh"))
     curr = make_snapshot(items=[], scope=SnapshotScope(board="other"))

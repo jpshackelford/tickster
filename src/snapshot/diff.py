@@ -19,6 +19,7 @@ both snapshots we compare the fields that drive the display and produce an
 from __future__ import annotations
 
 from src.snapshot.models import (
+    KIND_REVIEW,
     ChangeKind,
     DiffResult,
     ItemDelta,
@@ -170,6 +171,8 @@ def _infer_removal_reason(
 
     - "scope": the two snapshots were produced by different scope filters,
       so the item may just have been filtered out.
+    - "left-queue": a review-queue row is gone. Usually the reviewer acted
+      (approved, or the PR went on hold) rather than the PR closing.
     - "closed-or-gone": prev showed it open under a scope that still
       includes open items, so it was most likely closed (or deleted /
       transferred; the snapshot alone can't tell which).
@@ -180,7 +183,5 @@ def _infer_removal_reason(
     if prev_item.state == "open" and (
         curr_snapshot.scope.states is None or "open" in curr_snapshot.scope.states
     ):
-        # Was open under an open-including scope and now gone → likely closed
-        # (or deleted / transferred). We can't tell from the snapshot alone.
-        return "closed-or-gone"
+        return "left-queue" if prev_snapshot.kind == KIND_REVIEW else "closed-or-gone"
     return "unknown"

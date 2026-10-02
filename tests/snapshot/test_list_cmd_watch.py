@@ -181,9 +181,36 @@ def test_watch_flags_changed_refs_as_scope_change_and_keeps_baseline(
     assert cmd_list(watch_name="refs", **{refs_kwarg: ["o/r#7"]}) == 2
     out = capsys.readouterr().out
     assert "scope mismatch" in out
-    assert "closed-or-gone" not in out
+    assert "closed?" not in out
     keys = [it.key for it in store.load(kind, "refs").items]
     assert keys == ["o/r#1", "o/r#2"]
 
     # Reordering the same refs is the same scope.
     assert cmd_list(watch_name="refs", **{refs_kwarg: ["o/r#2", "o/r#1"]}) == 0
+
+
+@pytest.mark.parametrize(
+    ("command", "module"), [("pr", pr_list), ("issue", issue_list), ("review", review_list)]
+)
+def test_watch_flags_board_repo_edit_as_scope_change(
+    command,
+    module,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    monkeypatch,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+
+    monkeypatch.setattr(module, "_get_repos", lambda *_: ["o/r", "o/s"])
+    assert cmd_list(watch_name="hourly") == 0
+
+    # Reordering the board's repos is the same scope.
+    monkeypatch.setattr(module, "_get_repos", lambda *_: ["o/s", "o/r"])
+    assert cmd_list(watch_name="hourly") == 0
+    capsys.readouterr()
+
+    monkeypatch.setattr(module, "_get_repos", lambda *_: ["o/s"])
+    assert cmd_list(watch_name="hourly") == 2
+    assert "scope mismatch" in capsys.readouterr().out

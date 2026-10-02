@@ -287,20 +287,37 @@ is the same dense table you already read, with two added visual channels:
 - Characters appended to the history string since the previous snapshot
   are `[bracketed]` (and bold magenta in color output).
 
-A one-line summary header shows the counts and whether the two snapshots
-were produced by the same scope (same board, author, repos, refs, states,
-labels, limit).
+A one-line summary header shows how long ago each snapshot was captured,
+the counts, and whether the two snapshots were produced by the same scope
+(same board, author, repos, refs, states, labels, limit). Exact capture
+times are in `tkt snapshot show` and `--diff-format json`.
 
 ```
-diff: pr/hourly @ 2026-09-30T22:00:00Z → hourly @ 2026-09-30T23:00:00Z  (+2 new, *5 changed, -1 gone, 29 unchanged)
+diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 
 Δ Repo                  PR     History      CI      State   💬   Last     Note
 + OpenHands/docs        #42    [oCL]        --      open    --   5m ago
 * OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago
-- OpenHands/infra       #87    oCax         --      closed  --   1d ago   (gone: closed-or-gone)
+- OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
 
-Δ: + new row, * changed, - gone, (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
+Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
 ```
+
+### Why a row is gone
+
+The Note on a `-` row is a hint, not a fact: the snapshot only knows the
+row is no longer in the result.
+
+| Note | JSON `disappearance_reason` | Meaning |
+| --- | --- | --- |
+| `closed?` | `closed-or-gone` | `pr list` / `issue list`: it was open and no longer matches, most likely closed or merged (or deleted / transferred). |
+| `done?` | `left-queue` | `tkt review`: it left your queue, usually because you approved it or it went on hold. |
+| `scope` | `scope` | The two snapshots used different scopes (only seen with `--diff-force`). |
+| `?` | `unknown` | It wasn't open in the previous snapshot. |
+
+Other things can also drop a row: it fell past `--limit`, a filter
+attribute changed (label removed, review request withdrawn), or GitHub's
+search index briefly lagged.
 
 ### Shared flags on list commands
 
@@ -325,8 +342,10 @@ empty baseline.
 
 The query filter set (board, author, reviewer, repos, explicit
 `owner/repo#N` refs, states, labels, `--all`, limit) is persisted with
-every snapshot. Refs are compared as a set, so their order on the command
-line doesn't matter. If the current query's scope doesn't match the
+every snapshot. `repos` is the list actually queried (`--repo`, else the
+board's repos at run time), so adding or removing a repo on the board
+counts as a scope change. Repos and refs are compared as sets, so their
+order doesn't matter. If the current query's scope doesn't match the
 snapshot's scope, the diff refuses to render in either table or JSON mode
 and exits 2 without touching the baseline, so you can rerun with
 `--diff-force` to proceed (the summary is tagged `[scope-changed]` so you

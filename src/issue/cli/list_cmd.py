@@ -53,13 +53,13 @@ def cmd_list(
     """
     try:
         with IssueClient() as client:
+            target_repos = None if issue_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if issue_refs:
                 # Specific issues by reference
                 result = client.get_issues_by_ref(issue_refs)
             else:
                 # Issues by author (default: current user)
-                target_repos = _get_repos(repos, board_name)
                 target_author = author or "me"
                 result = client.list_issues_by_author(
                     target_author,
@@ -83,7 +83,7 @@ def cmd_list(
                 scope = SnapshotScope.from_issue_args(
                     board=board_name,
                     author=author,
-                    repos=repos,
+                    repos=target_repos,
                     refs=issue_refs,
                     states=states,
                     labels=labels,

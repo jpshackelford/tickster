@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import io
 import json
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from rich.console import Console
 
 from src.snapshot.diff import diff_snapshots
+from src.snapshot.models import SnapshotScope
 from src.snapshot.render import render_diff
 
 from .conftest import make_item, make_snapshot
@@ -40,22 +43,52 @@ def test_table_shows_removed_glyph_and_gone_note():
     prev = make_snapshot(items=[make_item(key="a/b#1")])
     curr = make_snapshot(items=[])
     out = _capture(diff_snapshots(prev, curr))
-    assert "- " in out
-    assert "gone:" in out
+    gone_row = next(line for line in out.splitlines() if line.lstrip().startswith("- "))
+    assert "a/b" in gone_row and "#1" in gone_row
 
 
-def test_summary_line_shows_counts():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
-    curr = make_snapshot(
-        items=[
-            make_item(key="a/b#1", history="oCr"),
-            make_item(key="a/b#2"),
-        ]
+@pytest.mark.parametrize(
+    ("kind", "prev_state", "curr_scope", "label"),
+    [
+        ("pr", "open", SnapshotScope(), "closed?"),
+        ("issue", "open", SnapshotScope(), "closed?"),
+        ("review", "open", SnapshotScope(), "done?"),
+        ("pr", "open", SnapshotScope(author="someone-else"), "scope"),
+        ("pr", "merged", SnapshotScope(), "?"),
+    ],
+)
+def test_gone_row_note_is_a_short_hint_per_reason(kind, prev_state, curr_scope, label):
+    prev = make_snapshot(kind=kind, items=[make_item(key="a/b#1", state=prev_state)])
+    curr = make_snapshot(kind=kind, items=[], scope=curr_scope)
+    out = _capture(diff_snapshots(prev, curr), output_format="table")
+    gone_row = next(line for line in out.splitlines() if line.lstrip().startswith("- "))
+    assert gone_row.split()[-1] == label
+    assert "(gone:" not in out
+
+
+def _ago(**delta) -> str:
+    return (datetime.now(UTC) - timedelta(**delta)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_summary_line_shows_relative_times_and_counts():
+    prev = make_snapshot(
+        items=[make_item(key="a/b#1", history="oC")], name="hourly", captured_at=_ago(hours=2)
     )
-    out = _capture(diff_snapshots(prev, curr))
-    assert "diff:" in out
-    assert "+1 new" in out
-    assert "*1 changed" in out
+    curr = make_snapshot(
+        items=[make_item(key="a/b#1", history="oCr"), make_item(key="a/b#2")],
+        name="hourly",
+        captured_at=_ago(minutes=5),
+    )
+    header = _capture(diff_snapshots(prev, curr)).splitlines()[0]
+    assert header.startswith("diff pr/hourly: 2h ago → 5m ago  (+1 new, *1 changed, -0 gone")
+    assert len(header) <= 80
+
+
+def test_summary_line_names_both_snapshots_when_they_differ():
+    prev = make_snapshot(name="monday", captured_at=_ago(days=3))
+    curr = make_snapshot(name="current", captured_at=_ago(minutes=1))
+    header = _capture(diff_snapshots(prev, curr)).splitlines()[0]
+    assert header.startswith("diff pr/monday (3d ago) → current (1m ago)  (")
 
 
 def test_unchanged_rows_hidden_by_default():
@@ -102,3 +135,38 @@ def test_issue_table_rendered_with_labels_and_linked_pr():
     assert "#42" in out
     # Changed label field renders with the ! suffix
     assert "bug,urgent!" in out
+
+
+def _narrow_diff(kind: str):
+    status = "review" if kind == "review" else None
+    prev = [
+        make_item(key="OpenHands/OpenHands#11250", history="oCRfA", review_status=status),
+        make_item(key="OpenHands/infra#87", history="oCax", review_status=status),
+    ]
+    curr = [
+        make_item(key="OpenHands/OpenHands#11250", history="oCRfAfR", review_status=status),
+        make_item(key="OpenHands/docs#42", history="oCL", review_status=status),
+    ]
+    return diff_snapshots(
+        make_snapshot(kind=kind, items=prev), make_snapshot(kind=kind, items=curr)
+    )
+
+
+@pytest.mark.parametrize("kind", ["pr", "issue", "review"])
+@pytest.mark.parametrize("is_terminal", [False, True])
+def test_80_columns_keeps_glyph_number_history_tail_and_note(kind, is_terminal):
+    buf = io.StringIO()
+    console = Console(file=buf, width=80, color_system=None, force_terminal=is_terminal)
+    render_diff(_narrow_diff(kind), console=console)
+    rows = {line.split()[0]: line for line in buf.getvalue().splitlines() if line[:3].strip()}
+
+    assert "#42" in rows["+"] and "[oCL]" in rows["+"]
+    assert "#11250" in rows["*"] and "oCRfA[fR]" in rows["*"]
+    assert "#87" in rows["-"] and rows["-"].split()[-1] == (
+        "done?" if kind == "review" else "closed?"
+    )
+    assert console.width == 80
+    if is_terminal:
+        assert max(len(line) for line in buf.getvalue().splitlines()) <= 80
+    else:
+        assert "OpenHands/OpenHands" in rows["*"]  # piped output is never truncated

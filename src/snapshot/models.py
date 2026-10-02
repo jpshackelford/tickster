@@ -50,6 +50,8 @@ class SnapshotScope:
     board: str | None = None
     author: str | None = None
     reviewer: str | None = None
+    # Repos actually queried (explicit --repo, else the board's list at run time),
+    # sorted, so editing a board's repos is flagged as a scope change.
     repos: tuple[str, ...] | None = None
     refs: tuple[str, ...] | None = None  # explicit owner/repo#N args, sorted
     states: tuple[str, ...] | None = None
@@ -106,7 +108,7 @@ class SnapshotScope:
             board=board,
             author=author,
             reviewer=reviewer,
-            repos=tuple(repos) if repos else None,
+            repos=tuple(sorted(repos)) if repos else None,
             refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             limit=limit,
@@ -128,7 +130,7 @@ class SnapshotScope:
         return cls(
             board=board,
             author=author,
-            repos=tuple(repos) if repos else None,
+            repos=tuple(sorted(repos)) if repos else None,
             refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             labels=tuple(labels) if labels else None,
@@ -153,7 +155,7 @@ class SnapshotScope:
             board=board,
             author=author,
             reviewer=reviewer,
-            repos=tuple(repos) if repos else None,
+            repos=tuple(sorted(repos)) if repos else None,
             states=tuple(states) if states else None,
             exclude_authors=tuple(exclude_authors) if exclude_authors else None,
             include_all=include_all,

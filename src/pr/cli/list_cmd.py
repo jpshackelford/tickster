@@ -59,17 +59,16 @@ def cmd_list(
 
     try:
         with PRClient() as client:
+            target_repos = None if pr_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if pr_refs:
                 # Use case 3: Arbitrary PR list
                 result = client.get_prs_by_ref(pr_refs)
             elif reviewer:
                 # Use case 2: PRs requesting review
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_for_reviewer(reviewer, repos=target_repos, limit=limit)
             elif author:
                 # Use case 1 & 4: PRs by author
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_by_author(
                     author,
                     repos=target_repos,
@@ -78,7 +77,6 @@ def cmd_list(
                 )
             else:
                 # Default: current user's PRs from default board's repos
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_by_author(
                     "me",
                     repos=target_repos,
@@ -101,7 +99,7 @@ def cmd_list(
                     board=board_name,
                     author=author,
                     reviewer=reviewer,
-                    repos=repos,
+                    repos=target_repos,
                     refs=pr_refs,
                     states=states,
                     limit=limit,

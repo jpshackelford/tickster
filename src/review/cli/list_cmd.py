@@ -109,7 +109,7 @@ def cmd_list(
                     board=board_name,
                     author=author,
                     reviewer=reviewer,
-                    repos=repos,
+                    repos=target_repos,
                     states=states,
                     exclude_authors=exclude_authors,
                     include_all=all_reviews,

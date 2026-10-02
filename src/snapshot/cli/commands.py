@@ -85,9 +85,11 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
     table.add_column("#", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     table.add_column("State", no_wrap=True)
-    table.add_column("Last activity", no_wrap=True)
+    table.add_column("Last", no_wrap=True)
     for it in snap.items:
-        table.add_row(it.repo, str(it.number), it.history, it.state, it.last_activity)
+        table.add_row(
+            it.repo, str(it.number), it.history, it.state, render.relative_time(it.last_activity)
+        )
     console.print(table)
     return 0
 
