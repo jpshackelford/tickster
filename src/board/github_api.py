@@ -591,9 +591,14 @@ class GitHubClient:
         resp.raise_for_status()
         data = resp.json()
 
-        if "errors" in data:
+        if data.get("errors"):
             error_msgs = [e.get("message", str(e)) for e in data["errors"]]
-            raise RuntimeError(f"GraphQL errors: {error_msgs}")
+            # GitHub returns partial data alongside per-field errors (e.g. a
+            # FORBIDDEN on a timeline node's requestedReviewer team the token
+            # can't read). Only abort when there is no usable data to return.
+            if data.get("data") is None:
+                raise RuntimeError(f"GraphQL errors: {error_msgs}")
+            logger.warning(f"GraphQL partial errors ignored: {error_msgs}")
 
         return data["data"]
 
