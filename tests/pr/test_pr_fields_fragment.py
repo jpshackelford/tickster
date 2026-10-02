@@ -28,7 +28,9 @@ def _extract_review_requested_block(fragment: str) -> str:
         r"ReviewRequestedEvent\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
         fragment,
     )
-    assert match is not None, "ReviewRequestedEvent block not found in fragment"
+    assert match is not None, (
+        "ReviewRequestedEvent block not found in fragment (or nested >1 level deep)"
+    )
     return match.group(1)
 
 
@@ -39,7 +41,7 @@ def test_fragment_does_not_request_requested_reviewer():
 def test_review_requested_block_keeps_fields_history_processing_needs():
     """Guard against over-pruning: _parse_timeline_item reads createdAt and
     actor.login from the ReviewRequestedEvent node."""
-    block = _extract_review_requested_block(PR_FIELDS_FRAGMENT)
+    block = _extract_review_requested_block(_strip_graphql_comments(PR_FIELDS_FRAGMENT))
     assert "createdAt" in block
     assert "actor" in block
 
@@ -86,4 +88,5 @@ def test_process_pr_data_handles_review_requested_without_requested_reviewer():
     action_chars = {a.value for a in ActionType}
     seen_actions = {ch.lower() for ch in info.history if ch.lower() in action_chars}
     assert ActionType.OPENED.value in seen_actions
+    assert ActionType.HELP.value in seen_actions
     assert ActionType.APPROVED.value in seen_actions
