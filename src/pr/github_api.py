@@ -61,10 +61,11 @@ fragment PRFields on PullRequest {
             }
             ... on ReviewRequestedEvent {
                 createdAt
-                requestedReviewer {
-                    ... on User { login }
-                    ... on Team { name }
-                }
+                # Intentionally does NOT select requestedReviewer: the Team
+                # branch of that union requires team-read, which GitHub App
+                # installation tokens lack. GitHubClient.graphql() currently
+                # treats the resulting partial-data FORBIDDEN error as fatal.
+                # See tests/pr/test_pr_fields_fragment.py.
                 actor { login }
             }
             ... on ClosedEvent {
