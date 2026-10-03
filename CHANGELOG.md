@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/jpshackelford/tickster/compare/v0.1.0...v0.2.0) (2026-10-03)
+
+
+### Features
+
+* **snapshot:** add snapshot/diff to show what changed between runs ([#7](https://github.com/jpshackelford/tickster/issues/7)) ([4fb6c98](https://github.com/jpshackelford/tickster/commit/4fb6c9819f328b0fe8fde773207225a7c015c74a))
+* **snapshot:** add snapshot/diff to show what changed between runs ([#7](https://github.com/jpshackelford/tickster/issues/7)) ([4fb6c98](https://github.com/jpshackelford/tickster/commit/4fb6c9819f328b0fe8fde773207225a7c015c74a)), closes [#6](https://github.com/jpshackelford/tickster/issues/6)
+
+
+### Bug Fixes
+
+* **pr:** drop requestedReviewer field that needs team-read access ([#9](https://github.com/jpshackelford/tickster/issues/9)) ([75fce85](https://github.com/jpshackelford/tickster/commit/75fce85c23b9c8ac1d887fc452c7cb728b9e3b9d))
+* **pr:** drop requestedReviewer field that needs team-read access ([#9](https://github.com/jpshackelford/tickster/issues/9)) ([75fce85](https://github.com/jpshackelford/tickster/commit/75fce85c23b9c8ac1d887fc452c7cb728b9e3b9d)), closes [#11](https://github.com/jpshackelford/tickster/issues/11)
+
+
+### Documentation
+
+* **agents:** add AGENTS.md and manual-test skill ([#8](https://github.com/jpshackelford/tickster/issues/8)) ([ad38cee](https://github.com/jpshackelford/tickster/commit/ad38cee105a5cfddf67fa91da18e8b7b68ce372c))
+
 ## [0.1.0](https://github.com/jpshackelford/tickster/compare/v0.1.0...v0.1.0) (2026-06-30)
 
 
