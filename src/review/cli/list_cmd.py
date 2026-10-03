@@ -9,6 +9,9 @@ from rich.table import Table
 from src.pr.models import CIStatus
 from src.review.github_api import ReviewClient
 from src.review.models import ReviewInfo, ReviewStatus
+from src.snapshot.convert import snapshot_from_reviews
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_REVIEW, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -29,6 +32,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     states: list[str] | None = None,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_unchanged: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List PRs needing review with status visualization.
 
@@ -72,8 +81,12 @@ def cmd_list(
             showing_historical = "merged" in states_set or "closed" in states_set
             showing_open = "open" in states_set
 
-            if not result.reviews:
-                if showing_historical and not showing_open:
+            def print_table() -> None:
+                if result.reviews:
+                    _print_review_table(
+                        result.reviews, reviewer=resolved_reviewer, show_title=show_title
+                    )
+                elif showing_historical and not showing_open:
                     console.print(
                         f"[dim]No historical PRs found that {resolved_reviewer} reviewed.[/]"
                     )
@@ -81,9 +94,34 @@ def cmd_list(
                     console.print(f"[dim]No PRs found in {target_possessive} review queue.[/]")
                 else:
                     console.print(f"[dim]No PRs needing {target_possessive} review.[/]")
-                return 0
 
-            _print_review_table(result.reviews, reviewer=resolved_reviewer, show_title=show_title)
+            plan = SnapshotPlan.from_args(
+                kind=KIND_REVIEW,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_unchanged=diff_show_unchanged,
+                force=diff_force,
+            )
+            if plan is not None:
+                scope = SnapshotScope.from_review_args(
+                    board=board_name,
+                    author=author,
+                    reviewer=reviewer,
+                    repos=target_repos,
+                    states=states,
+                    exclude_authors=exclude_authors,
+                    include_all=all_reviews,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_reviews(result.reviews, scope=scope, name=save_name)
+                return plan.execute(curr_snapshot, console, print_table=print_table)
+
+            print_table()
+            if not result.reviews:
+                return 0
 
             # Print summary
             if showing_historical and not showing_open:

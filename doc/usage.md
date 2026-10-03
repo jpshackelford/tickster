@@ -13,6 +13,8 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt review`](#tkt-review)
 - [`tkt board`](#tkt-board)
 - [`tkt repo`](#tkt-repo)
+- [`tkt snapshot`](#tkt-snapshot)
+- [Snapshots & diffs](#snapshots--diffs)
 - [History strings](#history-strings)
 - [Piping refs from stdin](#piping-refs-from-stdin)
 - [Environment variables](#environment-variables)
@@ -105,6 +107,9 @@ tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
 ```
 
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
+
 ## `tkt pr`
 
 List pull requests with a compact history visualization. Accepts PR refs as
@@ -133,6 +138,9 @@ tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
 ```
+
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
 
 ## `tkt review`
 
@@ -177,6 +185,9 @@ raw review state:
 
 By default only actionable PRs (`review`, `re-review`) are shown; `--all`
 includes `hold` and `approved`.
+
+Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
+output — see [Snapshots & diffs](#snapshots--diffs).
 
 ## `tkt board`
 
@@ -234,6 +245,123 @@ tkt repo list [--board NAME] [--all]
 tkt repo add octocat/hello-world -b team    # track a repo on board "team"
 tkt repo add octocat/spoon-knife -d         # add and set board as default
 tkt repo list --all                         # repos across all boards
+```
+
+## `tkt snapshot`
+
+Manage saved query snapshots stored under `~/.tkt/snapshots/`. Snapshots
+are the raw input to the diff view documented in
+[Snapshots & diffs](#snapshots--diffs) below.
+
+```bash
+tkt snapshot list [--kind {pr,issue,review}]
+tkt snapshot show KIND/NAME [--format {table,json}]
+tkt snapshot rm   KIND/NAME [KIND/NAME ...]
+tkt snapshot diff PREV CURR  [--all] [--format {table,json}]
+```
+
+- `KIND/NAME` refs use `/` as the separator, e.g. `pr/hourly`,
+  `issue/last-week`, `review/nightly`. Kind must be one of `pr`, `issue`,
+  `review` — the three list commands that produce snapshots.
+- Named snapshots overwrite in place; auto-timestamped snapshots (from
+  bare `--snapshot`) are named `ts-YYYYMMDDTHHMMSSZ` so they coexist.
+
+```bash
+tkt snapshot list                               # all stored snapshots
+tkt snapshot show pr/hourly                     # dump a snapshot as a table
+tkt snapshot diff pr/hourly pr/last-week        # compare two snapshots
+tkt snapshot diff pr/hourly pr/later --format json  # machine-readable
+tkt snapshot rm pr/hourly issue/hourly
+```
+
+---
+
+## Snapshots & diffs
+
+`tkt pr list`, `tkt issue list`, and `tkt review` can save their result
+as a snapshot and later diff a fresh run against that snapshot. The diff
+is the same dense table you already read, with two added visual channels:
+
+- A leading **Δ** column: `+` new row, `*` changed row, `-` row that is
+  gone from the current result, blank for unchanged.
+- Characters appended to the history string since the previous snapshot
+  are `[bracketed]` (and bold magenta in color output).
+
+A one-line summary header shows how long ago each snapshot was captured,
+the counts, and whether the two snapshots were produced by the same scope
+(same board, author, repos, refs, states, labels, limit). Exact capture
+times are in `tkt snapshot show` and `--diff-format json`.
+
+```
+diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
+
+Δ Repo                  PR     History      CI      State   💬   Last     Note
++ OpenHands/docs        #42    [oCL]        --      open    --   5m ago
+* OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago
+- OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
+
+Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
+```
+
+### Why a row is gone
+
+The Note on a `-` row is a hint, not a fact: the snapshot only knows the
+row is no longer in the result.
+
+| Note | JSON `disappearance_reason` | Meaning |
+| --- | --- | --- |
+| `closed?` | `closed-or-gone` | `pr list` / `issue list`: it was open and no longer matches, most likely closed or merged (or deleted / transferred). |
+| `done?` | `left-queue` | `tkt review`: it left your queue, usually because you approved it or it went on hold. |
+| `scope` | `scope` | The two snapshots used different scopes (only seen with `--diff-force`). |
+| `?` | `unknown` | It wasn't open in the previous snapshot. |
+
+Other things can also drop a row: it fell past `--limit`, a filter
+attribute changed (label removed, review request withdrawn), or GitHub's
+search index briefly lagged.
+
+### Shared flags on list commands
+
+All three list commands accept the same snapshot flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--snapshot [NAME]` | Save the result. With NAME, overwrites that snapshot. Without NAME, auto-timestamps. |
+| `--diff NAME` | Diff the current query result against snapshot NAME. |
+| `--watch NAME` | Shortcut for `--diff NAME --snapshot NAME` — the hourly-cron idiom. |
+| `--diff-format {table,json}` | Format for `--diff`/`--watch` output (default `table`). |
+| `--diff-include-unchanged` | Include unchanged rows in the diff view (default: only changes shown). |
+| `--diff-force` | Proceed with the diff even if the snapshot scope doesn't match the current query. |
+
+`--watch NAME` is the common agent idiom: it diffs against the previous
+`NAME` and then overwrites `NAME` with the fresh result, so the next hour
+diffs against *this* hour. An empty result is still a snapshot: when the
+last item in scope closes, `--watch` reports it as a `-` row and saves an
+empty baseline.
+
+### Scope matching
+
+The query filter set (board, author, reviewer, repos, explicit
+`owner/repo#N` refs, states, labels, `--all`, limit) is persisted with
+every snapshot. `repos` is the list actually queried (`--repo`, else the
+board's repos at run time), so adding or removing a repo on the board
+counts as a scope change. Repos and refs are compared as sets, so their
+order doesn't matter. If the current query's scope doesn't match the
+snapshot's scope, the diff refuses to render in either table or JSON mode
+and exits 2 without touching the baseline, so you can rerun with
+`--diff-force` to proceed (the summary is tagged `[scope-changed]` so you
+can see what happened).
+
+### Storage
+
+Snapshots live as JSON files under `~/.tkt/snapshots/<kind>-<name>.json`.
+Each file is small, inspectable with a text editor, and trivial to gist
+if you want to share. Overwriting an existing name is atomic.
+
+```bash
+# hourly agent loop
+tkt pr list    --board oh --watch hourly
+tkt issue list --board oh --watch hourly
+tkt review                 --watch hourly
 ```
 
 ---

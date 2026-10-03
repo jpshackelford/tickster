@@ -449,6 +449,7 @@ Examples:
         action="store_true",
         help="Show weekly merge/age graph (only works with --merged)",
     )
+    _add_snapshot_flags(pr_list_parser)
 
     # review command - reviewer's view of PR queue
     review_parser = subparsers.add_parser(
@@ -524,6 +525,7 @@ Examples:
         action="store_true",
         help="Show closed (unmerged) PRs you've reviewed",
     )
+    _add_snapshot_flags(review_parser)
 
     # issue command - issue history visualization
     issue_parser = subparsers.add_parser(
@@ -617,6 +619,66 @@ Examples:
         action="store_true",
         help="Sort by recent activity instead of creation date",
     )
+    _add_snapshot_flags(issue_list_parser)
+
+    # snapshot command - manage saved query snapshots and diff them
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Manage query snapshots and diff them",
+        description=(
+            "Save, inspect, delete, and diff `tkt pr list` / `tkt issue list` "
+            "/ `tkt review` query snapshots stored under ~/.tkt/snapshots/. "
+            "Use with --snapshot / --diff / --watch on the list commands."
+        ),
+    )
+    snapshot_subparsers = snapshot_parser.add_subparsers(dest="snapshot_command", required=True)
+
+    snapshot_list_parser = snapshot_subparsers.add_parser("list", help="List stored snapshots")
+    snapshot_list_parser.add_argument(
+        "--kind",
+        choices=["pr", "issue", "review"],
+        help="Only list snapshots of this kind",
+    )
+
+    snapshot_show_parser = snapshot_subparsers.add_parser("show", help="Dump a stored snapshot")
+    snapshot_show_parser.add_argument(
+        "ref", metavar="KIND/NAME", help="Snapshot ref, e.g. pr/hourly"
+    )
+    snapshot_show_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format (default: table)",
+    )
+
+    snapshot_rm_parser = snapshot_subparsers.add_parser(
+        "rm", help="Delete one or more stored snapshots"
+    )
+    snapshot_rm_parser.add_argument(
+        "refs", nargs="+", metavar="KIND/NAME", help="Snapshot refs to delete"
+    )
+
+    snapshot_diff_parser = snapshot_subparsers.add_parser("diff", help="Diff two stored snapshots")
+    snapshot_diff_parser.add_argument(
+        "prev_ref", metavar="PREV", help="Baseline snapshot ref (kind/name)"
+    )
+    snapshot_diff_parser.add_argument(
+        "curr_ref", metavar="CURR", help="Current snapshot ref (kind/name)"
+    )
+    snapshot_diff_parser.add_argument(
+        "--all",
+        dest="show_unchanged",
+        action="store_true",
+        help="Include unchanged rows (default: only added/changed/removed)",
+    )
+    snapshot_diff_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format (default: table)",
+    )
 
     # repo command
     repo_parser = subparsers.add_parser(
@@ -690,6 +752,7 @@ Examples:
     )
 
     args = parser.parse_args(argv)
+    _validate_snapshot_args(parser, args)
 
     # Handle board command
     if args.command == "board":
@@ -833,6 +896,12 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 show_graph=args.show_graph,
+                snapshot_name=_resolve_snapshot_name(args.snapshot_name),
+                diff_name=args.diff_name,
+                watch_name=args.watch_name,
+                diff_format=args.diff_format,
+                diff_show_unchanged=args.diff_show_unchanged,
+                diff_force=args.diff_force,
             )
 
     # Handle review command
@@ -865,6 +934,12 @@ Examples:
             limit=args.limit,
             show_title=args.show_title,
             states=review_states,
+            snapshot_name=_resolve_snapshot_name(args.snapshot_name),
+            diff_name=args.diff_name,
+            watch_name=args.watch_name,
+            diff_format=args.diff_format,
+            diff_show_unchanged=args.diff_show_unchanged,
+            diff_force=args.diff_force,
         )
 
     # Handle issue command
@@ -899,6 +974,41 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 sort_by_activity=args.sort_by_activity,
+                snapshot_name=_resolve_snapshot_name(args.snapshot_name),
+                diff_name=args.diff_name,
+                watch_name=args.watch_name,
+                diff_format=args.diff_format,
+                diff_show_unchanged=args.diff_show_unchanged,
+                diff_force=args.diff_force,
+            )
+
+    # Handle snapshot command
+    if args.command == "snapshot":
+        from src.snapshot.cli import (
+            cmd_diff as snapshot_cmd_diff,
+        )
+        from src.snapshot.cli import (
+            cmd_list as snapshot_cmd_list,
+        )
+        from src.snapshot.cli import (
+            cmd_rm as snapshot_cmd_rm,
+        )
+        from src.snapshot.cli import (
+            cmd_show as snapshot_cmd_show,
+        )
+
+        if args.snapshot_command == "list":
+            return snapshot_cmd_list(kind=args.kind)
+        if args.snapshot_command == "show":
+            return snapshot_cmd_show(args.ref, output_format=args.output_format)
+        if args.snapshot_command == "rm":
+            return snapshot_cmd_rm(args.refs)
+        if args.snapshot_command == "diff":
+            return snapshot_cmd_diff(
+                args.prev_ref,
+                args.curr_ref,
+                show_unchanged=args.show_unchanged,
+                output_format=args.output_format,
             )
 
     # Handle repo command
@@ -926,6 +1036,85 @@ Examples:
             )
 
     return 0
+
+
+def _add_snapshot_flags(parser) -> None:
+    """Attach the shared --snapshot / --diff / --watch / --diff-* flags.
+
+    Shared by `pr list`, `issue list`, and `review` so the three commands
+    speak the same snapshot UX. See src/snapshot/integration.py for the
+    mutual-exclusion rules (--watch == --diff + --snapshot).
+    """
+    group = parser.add_argument_group("snapshots")
+    group.add_argument(
+        "--snapshot",
+        dest="snapshot_name",
+        nargs="?",
+        const="__auto__",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Save the result as a snapshot. With NAME, overwrites that "
+            "snapshot; without NAME, auto-timestamps."
+        ),
+    )
+    group.add_argument(
+        "--diff",
+        dest="diff_name",
+        metavar="NAME",
+        help="Diff the result against snapshot NAME.",
+    )
+    group.add_argument(
+        "--watch",
+        dest="watch_name",
+        metavar="NAME",
+        help="Shortcut: --diff NAME --snapshot NAME (one-shot hourly idiom).",
+    )
+    group.add_argument(
+        "--diff-format",
+        dest="diff_format",
+        choices=["table", "json"],
+        default="table",
+        help="Format for --diff / --watch output (default: table).",
+    )
+    group.add_argument(
+        "--diff-include-unchanged",
+        dest="diff_show_unchanged",
+        action="store_true",
+        help="Include unchanged rows in the diff view (default: only changes).",
+    )
+    group.add_argument(
+        "--diff-force",
+        dest="diff_force",
+        action="store_true",
+        help="Proceed with --diff/--watch even if snapshot scope doesn't match the current query.",
+    )
+
+
+def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Validate --snapshot/--diff/--watch mutex, routing errors through parser.error.
+
+    Mirrors `SnapshotPlan.from_args` so library callers still get a usable
+    ValueError, while CLI callers get argparse's standard error framing
+    (program name, usage line, exit code 2) instead of a Python traceback.
+    """
+    if getattr(args, "watch_name", None) is None:
+        return
+    if getattr(args, "snapshot_name", None) is not None or (
+        getattr(args, "diff_name", None) is not None
+    ):
+        parser.error("--watch cannot be combined with --snapshot or --diff")
+
+
+def _resolve_snapshot_name(name: str | None) -> str | None:
+    """Translate the sentinel from `--snapshot` with no value to an auto name."""
+    if name is None:
+        return None
+    if name == "__auto__":
+        from src.snapshot.store import auto_timestamp_name
+
+        return auto_timestamp_name()
+    return name
 
 
 def _read_refs_from_stdin(item_type: str) -> list[str]:

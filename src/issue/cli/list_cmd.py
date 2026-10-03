@@ -9,6 +9,9 @@ from rich.table import Table
 
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
+from src.snapshot.convert import snapshot_from_issues
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_ISSUE, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -25,6 +28,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     sort_by_activity: bool = False,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_unchanged: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List issues with history visualization.
 
@@ -44,13 +53,13 @@ def cmd_list(
     """
     try:
         with IssueClient() as client:
+            target_repos = None if issue_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if issue_refs:
                 # Specific issues by reference
                 result = client.get_issues_by_ref(issue_refs)
             else:
                 # Issues by author (default: current user)
-                target_repos = _get_repos(repos, board_name)
                 target_author = author or "me"
                 result = client.list_issues_by_author(
                     target_author,
@@ -61,11 +70,36 @@ def cmd_list(
                     sort_by_activity=sort_by_activity,
                 )
 
-            if not result.issues:
-                console.print("[dim]No issues found.[/]")
-                return 0
+            plan = SnapshotPlan.from_args(
+                kind=KIND_ISSUE,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_unchanged=diff_show_unchanged,
+                force=diff_force,
+            )
+            if plan is not None:
+                scope = SnapshotScope.from_issue_args(
+                    board=board_name,
+                    author=author,
+                    repos=target_repos,
+                    refs=issue_refs,
+                    states=states,
+                    labels=labels,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_issues(result.issues, scope=scope, name=save_name)
+                return plan.execute(
+                    curr_snapshot,
+                    console,
+                    print_table=lambda: _print_issue_table(result.issues, show_title=show_title),
+                )
 
             _print_issue_table(result.issues, show_title=show_title)
+            if not result.issues:
+                return 0
 
             # Print legend
             console.print()
@@ -112,6 +146,9 @@ def _get_repos(
 
 def _print_issue_table(issues: list[IssueInfo], *, show_title: bool = False) -> None:
     """Print issues in a formatted table."""
+    if not issues:
+        console.print("[dim]No issues found.[/]")
+        return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
     table.add_column("Repo", style="cyan", no_wrap=True)

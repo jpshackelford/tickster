@@ -10,6 +10,9 @@ from rich.table import Table
 from src.pr.cli.graph import render_merged_graph
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
+from src.snapshot.convert import snapshot_from_prs
+from src.snapshot.integration import SnapshotPlan
+from src.snapshot.models import KIND_PR, SnapshotScope
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -26,6 +29,12 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     show_graph: bool = False,
+    snapshot_name: str | None = None,
+    diff_name: str | None = None,
+    watch_name: str | None = None,
+    diff_format: str = "table",
+    diff_show_unchanged: bool = False,
+    diff_force: bool = False,
 ) -> int:
     """List PRs with history visualization.
 
@@ -50,17 +59,16 @@ def cmd_list(
 
     try:
         with PRClient() as client:
+            target_repos = None if pr_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if pr_refs:
                 # Use case 3: Arbitrary PR list
                 result = client.get_prs_by_ref(pr_refs)
             elif reviewer:
                 # Use case 2: PRs requesting review
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_for_reviewer(reviewer, repos=target_repos, limit=limit)
             elif author:
                 # Use case 1 & 4: PRs by author
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_by_author(
                     author,
                     repos=target_repos,
@@ -69,7 +77,6 @@ def cmd_list(
                 )
             else:
                 # Default: current user's PRs from default board's repos
-                target_repos = _get_repos(repos, board_name)
                 result = client.list_prs_by_author(
                     "me",
                     repos=target_repos,
@@ -77,9 +84,33 @@ def cmd_list(
                     limit=limit,
                 )
 
-            if not result.prs:
-                console.print("[dim]No PRs found.[/]")
-                return 0
+            plan = SnapshotPlan.from_args(
+                kind=KIND_PR,
+                snapshot_name=snapshot_name,
+                diff_name=diff_name,
+                watch_name=watch_name,
+                output_format=diff_format,
+                show_unchanged=diff_show_unchanged,
+                force=diff_force,
+            )
+
+            if plan is not None:
+                scope = SnapshotScope.from_pr_args(
+                    board=board_name,
+                    author=author,
+                    reviewer=reviewer,
+                    repos=target_repos,
+                    refs=pr_refs,
+                    states=states,
+                    limit=limit,
+                )
+                save_name = plan.save_name or plan.diff_name or "snapshot"
+                curr_snapshot = snapshot_from_prs(result.prs, scope=scope, name=save_name)
+                return plan.execute(
+                    curr_snapshot,
+                    console,
+                    print_table=lambda: _print_pr_table(result.prs, show_title=show_title),
+                )
 
             # Show graph above table if requested
             if show_graph:
@@ -125,6 +156,9 @@ def _get_repos(
 
 def _print_pr_table(prs: list[PRInfo], *, show_title: bool = False) -> None:
     """Print PRs in a formatted table."""
+    if not prs:
+        console.print("[dim]No PRs found.[/]")
+        return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
     table.add_column("Repo", style="cyan", no_wrap=True)
