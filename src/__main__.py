@@ -451,6 +451,41 @@ Examples:
     )
     _add_snapshot_flags(pr_list_parser)
 
+    # pr checks
+    pr_checks_parser = pr_subparsers.add_parser(
+        "checks",
+        help="Show failing checks for a PR",
+        description="Show the failing checks on a PR's head commit. Exactly one of "
+        "--short or --full is required.",
+    )
+    pr_checks_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    checks_mode = pr_checks_parser.add_mutually_exclusive_group(required=True)
+    checks_mode.add_argument(
+        "--short",
+        dest="checks_mode",
+        action="store_const",
+        const="short",
+        help="One line per failing check: name, failing step, log URL",
+    )
+    checks_mode.add_argument(
+        "--full",
+        dest="checks_mode",
+        action="store_const",
+        const="full",
+        help="Per failing check: name, failing step, and the step's log",
+    )
+    pr_checks_parser.add_argument(
+        "--tail",
+        type=int,
+        default=100,
+        metavar="N",
+        help="With --full, keep only the last N log lines per check (default: 100, 0 = all)",
+    )
+
     # review command - reviewer's view of PR queue
     review_parser = subparsers.add_parser(
         "review",
@@ -859,7 +894,11 @@ Examples:
 
     # Handle pr command
     if args.command == "pr":
+        from src.pr.cli import cmd_checks as pr_cmd_checks
         from src.pr.cli import cmd_list as pr_cmd_list
+
+        if args.pr_command == "checks":
+            return pr_cmd_checks(ref=args.ref, mode=args.checks_mode, tail=args.tail)
 
         if args.pr_command == "list":
             # Build states list based on flags

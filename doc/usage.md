@@ -142,6 +142,50 @@ tkt pr list octocat/hello-world#7           # a specific PR
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
 
+### `tkt pr checks`
+
+Explain a `red` CI column: list the failing checks on one PR's head commit,
+the step that failed, and either a link to the log or the log itself. Exactly
+one of `--short` or `--full` is required.
+
+```bash
+tkt pr checks OWNER/REPO#NUM --short
+tkt pr checks OWNER/REPO#NUM --full [--tail N]
+```
+
+| Option | Description |
+| --- | --- |
+| `--short` | One tab-separated line per failing check: `check<TAB>failing step<TAB>log URL` |
+| `--full` | Per failing check: name, failing step, and that step's log |
+| `--tail N` | With `--full`, keep only the last N log lines per check (default: 100, `0` = all) |
+
+The ref may be `owner/repo#number` or a GitHub PR URL. Output starts with a
+header line (`owner/repo#7 red 2 failing`, or `... green no failing checks`).
+
+```
+$ tkt pr checks OpenHands/OpenHands-Cloud#1340 --short
+OpenHands/OpenHands-Cloud#1340 red 1 failing
+helm-unittest	Run chart unit tests	https://github.com/OpenHands/OpenHands-Cloud/actions/runs/37048045617/job/110974244953
+```
+
+Notes:
+
+- Only the newest run of each check (per workflow) is considered, so failures
+  superseded by a re-run are not reported.
+- A check counts as failing when it concluded `FAILURE`, `TIMED_OUT`,
+  `STARTUP_FAILURE` or `CANCELLED`, or an external commit status is
+  `FAILURE`/`ERROR`.
+- The failing step and `--full` logs exist only for GitHub Actions checks.
+  External checks (CircleCI, Jenkins, ...) show `--` for the step and their
+  own details URL; `--full` prints a "no log available" line for them.
+- Step logs are cut out of the job log by the step's start/end time (second
+  resolution), so the first lines may belong to the previous step. The log is
+  trimmed after the step's last `##[error]` line, and timestamps and ANSI colour
+  codes are stripped.
+- Downloading logs needs access to Actions logs (`actions: read`); if GitHub
+  refuses or the log has expired, the check is still listed with
+  `(log unavailable: HTTP <status>)`.
+
 ## `tkt review`
 
 Show PRs from a reviewer's perspective. By default shows only PRs that need

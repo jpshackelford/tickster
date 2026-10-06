@@ -144,6 +144,12 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()["login"]
 
+    def get_text(self, url: str) -> str:
+        """GET a text resource, following redirects (e.g. Actions job logs)."""
+        resp = self._client.get(url, follow_redirects=True)
+        resp.raise_for_status()
+        return resp.text
+
     def search_issues(
         self,
         query: str,
