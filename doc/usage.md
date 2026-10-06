@@ -168,8 +168,23 @@ OpenHands/OpenHands-Cloud#1340 red 1 failing
 helm-unittest	Run chart unit tests	https://github.com/OpenHands/OpenHands-Cloud/actions/runs/37048045617/job/110974244953
 ```
 
+```text
+$ tkt pr checks OpenHands/OpenHands-Cloud#1340 --full --tail 5
+OpenHands/OpenHands-Cloud#1340 red 1 failing
+
+== helm-unittest :: Run chart unit tests
+... 147 earlier lines omitted (--tail 0 for all)
+Snapshot:    0 passed, 0 total
+Time:        3.601522531s
+
+Error: plugin "unittest" exited with error
+##[error]Process completed with exit code 1.
+```
+
 Notes:
 
+- Unlike `tkt pr list`, this command takes exactly one PR ref and does not read
+  refs from stdin.
 - Only the newest run of each check (per workflow) is considered, so failures
   superseded by a re-run are not reported.
 - A check counts as failing when it concluded `FAILURE`, `TIMED_OUT`,
@@ -185,6 +200,10 @@ Notes:
 - Downloading logs needs access to Actions logs (`actions: read`); if GitHub
   refuses or the log has expired, the check is still listed with
   `(log unavailable: HTTP <status>)`.
+- The check list is fetched in a single GraphQL request. If the token cannot
+  read some check fields on the repo (typically a GitHub App token without
+  checks access, reported as `Resource not accessible by integration`), the
+  command exits 1 with that error rather than showing a partial list.
 
 ## `tkt review`
 
