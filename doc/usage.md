@@ -157,7 +157,7 @@ tkt pr checks OWNER/REPO#NUM --full [--tail N]
 | --- | --- |
 | `--short` | One tab-separated line per failing check: `check<TAB>failing step<TAB>log URL` |
 | `--full` | Per failing check: name, failing step, and that step's log |
-| `--tail N` | With `--full`, keep only the last N log lines per check (default: 100, `0` = all) |
+| `--tail N` | With `--full`, keep only the last N log lines per check (default: 100, `0` = all); must be `>= 0` and is not allowed with `--short` |
 
 The ref may be `owner/repo#number` or a GitHub PR URL. Output starts with a
 header line (`owner/repo#7 red 2 failing`, or `... green no failing checks`).

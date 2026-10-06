@@ -389,12 +389,28 @@ class TestCliArgs:
         assert exc.value.code == 2
         assert "not allowed with" in capsys.readouterr().err
 
+    def test_tail_requires_full(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "checks", "o/r#7", "--short", "--tail", "5"])
+
+        assert exc.value.code == 2
+        assert "--tail can only be used with --full" in capsys.readouterr().err
+
+    @pytest.mark.parametrize("value", ["-1", "abc"])
+    def test_tail_rejects_invalid_values(self, capsys, value):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "checks", "o/r#7", "--full", "--tail", value])
+
+        assert exc.value.code == 2
+        assert "--tail" in capsys.readouterr().err
+
     @pytest.mark.parametrize(
         ("flags", "mode", "tail"),
         [
             (["--short"], "short", 100),
             (["--full"], "full", 100),
             (["--full", "--tail", "5"], "full", 5),
+            (["--full", "--tail", "0"], "full", 0),
         ],
     )
     def test_dispatches_to_cmd_checks(self, monkeypatch, flags, mode, tail):
