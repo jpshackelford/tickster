@@ -11,7 +11,7 @@ Build metadata is injected by CI or detected at runtime.
 import subprocess
 from functools import lru_cache
 
-__version__ = "0.2.0"  # x-release-please-version
+__version__ = "0.3.0"  # x-release-please-version
 
 
 @lru_cache(maxsize=1)
