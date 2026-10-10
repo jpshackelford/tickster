@@ -397,7 +397,7 @@ class PRClient:
         query_parts.append("}")
         query = "\n".join(query_parts)
 
-        data = self._client.graphql(query, {})
+        data = self._client.graphql(query, {}, tolerate_null_roots=True)
 
         prs: list[PRInfo] = []
         for idx, (repo, number) in enumerate(pr_refs):

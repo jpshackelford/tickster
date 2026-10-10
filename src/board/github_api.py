@@ -23,6 +23,13 @@ from src.board.models import (
 logger = logging.getLogger(__name__)
 
 
+def _nulls_a_root(errors: list[dict], data: dict) -> bool:
+    """True if any error's path is a single top-level field that came back null."""
+    return any(
+        len(path := error.get("path") or []) == 1 and data.get(path[0]) is None for error in errors
+    )
+
+
 def _get_token_from_gh_cli() -> str | None:
     """Try to get token using gh CLI."""
     try:
@@ -552,7 +559,7 @@ class GitHubClient:
         query = "query {\n" + "\n".join(fragments) + "\n}"
 
         try:
-            data = self.graphql(query)
+            data = self.graphql(query, tolerate_null_roots=True)
         except RuntimeError as e:
             # If batch query fails, return empty results
             # Caller can fall back to individual fetches
@@ -588,20 +595,45 @@ class GitHubClient:
 
     # GraphQL methods for Project operations
 
-    def graphql(self, query: str, variables: dict | None = None) -> dict:
-        """Execute a GraphQL query."""
+    def graphql(
+        self,
+        query: str,
+        variables: dict | None = None,
+        *,
+        tolerate_null_roots: bool = False,
+    ) -> dict:
+        """Execute a GraphQL query.
+
+        Raises if the response carries errors and no data. Partial responses
+        (data plus errors, e.g. FORBIDDEN on one union branch) log a warning
+        and return the data; unresolved fields come back as null.
+
+        Also raises when an error nulls out a whole top-level field, since
+        callers have nothing to read from it. Pass ``tolerate_null_roots`` when
+        a null root is an expected per-item result (batched aliases, lookups).
+        """
         resp = self._client.post(
             self.GRAPHQL_URL,
             json={"query": query, "variables": variables or {}},
         )
         resp.raise_for_status()
-        data = resp.json()
+        body = resp.json()
+        errors = body.get("errors")
+        data = body.get("data")
 
-        if "errors" in data:
-            error_msgs = [e.get("message", str(e)) for e in data["errors"]]
+        if errors and (data is None or (not tolerate_null_roots and _nulls_a_root(errors, data))):
+            error_msgs = [e.get("message", str(e)) for e in errors]
             raise RuntimeError(f"GraphQL errors: {error_msgs}")
 
-        return data["data"]
+        for error in errors or []:
+            logger.warning(
+                "GraphQL partial error: type=%s path=%s message=%s",
+                error.get("type"),
+                ".".join(str(p) for p in error.get("path") or []),
+                error.get("message"),
+            )
+
+        return data
 
     def get_user_project(self, username: str, project_number: int) -> ProjectInfo | None:
         """Get a user's project by number."""
@@ -626,8 +658,12 @@ class GitHubClient:
             }
         }
         """
-        data = self.graphql(query, {"username": username, "number": project_number})
-        project = data["user"]["projectV2"]
+        data = self.graphql(
+            query,
+            {"username": username, "number": project_number},
+            tolerate_null_roots=True,
+        )
+        project = (data["user"] or {}).get("projectV2")
 
         if not project:
             return None
@@ -741,7 +777,9 @@ class GitHubClient:
             }
         }
         """
-        data = self.graphql(query, {"username": username})
+        data = self.graphql(query, {"username": username}, tolerate_null_roots=True)
+        if not data["user"]:
+            raise RuntimeError(f"GitHub user not found: {username}")
         return data["user"]["id"]
 
     def create_status_field(self, project_id: str) -> tuple[str, dict[str, str]]:
