@@ -9,11 +9,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from rich.console import Console
 
-# Load environment variables (e.g. GITHUB_TOKEN/GIST_TOKEN from a local .env)
-load_dotenv()
+# Search from the working directory; the default searches from this file's
+# install location, which ignores the user's cwd.
+load_dotenv(find_dotenv(usecwd=True))
 
 console = Console()
 
