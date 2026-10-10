@@ -1,6 +1,7 @@
 """Board configuration management.
 
-Configuration is stored in ~/.tkt/config.toml under the [board] section.
+Configuration is stored in $TKT_HOME/config.toml (default ~/.tkt) under the
+[board] section.
 
 Multi-board configuration structure:
     [meta]
@@ -43,8 +44,16 @@ except ImportError:
 
 import tomli_w
 
-# Default location for user-level config
-TKT_HOME = Path.home() / ".tkt"
+
+def resolve_tkt_home() -> Path:
+    """Return the state directory: $TKT_HOME if set and non-empty, else ~/.tkt."""
+    override = os.environ.get("TKT_HOME")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".tkt"
+
+
+TKT_HOME = resolve_tkt_home()
 CONFIG_FILE = TKT_HOME / "config.toml"
 CACHE_FILE = TKT_HOME / "board-cache.db"
 
@@ -298,7 +307,7 @@ class BoardsConfig:
 
 
 def ensure_tkt_home() -> Path:
-    """Ensure ~/.tkt directory exists."""
+    """Ensure the TKT_HOME directory exists."""
     TKT_HOME.mkdir(parents=True, exist_ok=True)
     return TKT_HOME
 

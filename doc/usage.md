@@ -66,6 +66,14 @@ in:
 You normally do not edit these by hand — `tkt repo`, `tkt board config`, and
 `tkt board init` manage them for you.
 
+All tickster state (config, cache, `boards/`, `snapshots/`, `api_logs/`) lives
+under `~/.tkt` by default. Set `TKT_HOME` to relocate it, e.g. for CI, a
+sandbox, or an isolated profile:
+
+```bash
+TKT_HOME=/tmp/tkt-ci tkt board status
+```
+
 ## Global options
 
 ```bash
@@ -449,5 +457,6 @@ cat my-issues.txt | tkt issue list --title
 | `GITHUB_TOKEN` | GitHub API token (required) |
 | `GIST_TOKEN` | Optional scoped token used for `board sync-config` gists; falls back to `GITHUB_TOKEN` |
 | `GITHUB_USERNAME` | Override the detected current user |
+| `TKT_HOME` | State directory for config, cache, boards, snapshots and API logs (default `~/.tkt`) |
 | `TKT_LOG_API` | Set to `1`/`true` to log raw GitHub API calls (debugging) |
-| `TKT_LOG_API_DIR` | Directory for API logs when `TKT_LOG_API` is enabled |
+| `TKT_LOG_API_DIR` | Directory for API logs when `TKT_LOG_API` is enabled (default `$TKT_HOME/api_logs`) |

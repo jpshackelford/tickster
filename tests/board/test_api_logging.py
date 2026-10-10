@@ -65,18 +65,18 @@ class TestApiLoggingEnabled:
 class TestLogDirectory:
     """Tests for get_log_directory()."""
 
-    def test_default_directory(self):
-        """Default log directory is ~/.tkt/api_logs/."""
+    def test_default_directory_follows_tkt_home(self, tmp_path, monkeypatch):
+        """Default log directory is $TKT_HOME/api_logs/."""
+        monkeypatch.setattr("src.board.config.TKT_HOME", tmp_path)
         with patch.dict(os.environ, {}, clear=True):
-            os.environ.pop("TKT_LOG_API_DIR", None)
             result = get_log_directory()
-            assert result == Path.home() / ".tkt" / "api_logs"
+            assert result == tmp_path / "api_logs"
 
-    def test_custom_directory(self):
-        """Custom log directory via TKT_LOG_API_DIR."""
+    def test_custom_directory_overrides_tkt_home(self, tmp_path, monkeypatch):
+        """TKT_LOG_API_DIR wins over TKT_HOME."""
+        monkeypatch.setattr("src.board.config.TKT_HOME", tmp_path)
         with patch.dict(os.environ, {"TKT_LOG_API_DIR": "/tmp/my_logs"}):
-            result = get_log_directory()
-            assert result == Path("/tmp/my_logs")
+            assert get_log_directory() == Path("/tmp/my_logs")
 
 
 class TestSanitizeHeaders:
