@@ -589,19 +589,34 @@ class GitHubClient:
     # GraphQL methods for Project operations
 
     def graphql(self, query: str, variables: dict | None = None) -> dict:
-        """Execute a GraphQL query."""
+        """Execute a GraphQL query.
+
+        Raises if the response carries errors and no data. Partial responses
+        (data plus errors, e.g. FORBIDDEN on one union branch) log a warning
+        and return the data; unresolved fields come back as null.
+        """
         resp = self._client.post(
             self.GRAPHQL_URL,
             json={"query": query, "variables": variables or {}},
         )
         resp.raise_for_status()
-        data = resp.json()
+        body = resp.json()
+        errors = body.get("errors")
+        data = body.get("data")
 
-        if "errors" in data:
-            error_msgs = [e.get("message", str(e)) for e in data["errors"]]
+        if errors and data is None:
+            error_msgs = [e.get("message", str(e)) for e in errors]
             raise RuntimeError(f"GraphQL errors: {error_msgs}")
 
-        return data["data"]
+        for error in errors or []:
+            logger.warning(
+                "GraphQL partial error: type=%s path=%s message=%s",
+                error.get("type"),
+                ".".join(str(p) for p in error.get("path") or []),
+                error.get("message"),
+            )
+
+        return data
 
     def get_user_project(self, username: str, project_number: int) -> ProjectInfo | None:
         """Get a user's project by number."""
@@ -627,7 +642,7 @@ class GitHubClient:
         }
         """
         data = self.graphql(query, {"username": username, "number": project_number})
-        project = data["user"]["projectV2"]
+        project = (data["user"] or {}).get("projectV2")
 
         if not project:
             return None
@@ -742,6 +757,8 @@ class GitHubClient:
         }
         """
         data = self.graphql(query, {"username": username})
+        if not data["user"]:
+            raise RuntimeError(f"GitHub user not found: {username}")
         return data["user"]["id"]
 
     def create_status_field(self, project_id: str) -> tuple[str, dict[str, str]]:
