@@ -222,6 +222,7 @@ class ChecksClient:
             data = self._client.graphql(
                 CHECKS_QUERY,
                 {"owner": owner, "name": name, "number": number, "cursor": cursor},
+                tolerate_null_roots=True,
             )
             pr = (data.get("repository") or {}).get("pullRequest")
             if not pr:

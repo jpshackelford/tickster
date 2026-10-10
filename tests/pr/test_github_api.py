@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from src.pr.github_api import PRClient
@@ -236,3 +237,43 @@ class TestGetPRsByRef:
             assert len(result.prs) == 0
             # GraphQL should not have been called
             mock_client.graphql.assert_not_called()
+
+
+class TestGetPrsByRefWithUnresolvableRef:
+    """A ref whose repo can't be resolved nulls its alias; the other refs must still load."""
+
+    @staticmethod
+    def _response(good_node: dict) -> httpx.Response:
+        body = {
+            "data": {"pr0": {"pullRequest": good_node}, "pr1": None},
+            "errors": [
+                {
+                    "type": "NOT_FOUND",
+                    "path": ["pr1"],
+                    "message": "Could not resolve to a Repository with the name 'o/gone'.",
+                }
+            ],
+        }
+        return httpx.Response(200, json=body, request=httpx.Request("POST", "https://x"))
+
+    def test_other_refs_are_returned_and_the_missing_one_is_skipped(self):
+        node = {
+            "number": 5,
+            "title": "Test PR",
+            "state": "OPEN",
+            "isDraft": False,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "closedAt": None,
+            "mergeable": "MERGEABLE",
+            "author": {"login": "testuser"},
+            "repository": {"nameWithOwner": "owner/repo"},
+            "reviewThreads": {"nodes": []},
+            "commits": {"nodes": []},
+            "timelineItems": {"nodes": []},
+        }
+        with patch.object(httpx.Client, "post", return_value=self._response(node)):
+            client = PRClient(token="test-token")
+            result = client.get_prs_by_ref(["owner/repo#5", "o/gone#1"], reference_user="testuser")
+            client.close()
+
+        assert [(pr.repo, pr.number) for pr in result.prs] == [("owner/repo", 5)]
