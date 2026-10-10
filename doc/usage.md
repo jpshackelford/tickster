@@ -41,8 +41,10 @@ uv run tkt --help
 
 ## Authentication
 
-`tkt` talks to the GitHub API and reads credentials from the environment. A
-local `.env` file in the working directory is loaded automatically.
+`tkt` talks to the GitHub API and reads credentials from the environment. The
+nearest `.env` file, searching from the working directory up through its
+parents, is loaded automatically. Variables already exported in your shell take
+precedence over `.env` values.
 
 ```bash
 export GITHUB_TOKEN=ghp_xxx        # required
