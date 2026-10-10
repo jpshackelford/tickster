@@ -7,6 +7,13 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.date_window import (
+    DateWindow,
+    DateWindowError,
+    build_date_window,
+    window_line,
+    window_suffix,
+)
 from src.pr.cli.graph import render_merged_graph
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
@@ -35,6 +42,10 @@ def cmd_list(
     diff_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
+    since_days: int | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    date_field: str | None = None,
 ) -> int:
     """List PRs with history visualization.
 
@@ -48,6 +59,11 @@ def cmd_list(
         limit: Maximum number of PRs to show
         show_title: Include PR titles in output
         show_graph: Show weekly merge/age graph (only for merged PRs)
+        since_days: Only include PRs within the last N days
+        after: Only include PRs on/after this date (YYYY-MM-DD)
+        before: Only include PRs on/before this date (YYYY-MM-DD)
+        date_field: Search date field to filter on
+            (created/updated/merged/closed)
 
     Returns:
         Exit code (0 for success)
@@ -58,6 +74,20 @@ def cmd_list(
         return 1
 
     try:
+        window = build_date_window(
+            states,
+            since_days=since_days,
+            after=after,
+            before=before,
+            date_field=date_field,
+            refs=pr_refs,
+        )
+    except DateWindowError as e:
+        console.print(f"[red]Error:[/] {e}")
+        return 1
+    date_qualifier = window.to_qualifier() if window else None
+
+    try:
         with PRClient() as client:
             target_repos = None if pr_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
@@ -66,7 +96,12 @@ def cmd_list(
                 result = client.get_prs_by_ref(pr_refs)
             elif reviewer:
                 # Use case 2: PRs requesting review
-                result = client.list_prs_for_reviewer(reviewer, repos=target_repos, limit=limit)
+                result = client.list_prs_for_reviewer(
+                    reviewer,
+                    repos=target_repos,
+                    limit=limit,
+                    date_qualifier=date_qualifier,
+                )
             elif author:
                 # Use case 1 & 4: PRs by author
                 result = client.list_prs_by_author(
@@ -74,6 +109,7 @@ def cmd_list(
                     repos=target_repos,
                     states=states,
                     limit=limit,
+                    date_qualifier=date_qualifier,
                 )
             else:
                 # Default: current user's PRs from default board's repos
@@ -82,6 +118,7 @@ def cmd_list(
                     repos=target_repos,
                     states=states,
                     limit=limit,
+                    date_qualifier=date_qualifier,
                 )
 
             plan = SnapshotPlan.from_args(
@@ -103,13 +140,16 @@ def cmd_list(
                     refs=pr_refs,
                     states=states,
                     limit=limit,
+                    window=window,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_prs(result.prs, scope=scope, name=save_name)
                 return plan.execute(
                     curr_snapshot,
                     console,
-                    print_table=lambda: _print_pr_table(result.prs, show_title=show_title),
+                    print_table=lambda: _print_pr_table(
+                        result.prs, show_title=show_title, window=window
+                    ),
                 )
 
             # Show graph above table if requested
@@ -119,10 +159,13 @@ def cmd_list(
                 if merged_prs:
                     render_merged_graph(merged_prs, console=console)
 
-            _print_pr_table(result.prs, show_title=show_title)
+            _print_pr_table(result.prs, show_title=show_title, window=window)
 
             if result.has_more:
                 console.print(f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]")
+
+            if window and result.prs:
+                console.print(f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -154,10 +197,12 @@ def _get_repos(
     return board_repos if board_repos else None
 
 
-def _print_pr_table(prs: list[PRInfo], *, show_title: bool = False) -> None:
+def _print_pr_table(
+    prs: list[PRInfo], *, show_title: bool = False, window: DateWindow | None = None
+) -> None:
     """Print PRs in a formatted table."""
     if not prs:
-        console.print("[dim]No PRs found.[/]")
+        console.print(f"[dim]No PRs found{window_suffix(window)}.[/]")
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 

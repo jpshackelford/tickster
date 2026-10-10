@@ -138,6 +138,8 @@ class SnapshotPlan:
                 "[red]Error:[/] scope mismatch between snapshots "
                 "(use --diff-force to proceed anyway)"
             )
+            if prev.scope.window != curr.scope.window:
+                console.print(f"[dim]{render_module.window_note(prev, curr)}[/]")
             return 2
         render_module.render_diff(
             result,

@@ -15,6 +15,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
 
+from src.date_window import DateWindow
+
 SCHEMA_VERSION = 1
 
 KIND_PR = "pr"
@@ -33,11 +35,58 @@ class ChangeKind(Enum):
 
 
 @dataclass(frozen=True)
+class WindowScope:
+    """A date window as typed, so rolling windows stay comparable day to day.
+
+    A relative window records ``since_days`` (not the date it resolves to
+    today); an absolute one records its bounds as ISO dates.
+    """
+
+    field: str
+    since_days: int | None = None
+    after: str | None = None
+    before: str | None = None
+
+    @classmethod
+    def from_window(cls, window: DateWindow | None) -> WindowScope | None:
+        if window is None:
+            return None
+        if window.since_days is not None:
+            return cls(field=window.field, since_days=window.since_days)
+        return cls(
+            field=window.field,
+            after=window.after.isoformat() if window.after else None,
+            before=window.before.isoformat() if window.before else None,
+        )
+
+    def to_dict(self) -> dict:
+        return {k: v for k, v in asdict(self).items() if v is not None}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> WindowScope:
+        return cls(
+            field=data["field"],
+            since_days=data.get("since_days"),
+            after=data.get("after"),
+            before=data.get("before"),
+        )
+
+    def describe(self) -> str:
+        if self.since_days is not None:
+            return f"{self.field} since {self.since_days}d ago"
+        if self.after and self.before:
+            return f"{self.field} {self.after}..{self.before}"
+        if self.after:
+            return f"{self.field} ≥ {self.after}"
+        return f"{self.field} ≤ {self.before}"
+
+
+@dataclass(frozen=True)
 class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author, repos, refs, states, labels, limit). `fingerprint`
+    (same board, author, repos, refs, states, labels, limit, date window). `fingerprint`
     yields a stable short digest used to detect scope drift between runs.
 
     The `from_{pr,issue,review}_args` factories are the only supported way
@@ -59,9 +108,10 @@ class SnapshotScope:
     exclude_authors: tuple[str, ...] | None = None
     include_all: bool = False  # review: --all
     limit: int = 100
+    window: WindowScope | None = None
 
     def to_dict(self) -> dict:
-        return {
+        data = {
             "board": self.board,
             "author": self.author,
             "reviewer": self.reviewer,
@@ -73,6 +123,10 @@ class SnapshotScope:
             "include_all": self.include_all,
             "limit": self.limit,
         }
+        # Omitted when unset so scopes saved before date windows keep their hash.
+        if self.window:
+            data["window"] = self.window.to_dict()
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> SnapshotScope:
@@ -89,6 +143,7 @@ class SnapshotScope:
             ),
             include_all=bool(data.get("include_all", False)),
             limit=int(data.get("limit", 100)),
+            window=WindowScope.from_dict(data["window"]) if data.get("window") else None,
         )
 
     @classmethod
@@ -102,6 +157,7 @@ class SnapshotScope:
         refs: list[str] | None,
         states: list[str] | None,
         limit: int,
+        window: DateWindow | None = None,
     ) -> SnapshotScope:
         """Build the scope that `pr list` queries contribute to the hash."""
         return cls(
@@ -112,6 +168,7 @@ class SnapshotScope:
             refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             limit=limit,
+            window=WindowScope.from_window(window),
         )
 
     @classmethod
@@ -125,6 +182,7 @@ class SnapshotScope:
         states: list[str] | None,
         labels: list[str] | None,
         limit: int,
+        window: DateWindow | None = None,
     ) -> SnapshotScope:
         """Build the scope that `issue list` queries contribute to the hash."""
         return cls(
@@ -135,6 +193,7 @@ class SnapshotScope:
             states=tuple(states) if states else None,
             labels=tuple(labels) if labels else None,
             limit=limit,
+            window=WindowScope.from_window(window),
         )
 
     @classmethod
@@ -149,6 +208,7 @@ class SnapshotScope:
         exclude_authors: list[str] | None,
         include_all: bool,
         limit: int,
+        window: DateWindow | None = None,
     ) -> SnapshotScope:
         """Build the scope that `review` queries contribute to the hash."""
         return cls(
@@ -160,6 +220,7 @@ class SnapshotScope:
             exclude_authors=tuple(exclude_authors) if exclude_authors else None,
             include_all=include_all,
             limit=limit,
+            window=WindowScope.from_window(window),
         )
 
     def fingerprint(self) -> str:

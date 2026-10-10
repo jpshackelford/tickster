@@ -214,3 +214,125 @@ def test_watch_flags_board_repo_edit_as_scope_change(
     monkeypatch.setattr(module, "_get_repos", lambda *_: ["o/s"])
     assert cmd_list(watch_name="hourly") == 2
     assert "scope mismatch" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_watch_flags_changed_window_as_scope_change_and_keeps_baseline(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1, 2]
+
+    assert cmd_list(watch_name="win", since_days=14) == 0
+    capsys.readouterr()
+
+    fake_client.numbers = [1]
+    assert cmd_list(watch_name="win", since_days=3) == 2
+    out = capsys.readouterr().out
+    assert "scope mismatch" in out
+    assert "window: updated since 14d ago → updated since 3d ago" in out
+    assert [it.key for it in store.load(kind, "win").items] == ["o/r#1", "o/r#2"]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_watch_flags_adding_a_window_as_scope_change(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,  # noqa: ARG001
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    assert cmd_list(watch_name="win") == 0
+    capsys.readouterr()
+
+    assert cmd_list(watch_name="win", since_days=14) == 2
+    assert "window: none → updated since 14d ago" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_watch_with_same_rolling_window_matches_and_names_it(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(watch_name="win", since_days=14) == 0
+    capsys.readouterr()
+
+    assert cmd_list(watch_name="win", since_days=14) == 0
+    out = capsys.readouterr().out
+    assert "scope-changed" not in out
+    assert "window: updated since 14d ago" in out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_window_is_stored_in_the_snapshot_scope(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,  # noqa: ARG001
+):
+    kind, cmd_list = COMMANDS[command]
+    assert cmd_list(snapshot_name="s", after="2026-08-01", before="2026-08-31") == 0
+    window = store.load(kind, "s").scope.window
+    assert window is not None
+    assert (window.field, window.after, window.before) == ("updated", "2026-08-01", "2026-08-31")
+
+
+@pytest.mark.parametrize(("command", "refs_kwarg"), [("pr", "pr_refs"), ("issue", "issue_refs")])
+def test_window_with_explicit_refs_is_an_error(
+    command,
+    refs_kwarg,
+    fake_client,  # noqa: ARG001
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    assert cmd_list(since_days=7, **{refs_kwarg: ["o/r#1"]}) == 1
+    out = capsys.readouterr().out
+    assert "--since cannot narrow explicit refs" in out
+    assert "Drop the refs to search by date, or drop --since." in out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_date_field_without_a_window_is_an_error(command, fake_client, capsys):  # noqa: ARG001
+    _, cmd_list = COMMANDS[command]
+    assert cmd_list(date_field="created") == 1
+    assert "--date-field needs --since, --after or --before" in capsys.readouterr().out
+
+
+def test_open_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
+    assert pr_list.cmd_list(states=["open"], since_days=7, date_field="merged") == 1
+    assert "add --merged" in capsys.readouterr().out
+
+
+def test_issue_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
+    assert issue_list.cmd_list(since_days=7, date_field="merged") == 1
+    assert "Issues have no merged date" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_empty_result_names_the_window(command, fake_client, capsys):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = []
+    assert cmd_list(after="2026-08-01") == 0
+    assert "(updated ≥ 2026-08-01, UTC)." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_listing_with_window_ends_with_a_window_line(command, fake_client, capsys):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(before="2026-08-31") == 0
+    assert capsys.readouterr().out.rstrip().splitlines()[-1] == "Window: updated ≤ 2026-08-31 (UTC)"
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_listing_without_window_has_no_window_line(command, fake_client, capsys):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list() == 0
+    assert "Window:" not in capsys.readouterr().out

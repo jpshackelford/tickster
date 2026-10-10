@@ -102,6 +102,7 @@ class IssueClient:
         labels: list[str] | None = None,
         limit: int = 100,
         sort_by_activity: bool = False,
+        date_qualifier: str | None = None,
     ) -> IssueListResult:
         """List issues by author, optionally filtered by repos, states, and labels.
 
@@ -112,6 +113,8 @@ class IssueClient:
             labels: List of label filters (comma-separated = OR, multiple args = AND)
             limit: Maximum number of issues to fetch
             sort_by_activity: If True, sort by last activity; else by created date
+            date_qualifier: Optional GitHub search date qualifier
+                (e.g. "created:>=2026-08-01")
 
         Returns:
             IssueListResult with processed issue info
@@ -123,7 +126,7 @@ class IssueClient:
         and_labels, or_groups = parse_label_filters(labels or [])
 
         # Build search query (AND labels go in query, OR handled client-side)
-        search_query = _build_search_query(author, repos, states, and_labels)
+        search_query = _build_search_query(author, repos, states, and_labels, date_qualifier)
 
         return self._search_issues(
             search_query,
@@ -318,6 +321,7 @@ def _build_search_query(
     repos: list[str] | None,
     states: list[str] | None,
     and_labels: list[str] | None,
+    date_qualifier: str | None = None,
 ) -> str:
     """Build GitHub search query for issues."""
     parts = ["is:issue", f"author:{author}"]
@@ -340,6 +344,9 @@ def _build_search_query(
                 parts.append(f'label:"{label}"')
             else:
                 parts.append(f"label:{label}")
+
+    if date_qualifier:
+        parts.append(date_qualifier)
 
     return " ".join(parts)
 
