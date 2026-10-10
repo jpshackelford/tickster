@@ -452,6 +452,42 @@ Examples:
     )
     _add_snapshot_flags(pr_list_parser)
 
+    # pr checks
+    pr_checks_parser = pr_subparsers.add_parser(
+        "checks",
+        help="Show failing checks for a PR",
+        description="Show the failing checks on a PR's head commit. Exactly one of "
+        "--short or --full is required.",
+    )
+    pr_checks_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    pr_checks_parser.set_defaults(checks_parser=pr_checks_parser)
+    checks_mode = pr_checks_parser.add_mutually_exclusive_group(required=True)
+    checks_mode.add_argument(
+        "--short",
+        dest="checks_mode",
+        action="store_const",
+        const="short",
+        help="One line per failing check: name, failing step, log URL",
+    )
+    checks_mode.add_argument(
+        "--full",
+        dest="checks_mode",
+        action="store_const",
+        const="full",
+        help="Per failing check: name, failing step, and the step's log",
+    )
+    pr_checks_parser.add_argument(
+        "--tail",
+        type=_non_negative_int,
+        default=None,
+        metavar="N",
+        help="With --full, keep only the last N log lines per check (default: 100, 0 = all)",
+    )
+
     # review command - reviewer's view of PR queue
     review_parser = subparsers.add_parser(
         "review",
@@ -754,6 +790,7 @@ Examples:
 
     args = parser.parse_args(argv)
     _validate_snapshot_args(parser, args)
+    _validate_checks_args(args)
 
     # Handle board command
     if args.command == "board":
@@ -860,7 +897,13 @@ Examples:
 
     # Handle pr command
     if args.command == "pr":
+        from src.pr.cli import cmd_checks as pr_cmd_checks
         from src.pr.cli import cmd_list as pr_cmd_list
+        from src.pr.cli.checks_cmd import DEFAULT_TAIL
+
+        if args.pr_command == "checks":
+            tail = DEFAULT_TAIL if args.tail is None else args.tail
+            return pr_cmd_checks(ref=args.ref, mode=args.checks_mode, tail=tail)
 
         if args.pr_command == "list":
             # Build states list based on flags
@@ -1105,6 +1148,20 @@ def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Name
         getattr(args, "diff_name", None) is not None
     ):
         parser.error("--watch cannot be combined with --snapshot or --diff")
+
+
+def _non_negative_int(value: str) -> int:
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError("must be >= 0")
+    return n
+
+
+def _validate_checks_args(args: argparse.Namespace) -> None:
+    """Reject `tkt pr checks --short --tail N`: --tail only applies to --full."""
+    is_short_checks = getattr(args, "pr_command", None) == "checks" and args.checks_mode == "short"
+    if is_short_checks and args.tail is not None:
+        args.checks_parser.error("--tail can only be used with --full")
 
 
 def _resolve_snapshot_name(name: str | None) -> str | None:
