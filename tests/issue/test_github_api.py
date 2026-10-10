@@ -1,6 +1,11 @@
 """Tests for issue GitHub API functions."""
 
+from unittest.mock import patch
+
+import httpx
+
 from src.issue.github_api import (
+    IssueClient,
     _build_search_query,
     _matches_or_labels,
     parse_label_filters,
@@ -120,3 +125,40 @@ class TestBuildSearchQuery:
         """Test query with label containing space."""
         query = _build_search_query("testuser", None, None, ["help wanted"])
         assert 'label:"help wanted"' in query
+
+
+class TestGetIssuesByRefWithUnresolvableRef:
+    """A ref whose repo can't be resolved nulls its alias; the other refs must still load."""
+
+    def test_other_refs_are_returned_and_the_missing_one_is_skipped(self):
+        node = {
+            "number": 16,
+            "title": "Test issue",
+            "state": "OPEN",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "closedAt": None,
+            "author": {"login": "testuser"},
+            "repository": {"nameWithOwner": "owner/repo"},
+            "labels": {"nodes": []},
+            "timelineItems": {"nodes": []},
+        }
+        body = {
+            "data": {"issue0": {"issue": node}, "issue1": None},
+            "errors": [
+                {
+                    "type": "NOT_FOUND",
+                    "path": ["issue1"],
+                    "message": "Could not resolve to a Repository with the name 'o/gone'.",
+                }
+            ],
+        }
+        response = httpx.Response(200, json=body, request=httpx.Request("POST", "https://x"))
+
+        with patch.object(httpx.Client, "post", return_value=response):
+            client = IssueClient(token="test-token")
+            result = client.get_issues_by_ref(
+                ["owner/repo#16", "o/gone#1"], reference_user="testuser"
+            )
+            client.close()
+
+        assert [(i.repo, i.number) for i in result.issues] == [("owner/repo", 16)]

@@ -298,7 +298,7 @@ class IssueClient:
         query_parts.append("}")
         query = "\n".join(query_parts)
 
-        data = self._client.graphql(query, {})
+        data = self._client.graphql(query, {}, tolerate_null_roots=True)
 
         issues: list[IssueInfo] = []
         for idx, (repo, number) in enumerate(issue_refs):

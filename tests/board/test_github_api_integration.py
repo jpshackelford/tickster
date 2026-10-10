@@ -575,6 +575,118 @@ class TestGitHubClientGraphQL:
                 client.get_user_id("ghost-user")
             client.close()
 
+    @staticmethod
+    def _root_nulled(root: str, message: str) -> dict:
+        return {
+            "data": {root: None},
+            "errors": [{"type": "FORBIDDEN", "path": [root], "message": message}],
+        }
+
+    def test_graphql_raises_when_error_nulls_a_root_field(self):
+        response = self._root_nulled("createProjectV2", "Resource not accessible by token")
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            with pytest.raises(RuntimeError, match="Resource not accessible by token"):
+                client.graphql("mutation { createProjectV2 { projectV2 { id } } }")
+            client.close()
+
+    def test_create_project_surfaces_graphql_error_not_type_error(self):
+        response = self._root_nulled("createProjectV2", "Resource not accessible by token")
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            with pytest.raises(RuntimeError, match="Resource not accessible by token"):
+                client.create_project("U_owner", "Board")
+            client.close()
+
+    def test_get_project_items_surfaces_graphql_error_not_type_error(self):
+        response = self._root_nulled("node", "Could not resolve to a node")
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            with pytest.raises(RuntimeError, match="Could not resolve to a node"):
+                client.get_project_items("PVT_x")
+            client.close()
+
+    def test_graphql_tolerate_null_roots_returns_data(self):
+        response = self._root_nulled("node", "Could not resolve to a node")
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            data = client.graphql("query { node(id: 1) { id } }", tolerate_null_roots=True)
+            assert data == {"node": None}
+            client.close()
+
+    def test_graphql_nested_error_with_non_null_root_still_tolerated(self):
+        response = {
+            "data": {"repository": {"pullRequest": {"title": "t", "reviewer": None}}},
+            "errors": [
+                {
+                    "type": "FORBIDDEN",
+                    "path": ["repository", "pullRequest", "reviewer"],
+                    "message": "no team read",
+                }
+            ],
+        }
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            data = client.graphql("query { repository { pullRequest { title } } }")
+            assert data["repository"]["pullRequest"]["title"] == "t"
+            client.close()
+
+    def test_fetch_items_batch_keeps_readable_items_when_one_repo_is_hidden(self):
+        """An unreadable repo nulls its alias (with a NOT_FOUND error); the rest still resolve."""
+        response = {
+            "data": {
+                "item0": None,
+                "item1": {
+                    "issue": {
+                        "id": "I_test1",
+                        "number": 38,
+                        "title": "Test Issue",
+                        "state": "OPEN",
+                        "stateReason": None,
+                        "author": {"login": "testuser"},
+                        "assignees": {"nodes": []},
+                        "labels": {"nodes": []},
+                        "createdAt": "2026-01-01T00:00:00Z",
+                        "updatedAt": "2026-01-02T00:00:00Z",
+                    }
+                },
+            },
+            "errors": [
+                {
+                    "type": "NOT_FOUND",
+                    "path": ["item0"],
+                    "message": "Could not resolve to a Repository with the name 'owner/private'.",
+                }
+            ],
+        }
+
+        with patch.object(httpx.Client, "post") as mock_post:
+            mock_post.return_value = MockResponse(response)
+
+            client = GitHubClient(token="test-token")
+            results = client.fetch_items_batch(
+                [("owner", "private", 1, "PullRequest"), ("owner", "repo", 38, "Issue")]
+            )
+            assert results["owner/private#1"] is None
+            assert results["owner/repo#38"] is not None
+            assert results["owner/repo#38"].number == 38
+            client.close()
+
 
 class TestGitHubClientAuthentication:
     """Test authentication-related functionality."""
