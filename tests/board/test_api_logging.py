@@ -205,14 +205,9 @@ class TestLoggingTransport:
             request = httpx.Request("GET", "https://api.github.com/user")
             request.extensions["log_sequence"] = 1
 
-            # Create a mock response
-            response = httpx.Response(
-                200,
-                json={"login": "testuser"},
-                request=request,
-            )
+            response = httpx.Response(200, json={"login": "testuser"})
 
-            log_response(response)
+            log_response(response, request)
 
             # Check response log
             resp_path = Path(temp_log_dir) / "0001_response.json"
@@ -224,6 +219,31 @@ class TestLoggingTransport:
             assert data["sequence"] == 1
             assert data["status_code"] == 200
             assert data["body"]["login"] == "testuser"
+
+    def test_client_request_writes_request_and_response_logs(self, temp_log_dir, caplog):
+        """A request through a real Client logs both sides, with no warning.
+
+        The stub transport returns a Response without `request=` set, as real
+        transports do; httpx.Client attaches it only after the transport returns.
+        """
+
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"login": "testuser"})
+
+        env = {"TKT_LOG_API": "1", "TKT_LOG_API_DIR": temp_log_dir}
+        transport = LoggingTransport(httpx.MockTransport(handler))
+        with patch.dict(os.environ, env), httpx.Client(transport=transport) as client:
+            resp = client.get("https://api.github.com/user")
+
+        assert resp.json() == {"login": "testuser"}
+        assert "Failed to log" not in caplog.text
+        files = sorted(p.name for p in Path(temp_log_dir).iterdir())
+        assert files == ["0001_request.json", "0001_response.json"]
+        data = json.loads((Path(temp_log_dir) / "0001_response.json").read_text())
+        assert data["sequence"] == 1
+        assert data["status_code"] == 200
+        assert data["body"] == {"login": "testuser"}
+        assert data["url"] == "https://api.github.com/user"
 
     def test_transport_wrapper_properties(self):
         """LoggingTransport wraps another transport."""

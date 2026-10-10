@@ -149,11 +149,13 @@ def log_request(request: httpx.Request) -> None:
         logger.warning("Failed to log API request: %s", e)
 
 
-def log_response(response: httpx.Response) -> None:
+def log_response(response: httpx.Response, request: httpx.Request) -> None:
     """Log an API response to a file.
 
     Args:
         response: The httpx Response object
+        request: The request that produced it. Passed explicitly because at the
+            transport layer `response.request` is not yet set.
     """
     if not is_api_logging_enabled():
         return
@@ -162,13 +164,13 @@ def log_response(response: httpx.Response) -> None:
         log_dir = ensure_log_directory()
 
         # Get sequence from request extension
-        seq = response.request.extensions.get("log_sequence")
+        seq = request.extensions.get("log_sequence")
         if seq is None:
             # Fallback if request wasn't logged
             seq = _get_next_sequence()
 
         # Determine API type
-        api_type = "graphql" if "/graphql" in str(response.url) else "rest"
+        api_type = "graphql" if "/graphql" in str(request.url) else "rest"
 
         # Parse response body
         body = None
@@ -182,7 +184,7 @@ def log_response(response: httpx.Response) -> None:
             "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "api_type": api_type,
             "status_code": response.status_code,
-            "url": str(response.url),
+            "url": str(request.url),
             "headers": dict(response.headers),
             "body": body,
         }
@@ -233,7 +235,7 @@ class LoggingTransport(httpx.BaseTransport):
         response.read()
 
         # Log response
-        log_response(response)
+        log_response(response, request)
 
         return response
 
