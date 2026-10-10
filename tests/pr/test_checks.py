@@ -1,6 +1,7 @@
 """Tests for `tkt pr checks`: check selection, log slicing, and CLI output."""
 
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -52,7 +53,7 @@ class FakeGraphQL:
         self.log = log
         self.cursors: list[str | None] = []
 
-    def graphql(self, _query: str, variables: dict | None = None) -> dict:
+    def graphql(self, _query: str, variables: dict | None = None, **_kwargs: bool) -> dict:
         variables = variables or {}
         self.cursors.append(variables["cursor"])
         index = len(self.cursors) - 1
@@ -202,11 +203,30 @@ class TestGetPrChecks:
 
     def test_pr_not_found(self):
         class Missing(FakeGraphQL):
-            def graphql(self, _query, _variables=None):
+            def graphql(self, _query, _variables=None, **_kwargs):
                 return {"repository": {"pullRequest": None}}
 
         with pytest.raises(ValueError, match="PR not found: o/r#1"):
             _client(Missing([])).get_pr_checks("o/r", 1)
+
+    def test_pr_not_found_when_the_repository_does_not_resolve(self):
+        body = {
+            "data": {"repository": None},
+            "errors": [
+                {
+                    "type": "NOT_FOUND",
+                    "path": ["repository"],
+                    "message": "Could not resolve to a Repository with the name 'o/gone'.",
+                }
+            ],
+        }
+        response = httpx.Response(200, json=body, request=httpx.Request("POST", "https://x"))
+
+        with patch.object(httpx.Client, "post", return_value=response):
+            client = ChecksClient(token="test-token")
+            with pytest.raises(ValueError, match="PR not found: o/gone#1"):
+                client.get_pr_checks("o/gone", 1)
+            client.close()
 
 
 LOG = "\n".join(
