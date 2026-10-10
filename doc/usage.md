@@ -15,6 +15,7 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt repo`](#tkt-repo)
 - [`tkt snapshot`](#tkt-snapshot)
 - [Snapshots & diffs](#snapshots--diffs)
+- [Date-window filtering](#date-window-filtering)
 - [History strings](#history-strings)
 - [Piping refs from stdin](#piping-refs-from-stdin)
 - [Environment variables](#environment-variables)
@@ -109,16 +110,24 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max issues to show (default: 100) |
 | `--title, -t` | Show issue titles |
 | `--activity, -s` | Sort by recent activity instead of creation date |
+| `--since DAYS` | Only issues since the start of the UTC day N days ago |
+| `--after YYYY-MM-DD` | Only issues on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only issues on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt issue list                              # your open issues
 tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
+tkt issue list --since 14                    # issues touched in the last 2 weeks
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 ## `tkt pr`
 
@@ -142,15 +151,23 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max PRs to show (default: 100) |
 | `--title, -t` | Show PR titles |
 | `--graph, -g` | Weekly merge/age graph (use with `--merged`) |
+| `--since DAYS` | Only PRs since the start of the UTC day N days ago |
+| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
+tkt pr list --author ak684 --merged --since 14   # merged in the last 2 weeks
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 ### `tkt pr checks`
 
@@ -236,12 +253,20 @@ tkt review [options]
 | `--title, -t` | Show PR titles |
 | `--merged, -M` | Show merged PRs you've reviewed |
 | `--closed, -C` | Show closed (unmerged) PRs you've reviewed |
+| `--since DAYS` | Only PRs since the start of the UTC day N days ago |
+| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
+| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
+| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 
 ```bash
 tkt review                                  # your actionable review queue
 tkt review --all --title                    # full queue with titles
 tkt review -X "dependabot[bot]"             # hide dependabot PRs
+tkt review --merged --since 7               # PRs you reviewed that merged this week
 ```
+
+See [Date-window filtering](#date-window-filtering) for the shared semantics of
+`--since` / `--after` / `--before` / `--date-field`.
 
 The output computes, for each PR, **what action you owe it** rather than dumping
 raw review state:
@@ -414,11 +439,16 @@ empty baseline.
 ### Scope matching
 
 The query filter set (board, author, reviewer, repos, explicit
-`owner/repo#N` refs, states, labels, `--all`, limit) is persisted with
+`owner/repo#N` refs, states, labels, `--all`, limit, and the
+[date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
 counts as a scope change. Repos and refs are compared as sets, so their
-order doesn't matter. If the current query's scope doesn't match the
+order doesn't matter. The window is recorded as typed, so `--since 14`
+matches `--since 14` on any later day, while `--since 14` against
+`--since 3`, or against no window at all, is a scope change; the error
+(or the `window:` line under the summary) names both windows. If the
+current query's scope doesn't match the
 snapshot's scope, the diff refuses to render in either table or JSON mode
 and exits 2 without touching the baseline, so you can rerun with
 `--diff-force` to proceed (the summary is tagged `[scope-changed]` so you
@@ -435,6 +465,61 @@ if you want to share. Overwriting an existing name is atomic.
 tkt pr list    --board oh --watch hourly
 tkt issue list --board oh --watch hourly
 tkt review                 --watch hourly
+```
+
+---
+
+## Date-window filtering
+
+`tkt issue list`, `tkt pr list`, and `tkt review` accept a shared set of options
+to restrict results to a recent time window. They translate directly into the
+GitHub search date qualifiers (`created:`, `updated:`, `merged:`, `closed:`), so
+you no longer have to run a separate GitHub search and pipe refs back in.
+
+| Option | Description |
+| --- | --- |
+| `--since DAYS` | Relative window: from the start of the UTC day N days ago |
+| `--after YYYY-MM-DD` | Absolute lower bound (inclusive) |
+| `--before YYYY-MM-DD` | Absolute upper bound (inclusive) |
+| `--date-field FIELD` | Which date to filter on: `created`, `updated`, `merged`, `closed` |
+
+Semantics:
+
+- `--since N` is shorthand for `--after <today minus N days>`, where "today" is
+  the current **UTC** date. It reaches back to the start of that UTC day, not
+  to N × 24 hours ago, so `--since 0` means "today (UTC)". It mirrors the
+  `--since` flag already used by `tkt board scan`.
+- `--after` and `--before` may be combined to express a closed interval; using
+  both renders as `field:AFTER..BEFORE`.
+- `--since` cannot be combined with `--after`/`--before`.
+- **Date field selection.** If `--date-field` is not given, the field is
+  inferred from the state being queried: a `--merged`-only listing filters on
+  `merged:`, a `--closed`-only listing on `closed:`, and everything else on
+  `updated:`. Pass `--date-field` to override (for example, filter merged PRs by
+  when they were `created`).
+- **The window is reported.** A listing that used a window ends with a
+  `Window: merged ≥ 2026-09-26 (UTC)` line, and an empty result names it too
+  (`No PRs found (merged ≥ 2026-09-26, UTC).`), so a window that is narrower
+  than you meant is visible rather than silent.
+- **Window with `--watch`/`--diff`/`--snapshot`.** The window is part of the
+  snapshot's [scope](#scope-matching).
+
+Combinations that cannot do what they say are errors (exit 1), not silent
+no-ops:
+
+| Command | Why it is rejected |
+| --- | --- |
+| `--date-field` with no `--since`/`--after`/`--before` | There is no window for it to apply to. |
+| `--since`/`--after`/`--before` with explicit refs (`owner/repo#N`, or refs piped on stdin) | Refs list exactly the items named; a window can't narrow them. Drop one or the other. |
+| `--date-field merged` without `--merged` | Only merged items have a merge date, so nothing can match. |
+| `--date-field closed` without `--closed` (or `--merged`) | Open items have no close date. |
+| `--date-field merged` on `tkt issue list` | Issues are never merged. |
+
+```bash
+tkt pr list --author ak684 --merged --since 14        # merged in the last 2 weeks
+tkt issue list --after 2026-08-01 --before 2026-08-31 # opened/updated in August
+tkt pr list --merged --date-field created --since 30  # merged, created in last 30d
+tkt review --merged --since 7                         # reviewed & merged this week
 ```
 
 ---

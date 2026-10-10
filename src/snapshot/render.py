@@ -21,7 +21,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from src.snapshot.models import ChangeKind, DiffResult, ItemDelta
+from src.snapshot.models import ChangeKind, DiffResult, ItemDelta, Snapshot
 
 _KIND_GLYPH = {
     ChangeKind.ADDED: "[green]+[/]",
@@ -95,6 +95,18 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
         f"{counts[ChangeKind.UNCHANGED]} unchanged){scope_tag}"
     )
     console.print(header)
+    if note := window_note(prev, curr):
+        console.print(f"[dim]{note}[/]")
+
+
+def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
+    """Name the date window, or what it changed from, so a scope change is explained."""
+    prev_window, curr_window = prev.scope.window, curr.scope.window
+    if prev_window == curr_window:
+        return f"window: {curr_window.describe()}" if curr_window else None
+    before = prev_window.describe() if prev_window else "none"
+    after = curr_window.describe() if curr_window else "none"
+    return f"window: {before} → {after}"
 
 
 def _add_shrinkable_column(table: Table, header: str, **kwargs) -> None:

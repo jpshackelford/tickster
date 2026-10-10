@@ -19,6 +19,32 @@ load_dotenv(find_dotenv(usecwd=True))
 console = Console()
 
 
+def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
+    """Add the shared date-window options to a list subparser."""
+    parser.add_argument(
+        "--since",
+        type=int,
+        metavar="DAYS",
+        help="Only include items since the start of the UTC day N days ago",
+    )
+    parser.add_argument(
+        "--after",
+        metavar="YYYY-MM-DD",
+        help="Only include items on/after this date (inclusive)",
+    )
+    parser.add_argument(
+        "--before",
+        metavar="YYYY-MM-DD",
+        help="Only include items on/before this date (inclusive)",
+    )
+    parser.add_argument(
+        "--date-field",
+        dest="date_field",
+        choices=["created", "updated", "merged", "closed"],
+        help="Date field to filter on (default: inferred from state); requires --since/--after/--before",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the CLI.
 
@@ -450,6 +476,7 @@ Examples:
         action="store_true",
         help="Show weekly merge/age graph (only works with --merged)",
     )
+    _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
     # pr checks
@@ -562,6 +589,7 @@ Examples:
         action="store_true",
         help="Show closed (unmerged) PRs you've reviewed",
     )
+    _add_date_window_args(review_parser)
     _add_snapshot_flags(review_parser)
 
     # issue command - issue history visualization
@@ -656,6 +684,7 @@ Examples:
         action="store_true",
         help="Sort by recent activity instead of creation date",
     )
+    _add_date_window_args(issue_list_parser)
     _add_snapshot_flags(issue_list_parser)
 
     # snapshot command - manage saved query snapshots and diff them
@@ -946,6 +975,10 @@ Examples:
                 diff_format=args.diff_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
+                since_days=args.since,
+                after=args.after,
+                before=args.before,
+                date_field=args.date_field,
             )
 
     # Handle review command
@@ -984,6 +1017,10 @@ Examples:
             diff_format=args.diff_format,
             diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
+            since_days=args.since,
+            after=args.after,
+            before=args.before,
+            date_field=args.date_field,
         )
 
     # Handle issue command
@@ -1024,6 +1061,10 @@ Examples:
                 diff_format=args.diff_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
+                since_days=args.since,
+                after=args.after,
+                before=args.before,
+                date_field=args.date_field,
             )
 
     # Handle snapshot command

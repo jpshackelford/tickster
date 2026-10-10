@@ -108,6 +108,7 @@ class PRClient:
         repos: list[str] | None = None,
         states: list[str] | None = None,
         limit: int = 100,
+        date_qualifier: str | None = None,
     ) -> PRListResult:
         """List PRs by author, optionally filtered by repos and states.
 
@@ -116,6 +117,8 @@ class PRClient:
             repos: List of "owner/repo" strings to filter by
             states: List of states to include ("open", "merged", "closed")
             limit: Maximum number of PRs to fetch
+            date_qualifier: Optional GitHub search date qualifier
+                (e.g. "merged:>=2026-08-01")
 
         Returns:
             PRListResult with processed PR info
@@ -136,6 +139,9 @@ class PRClient:
             if state_filter:
                 query_parts.append(state_filter)
 
+        if date_qualifier:
+            query_parts.append(date_qualifier)
+
         search_query = " ".join(query_parts)
         return self._search_prs(search_query, author, limit, client_side_states)
 
@@ -144,6 +150,7 @@ class PRClient:
         reviewer: str,
         repos: list[str] | None = None,
         limit: int = 100,
+        date_qualifier: str | None = None,
     ) -> PRListResult:
         """List PRs where user is requested for review.
 
@@ -151,6 +158,8 @@ class PRClient:
             reviewer: GitHub username (or "me" for current user)
             repos: List of "owner/repo" strings to filter by
             limit: Maximum number of PRs to fetch
+            date_qualifier: Optional GitHub search date qualifier
+                (e.g. "updated:>=2026-08-01")
 
         Returns:
             PRListResult with processed PR info
@@ -164,6 +173,9 @@ class PRClient:
         if repos:
             for repo in repos:
                 query_parts.append(f"repo:{repo}")
+
+        if date_qualifier:
+            query_parts.append(date_qualifier)
 
         search_query = " ".join(query_parts)
         return self._search_prs(search_query, reviewer, limit)
