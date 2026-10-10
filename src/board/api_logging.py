@@ -3,7 +3,7 @@
 When enabled via TKT_LOG_API=1 or config, logs each REST/GraphQL
 call and its response to separate files with incrementing numbers.
 
-Files are saved to ~/.tkt/api_logs/ by default, or to TKT_LOG_API_DIR.
+Files are saved to $TKT_HOME/api_logs/ by default, or to TKT_LOG_API_DIR.
 
 File naming:
 - Request:  {sequence:04d}_request.json
@@ -20,6 +20,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
+
+from src.board import config as _board_config
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +59,13 @@ def get_log_directory() -> Path:
     """Get the directory for API logs.
 
     Returns:
-        Path to log directory (default: ~/.tkt/api_logs/)
+        Path to log directory (default: $TKT_HOME/api_logs/)
     """
     custom_dir = os.environ.get("TKT_LOG_API_DIR")
     if custom_dir:
         return Path(custom_dir)
 
-    return Path.home() / ".tkt" / "api_logs"
+    return _board_config.TKT_HOME / "api_logs"
 
 
 def ensure_log_directory() -> Path:

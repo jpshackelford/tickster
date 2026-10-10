@@ -36,7 +36,7 @@ def cmd_apply(
     and optionally removes columns not in the config.
 
     Args:
-        config_file: Path to YAML config file (default: ~/.tkt/boards/agent-workflow.yaml)
+        config_file: Path to YAML config file (default: $TKT_HOME/boards/agent-workflow.yaml)
         template: Use built-in template instead of file
         board_name: Name of board to apply to (default: default board)
         dry_run: Show what would be done without making changes

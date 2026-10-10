@@ -338,7 +338,9 @@ Items flow through columns based on these rules (evaluated in priority order):
 
 ### Config File Location
 
-User configuration is stored at `~/.tkt/config.toml`:
+User configuration is stored at `~/.tkt/config.toml`. Set the `TKT_HOME`
+environment variable to use a directory other than `~/.tkt`; all paths below
+(cache, boards, API logs) move with it.
 
 ```toml
 [board]
@@ -390,7 +392,7 @@ Log files are saved to `~/.tkt/api_logs/` with incrementing sequence numbers:
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `TKT_LOG_API` | (not set) | Set to `1`, `true`, `yes`, or `on` to enable logging |
-| `TKT_LOG_API_DIR` | `~/.tkt/api_logs/` | Custom directory for log files |
+| `TKT_LOG_API_DIR` | `$TKT_HOME/api_logs/` | Custom directory for log files |
 
 Authorization tokens are automatically redacted in logged headers for security.
 This feature is useful for:

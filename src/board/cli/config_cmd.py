@@ -3,6 +3,7 @@
 from rich.console import Console
 from rich.table import Table
 
+from src.board import config as board_config
 from src.board.cli._helpers import (
     print_command_header,
     print_error,
@@ -148,4 +149,4 @@ def _show_configuration(config) -> None:
         console.print("  [dim](none)[/]")
 
     console.print()
-    console.print("[dim]Config file: ~/.tkt/config.toml[/]")
+    console.print(f"[dim]Config file: {board_config.CONFIG_FILE}[/]")

@@ -1,5 +1,10 @@
 """Tests for board configuration management."""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from src.board.config import (
@@ -11,10 +16,54 @@ from src.board.config import (
     load_board_config,
     load_boards_config,
     remove_watched_repo,
+    resolve_tkt_home,
     save_board_config,
     set_default_board,
     slugify,
 )
+
+
+class TestResolveTktHome:
+    """Tests for TKT_HOME environment override."""
+
+    def test_default_is_dot_tkt_in_home(self, monkeypatch):
+        monkeypatch.delenv("TKT_HOME", raising=False)
+        assert resolve_tkt_home() == Path.home() / ".tkt"
+
+    def test_env_override(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TKT_HOME", str(tmp_path / "state"))
+        assert resolve_tkt_home() == tmp_path / "state"
+
+    def test_env_override_expands_tilde(self, monkeypatch):
+        monkeypatch.setenv("TKT_HOME", "~/custom-tkt")
+        assert resolve_tkt_home() == Path.home() / "custom-tkt"
+
+    def test_empty_env_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("TKT_HOME", "")
+        assert resolve_tkt_home() == Path.home() / ".tkt"
+
+    def test_derived_paths_follow_env_at_import(self, tmp_path):
+        """A fresh interpreter derives CONFIG_FILE, CACHE_FILE and BOARDS_DIR from TKT_HOME."""
+        code = (
+            "from src.board import config, yaml_config;"
+            "print(config.TKT_HOME);print(config.CONFIG_FILE);"
+            "print(config.CACHE_FILE);print(yaml_config.BOARDS_DIR)"
+        )
+        env = {**os.environ, "TKT_HOME": str(tmp_path)}
+        out = subprocess.run(
+            [sys.executable, "-c", code],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=Path(__file__).resolve().parents[2],
+        ).stdout.splitlines()
+        assert out == [
+            str(tmp_path),
+            str(tmp_path / "config.toml"),
+            str(tmp_path / "board-cache.db"),
+            str(tmp_path / "boards"),
+        ]
 
 
 class TestSlugify:

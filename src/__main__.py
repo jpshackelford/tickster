@@ -248,7 +248,7 @@ Examples:
         "--config",
         "-c",
         dest="config_file",
-        help="Path to YAML config file (default: ~/.tkt/boards/agent-workflow.yaml)",
+        help="Path to YAML config file (default: $TKT_HOME/boards/agent-workflow.yaml)",
     )
     board_apply_parser.add_argument(
         "--template",
@@ -627,7 +627,7 @@ Examples:
         help="Manage query snapshots and diff them",
         description=(
             "Save, inspect, delete, and diff `tkt pr list` / `tkt issue list` "
-            "/ `tkt review` query snapshots stored under ~/.tkt/snapshots/. "
+            "/ `tkt review` query snapshots stored under $TKT_HOME/snapshots/ (default ~/.tkt). "
             "Use with --snapshot / --diff / --watch on the list commands."
         ),
     )
