@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0](https://github.com/jpshackelford/tickster/compare/v0.2.0...v0.3.0) (2026-10-10)
+
+
+### Features
+
+* **config:** honor TKT_HOME to relocate the ~/.tkt state directory ([#19](https://github.com/jpshackelford/tickster/issues/19)) ([ab07d1f](https://github.com/jpshackelford/tickster/commit/ab07d1f68003843405ff7e5b143b7ff47df18a4e)), closes [#18](https://github.com/jpshackelford/tickster/issues/18)
+* **pr:** add tkt pr checks to explain failing CI ([#17](https://github.com/jpshackelford/tickster/issues/17)) ([fa4e802](https://github.com/jpshackelford/tickster/commit/fa4e8028f5d78b4b0562815a4622f685146714b6))
+
+
+### Bug Fixes
+
+* **api-logging:** write response logs instead of warning on every call ([#22](https://github.com/jpshackelford/tickster/issues/22)) ([d9e6ff8](https://github.com/jpshackelford/tickster/commit/d9e6ff8ac36f73ffb6d28df129c1935c00a27d44)), closes [#20](https://github.com/jpshackelford/tickster/issues/20)
+* **cli:** load .env from the working directory, as documented ([#23](https://github.com/jpshackelford/tickster/issues/23)) ([8eabf60](https://github.com/jpshackelford/tickster/commit/8eabf607566c8788f9bdc765a2f7c93674a8984d)), closes [#21](https://github.com/jpshackelford/tickster/issues/21)
+* **github:** return data on partial GraphQL errors instead of raising ([#13](https://github.com/jpshackelford/tickster/issues/13)) ([c8c3d36](https://github.com/jpshackelford/tickster/commit/c8c3d3616013d1971d4b96e8ab034637a7a1fc18)), closes [#11](https://github.com/jpshackelford/tickster/issues/11)
+
 ## [0.2.0](https://github.com/jpshackelford/tickster/compare/v0.1.0...v0.2.0) (2026-10-03)
 
 
