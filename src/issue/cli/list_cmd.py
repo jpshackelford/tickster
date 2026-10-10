@@ -7,7 +7,13 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from src.date_window import DateWindowError, build_date_qualifier
+from src.date_window import (
+    DateWindow,
+    DateWindowError,
+    build_date_window,
+    window_line,
+    window_suffix,
+)
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
 from src.snapshot.convert import snapshot_from_issues
@@ -61,16 +67,19 @@ def cmd_list(
         Exit code (0 for success)
     """
     try:
-        date_qualifier = build_date_qualifier(
+        window = build_date_window(
             states,
             since_days=since_days,
             after=after,
             before=before,
             date_field=date_field,
+            refs=issue_refs,
+            merged_ok=False,
         )
     except DateWindowError as e:
         console.print(f"[red]Error:[/] {e}")
         return 1
+    date_qualifier = window.to_qualifier() if window else None
 
     try:
         with IssueClient() as client:
@@ -110,16 +119,19 @@ def cmd_list(
                     states=states,
                     labels=labels,
                     limit=limit,
+                    window=window,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_issues(result.issues, scope=scope, name=save_name)
                 return plan.execute(
                     curr_snapshot,
                     console,
-                    print_table=lambda: _print_issue_table(result.issues, show_title=show_title),
+                    print_table=lambda: _print_issue_table(
+                        result.issues, show_title=show_title, window=window
+                    ),
                 )
 
-            _print_issue_table(result.issues, show_title=show_title)
+            _print_issue_table(result.issues, show_title=show_title, window=window)
             if not result.issues:
                 return 0
 
@@ -135,6 +147,9 @@ def cmd_list(
                 console.print(
                     f"\n[dim]Showing {len(result.issues)} of {result.total_count} issues[/]"
                 )
+
+            if window:
+                console.print(f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -166,10 +181,12 @@ def _get_repos(
     return board_repos if board_repos else None
 
 
-def _print_issue_table(issues: list[IssueInfo], *, show_title: bool = False) -> None:
+def _print_issue_table(
+    issues: list[IssueInfo], *, show_title: bool = False, window: DateWindow | None = None
+) -> None:
     """Print issues in a formatted table."""
     if not issues:
-        console.print("[dim]No issues found.[/]")
+        console.print(f"[dim]No issues found{window_suffix(window)}.[/]")
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 

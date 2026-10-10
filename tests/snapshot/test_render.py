@@ -10,7 +10,7 @@ import pytest
 from rich.console import Console
 
 from src.snapshot.diff import diff_snapshots
-from src.snapshot.models import SnapshotScope
+from src.snapshot.models import SnapshotScope, WindowScope
 from src.snapshot.render import render_diff
 
 from .conftest import make_item, make_snapshot
@@ -170,3 +170,36 @@ def test_80_columns_keeps_glyph_number_history_tail_and_note(kind, is_terminal):
         assert max(len(line) for line in buf.getvalue().splitlines()) <= 80
     else:
         assert "OpenHands/OpenHands" in rows["*"]  # piped output is never truncated
+
+
+def _windowed(window: WindowScope | None, **kw):
+    return make_snapshot(scope=SnapshotScope(board="oh", window=window), **kw)
+
+
+def test_summary_names_the_window_when_both_snapshots_share_it():
+    window = WindowScope(field="merged", since_days=14)
+    out = _capture(diff_snapshots(_windowed(window), _windowed(window)))
+    lines = out.splitlines()
+    assert "scope-changed" not in lines[0]
+    assert lines[1] == "window: merged since 14d ago"
+
+
+def test_summary_explains_a_scope_change_caused_by_the_window():
+    prev = _windowed(WindowScope(field="merged", since_days=14))
+    curr = _windowed(WindowScope(field="merged", since_days=3))
+    lines = _capture(diff_snapshots(prev, curr)).splitlines()
+    assert "[scope-changed]" in lines[0]
+    assert lines[1] == "window: merged since 14d ago → merged since 3d ago"
+
+
+def test_summary_reports_a_window_added_or_removed():
+    window = WindowScope(field="updated", after="2026-08-01")
+    added = _capture(diff_snapshots(_windowed(None), _windowed(window))).splitlines()
+    assert added[1] == "window: none → updated ≥ 2026-08-01"
+    removed = _capture(diff_snapshots(_windowed(window), _windowed(None))).splitlines()
+    assert removed[1] == "window: updated ≥ 2026-08-01 → none"
+
+
+def test_summary_has_no_window_line_without_a_window():
+    out = _capture(diff_snapshots(_windowed(None), _windowed(None)))
+    assert "window:" not in out

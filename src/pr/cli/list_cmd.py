@@ -7,7 +7,13 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from src.date_window import DateWindowError, build_date_qualifier
+from src.date_window import (
+    DateWindow,
+    DateWindowError,
+    build_date_window,
+    window_line,
+    window_suffix,
+)
 from src.pr.cli.graph import render_merged_graph
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
@@ -68,16 +74,18 @@ def cmd_list(
         return 1
 
     try:
-        date_qualifier = build_date_qualifier(
+        window = build_date_window(
             states,
             since_days=since_days,
             after=after,
             before=before,
             date_field=date_field,
+            refs=pr_refs,
         )
     except DateWindowError as e:
         console.print(f"[red]Error:[/] {e}")
         return 1
+    date_qualifier = window.to_qualifier() if window else None
 
     try:
         with PRClient() as client:
@@ -132,13 +140,16 @@ def cmd_list(
                     refs=pr_refs,
                     states=states,
                     limit=limit,
+                    window=window,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_prs(result.prs, scope=scope, name=save_name)
                 return plan.execute(
                     curr_snapshot,
                     console,
-                    print_table=lambda: _print_pr_table(result.prs, show_title=show_title),
+                    print_table=lambda: _print_pr_table(
+                        result.prs, show_title=show_title, window=window
+                    ),
                 )
 
             # Show graph above table if requested
@@ -148,10 +159,13 @@ def cmd_list(
                 if merged_prs:
                     render_merged_graph(merged_prs, console=console)
 
-            _print_pr_table(result.prs, show_title=show_title)
+            _print_pr_table(result.prs, show_title=show_title, window=window)
 
             if result.has_more:
                 console.print(f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]")
+
+            if window and result.prs:
+                console.print(f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -183,10 +197,12 @@ def _get_repos(
     return board_repos if board_repos else None
 
 
-def _print_pr_table(prs: list[PRInfo], *, show_title: bool = False) -> None:
+def _print_pr_table(
+    prs: list[PRInfo], *, show_title: bool = False, window: DateWindow | None = None
+) -> None:
     """Print PRs in a formatted table."""
     if not prs:
-        console.print("[dim]No PRs found.[/]")
+        console.print(f"[dim]No PRs found{window_suffix(window)}.[/]")
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 

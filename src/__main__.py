@@ -25,7 +25,7 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
         "--since",
         type=int,
         metavar="DAYS",
-        help="Only include items within the last N days",
+        help="Only include items since the start of the UTC day N days ago",
     )
     parser.add_argument(
         "--after",
@@ -41,7 +41,7 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
         "--date-field",
         dest="date_field",
         choices=["created", "updated", "merged", "closed"],
-        help="Date field to filter on (default: inferred from state)",
+        help="Date field to filter on (default: inferred from state); requires --since/--after/--before",
     )
 
 

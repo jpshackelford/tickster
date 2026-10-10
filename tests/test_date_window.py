@@ -6,7 +6,6 @@ import pytest
 
 from src.date_window import (
     DateWindowError,
-    build_date_qualifier,
     build_date_window,
     resolve_date_field,
 )
@@ -43,9 +42,11 @@ class TestBuildDateWindow:
     def test_no_options_returns_none(self):
         assert build_date_window(["open"]) is None
 
-    def test_date_field_alone_is_noop(self):
-        # --date-field without a window does nothing.
-        assert build_date_window(["merged"], date_field="created") is None
+    def test_date_field_alone_raises(self):
+        with pytest.raises(
+            DateWindowError, match="--date-field needs --since, --after or --before"
+        ):
+            build_date_window(["merged"], date_field="created")
 
     def test_since_days_relative(self):
         window = build_date_window(["merged"], since_days=14, now=NOW)
@@ -110,14 +111,80 @@ class TestToQualifier:
         assert window.to_qualifier() == "updated:2026-08-01..2026-08-31"
 
 
-class TestBuildDateQualifier:
-    def test_returns_none_without_options(self):
-        assert build_date_qualifier(["open"]) is None
+class TestWindowWithRefs:
+    def test_since_with_refs_raises(self):
+        with pytest.raises(DateWindowError, match=r"--since cannot narrow explicit refs"):
+            build_date_window(["open"], since_days=7, refs=["o/r#1"])
 
-    def test_returns_qualifier_string(self):
-        qualifier = build_date_qualifier(["merged"], since_days=7, now=NOW)
-        assert qualifier == "merged:>=2026-09-01"
+    def test_after_before_with_refs_names_both_flags(self):
+        with pytest.raises(DateWindowError, match=r"--after/--before cannot narrow"):
+            build_date_window(["open"], after="2026-08-01", before="2026-08-31", refs=["o/r#1"])
 
-    def test_date_field_override(self):
-        qualifier = build_date_qualifier(["merged"], since_days=7, date_field="created", now=NOW)
-        assert qualifier == "created:>=2026-09-01"
+    def test_refs_without_window_is_fine(self):
+        assert build_date_window(["open"], refs=["o/r#1"]) is None
+
+    def test_message_offers_both_ways_out(self):
+        with pytest.raises(DateWindowError, match="Drop the refs to search by date, or drop"):
+            build_date_window(["open"], since_days=7, refs=["o/r#1"])
+
+
+class TestExplicitFieldMustBeMatchable:
+    def test_merged_field_with_open_only_raises(self):
+        with pytest.raises(DateWindowError, match="add --merged"):
+            build_date_window(["open"], since_days=7, date_field="merged")
+
+    def test_merged_field_with_no_states_means_open_and_raises(self):
+        with pytest.raises(DateWindowError, match="state filter is open"):
+            build_date_window(None, since_days=7, date_field="merged")
+
+    def test_merged_field_with_merged_state_ok(self):
+        window = build_date_window(["merged"], since_days=7, date_field="merged", now=NOW)
+        assert window is not None and window.field == "merged"
+
+    def test_merged_field_with_all_states_ok(self):
+        states = ["open", "merged", "closed"]
+        assert build_date_window(states, since_days=7, date_field="merged", now=NOW) is not None
+
+    def test_closed_field_with_open_only_raises(self):
+        with pytest.raises(DateWindowError, match="add --closed"):
+            build_date_window(["open"], since_days=7, date_field="closed")
+
+    def test_closed_field_with_merged_state_ok(self):
+        assert build_date_window(["merged"], since_days=7, date_field="closed", now=NOW)
+
+    def test_issues_have_no_merged_date(self):
+        with pytest.raises(DateWindowError, match="Issues have no merged date"):
+            build_date_window(
+                ["open", "closed"], since_days=7, date_field="merged", merged_ok=False
+            )
+
+    def test_created_and_updated_fit_any_state(self):
+        for field in ("created", "updated"):
+            assert build_date_window(["open"], since_days=7, date_field=field, now=NOW)
+
+    def test_inferred_field_is_not_validated(self):
+        window = build_date_window(["merged"], since_days=7, now=NOW)
+        assert window is not None and window.field == "merged"
+
+
+class TestDescribeAndSinceDays:
+    def test_since_days_kept_as_typed(self):
+        window = build_date_window(["merged"], since_days=14, now=NOW)
+        assert window is not None
+        assert window.since_days == 14 and str(window.after) == "2026-08-25"
+
+    def test_absolute_window_has_no_since_days(self):
+        window = build_date_window(["merged"], after="2026-08-01")
+        assert window is not None and window.since_days is None
+
+    def test_describe_after_only(self):
+        window = build_date_window(["merged"], since_days=14, now=NOW)
+        assert window is not None and window.describe() == "merged ≥ 2026-08-25"
+
+    def test_describe_before_only(self):
+        window = build_date_window(["closed"], before="2026-08-31")
+        assert window is not None and window.describe() == "closed ≤ 2026-08-31"
+
+    def test_describe_interval(self):
+        window = build_date_window(["open"], after="2026-08-01", before="2026-08-31")
+        assert window is not None and window.describe() == "updated 2026-08-01..2026-08-31"
