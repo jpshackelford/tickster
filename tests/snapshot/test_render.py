@@ -39,6 +39,20 @@ def test_table_renders_only_new_tail_bracketed_for_changed_row():
     assert "[oRfAfR]" not in out  # only tail, not whole
 
 
+@pytest.mark.parametrize("kind", ["pr", "issue", "review"])
+def test_activity_without_history_growth_marks_last_column_changed(kind):
+    recent = (datetime.now(UTC) - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prev = make_snapshot(kind=kind, items=[make_item(key="a/b#1", history="oc")])
+    curr = make_snapshot(
+        kind=kind, items=[make_item(key="a/b#1", history="oc", last_activity=recent)]
+    )
+    out = _capture(diff_snapshots(prev, curr))
+    row = next(line for line in out.splitlines() if "a/b" in line)
+    assert row.lstrip().startswith("* ")
+    assert " oc " in row  # history shown with no bracketed tail
+    assert "5m ago!" in row
+
+
 def test_table_shows_removed_glyph_and_gone_note():
     prev = make_snapshot(items=[make_item(key="a/b#1")])
     curr = make_snapshot(items=[])

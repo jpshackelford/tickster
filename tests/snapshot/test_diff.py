@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from src.issue.history import process_issue_data
+from src.snapshot.convert import item_from_issue
 from src.snapshot.diff import diff_snapshots
-from src.snapshot.models import ChangeKind, SnapshotScope
+from src.snapshot.models import ChangeKind, ItemSnapshot, SnapshotScope
 
 from .conftest import make_item, make_snapshot
 
@@ -92,6 +96,70 @@ def test_unresolved_thread_count_change_detected():
     curr = make_snapshot(items=[make_item(key="a/b#1", unresolved=3)])
     delta = diff_snapshots(prev, curr).deltas[0]
     assert "unresolved_thread_count" in delta.changed_fields
+
+
+def _issue_item(comments: list[tuple[str, str]]) -> ItemSnapshot:
+    issue = process_issue_data(
+        {
+            "number": 1,
+            "title": "t",
+            "state": "OPEN",
+            "createdAt": "2026-10-01T00:00:00Z",
+            "closedAt": None,
+            "author": {"login": "me"},
+            "repository": {"nameWithOwner": "a/b"},
+            "labels": {"nodes": []},
+            "timelineItems": {
+                "nodes": [
+                    {"__typename": "IssueComment", "author": {"login": who}, "createdAt": at}
+                    for who, at in comments
+                ]
+            },
+        },
+        "me",
+    )
+    return item_from_issue(issue)
+
+
+def test_replies_folded_into_unchanged_history_are_reported_as_activity():
+    # Issue #27: alice's and bob's replies collapse into the existing "c",
+    # so only last_activity records them.
+    mine = ("me", "2026-10-01T00:01:00Z")
+    prev_item = _issue_item([mine])
+    curr_item = _issue_item(
+        [mine, ("alice", "2026-10-01T08:00:00Z"), ("bob", "2026-10-01T09:00:00Z")]
+    )
+    assert prev_item.history == curr_item.history == "oc"
+
+    result = diff_snapshots(
+        make_snapshot(kind="issue", items=[prev_item]),
+        make_snapshot(kind="issue", items=[curr_item]),
+    )
+    delta = result.deltas[0]
+    assert delta.kind is ChangeKind.CHANGED
+    assert delta.changed_fields == ("activity",)
+    assert delta.new_history_tail == ""
+    assert result.counts[ChangeKind.UNCHANGED] == 0
+
+
+def test_history_growth_also_reports_activity():
+    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    curr = make_snapshot(
+        items=[make_item(key="a/b#1", history="oCr", last_activity="2026-10-01T09:00:00Z")]
+    )
+    assert diff_snapshots(prev, curr).deltas[0].changed_fields == ("history", "activity")
+
+
+def test_item_from_existing_snapshot_json_is_unchanged_against_fresh_run():
+    on_disk = json.loads(
+        '{"key": "a/b#1", "repo": "a/b", "number": 1, "title": "t", "history": "oC",'
+        ' "state": "open", "author": "octocat", "last_activity": "2026-09-30T22:00:00Z",'
+        ' "labels": [], "ci_status": "green", "is_draft": false,'
+        ' "unresolved_thread_count": 0, "linked_pr": null, "review_status": null}'
+    )
+    prev = make_snapshot(items=[ItemSnapshot.from_dict(on_disk)])
+    curr = make_snapshot(items=[make_item(key="a/b#1")])
+    assert diff_snapshots(prev, curr).deltas[0].kind is ChangeKind.UNCHANGED
 
 
 def test_cross_kind_diff_rejected():
