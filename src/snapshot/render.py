@@ -169,7 +169,7 @@ def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str
             [
                 _render_field(item.state, "state" in d.changed_fields),
                 _render_thread_count(item.unresolved_thread_count, d),
-                relative_time(item.last_activity),
+                _render_last_activity(item.last_activity, d),
                 _render_note(d),
             ]
         )
@@ -200,7 +200,7 @@ def _print_issue_table(deltas: list[ItemDelta], *, console: Console) -> None:
             _render_linked_pr(item.linked_pr),
             _render_labels(item.labels, "labels" in d.changed_fields),
             _render_field(item.state, "state" in d.changed_fields),
-            relative_time(item.last_activity),
+            _render_last_activity(item.last_activity, d),
             _render_note(d),
         )
 
@@ -240,6 +240,10 @@ def _render_thread_count(count: int, d: ItemDelta) -> str:
     changed = "unresolved_thread_count" in d.changed_fields
     text = "--" if count == 0 else str(count)
     return _render_field(text, changed)
+
+
+def _render_last_activity(iso_timestamp: str, d: ItemDelta) -> str:
+    return _render_field(relative_time(iso_timestamp), "activity" in d.changed_fields)
 
 
 def _render_linked_pr(linked_pr: str | None) -> str:

@@ -5,7 +5,10 @@ both snapshots we compare the fields that drive the display and produce an
 `ItemDelta` with:
 
 - `changed_fields` — which of (history, state, ci_status, labels,
-  unresolved_thread_count, is_draft, linked_pr, review_status) differ
+  unresolved_thread_count, is_draft, linked_pr, review_status) differ,
+  plus `"activity"` when `last_activity` moved. History collapses
+  consecutive same-type events, so new comments or reviews can leave the
+  string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
   computed as the longest common prefix (LCP). The history string is
   append-only by construction (`src.pr.history`, `src.issue.history`),
@@ -140,6 +143,8 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
             continue
         if a != b:
             changed.append(field_name)
+    if prev.last_activity != curr.last_activity:
+        changed.append("activity")
     # History-rewritten tag: history changed but prev is not a prefix of curr.
     if "history" in changed and not curr.history.startswith(prev.history):
         changed.append("history-rewritten")

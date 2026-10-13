@@ -384,6 +384,11 @@ is the same dense table you already read, with two added visual channels:
   gone from the current result, blank for unchanged.
 - Characters appended to the history string since the previous snapshot
   are `[bracketed]` (and bold magenta in color output).
+- A `!` after a value marks a field that changed. A `!` on **Last**
+  (e.g. `5m ago!`) with no bracketed history means new events arrived
+  but collapsed into the existing string (consecutive duplicates
+  collapse), e.g. replies after your comment. In `--diff-format json`
+  this is `"activity"` in `changed_fields`.
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
@@ -395,7 +400,7 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 
 Δ Repo                  PR     History      CI      State   💬   Last     Note
 + OpenHands/docs        #42    [oCL]        --      open    --   5m ago
-* OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago
+* OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago!
 - OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
 
 Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
