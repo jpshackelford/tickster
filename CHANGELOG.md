@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/jpshackelford/tickster/compare/v0.3.0...v0.3.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **snapshot:** report last_activity changes in diffs ([#43](https://github.com/jpshackelford/tickster/issues/43)) ([5ff5fbb](https://github.com/jpshackelford/tickster/commit/5ff5fbb219a67784651bdb384d24caafa7bd1f5c)), closes [#27](https://github.com/jpshackelford/tickster/issues/27)
+
 ## [0.3.0](https://github.com/jpshackelford/tickster/compare/v0.2.0...v0.3.0) (2026-10-10)
 
 
