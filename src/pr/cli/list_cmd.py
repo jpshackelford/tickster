@@ -7,6 +7,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.all_authors import all_authors_error
 from src.date_window import (
     DateWindow,
     DateWindowError,
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 def cmd_list(
     *,
     author: str | None = None,
+    all_authors: bool = False,
     reviewer: str | None = None,
     repos: list[str] | None = None,
     pr_refs: list[str] | None = None,
@@ -51,6 +53,7 @@ def cmd_list(
 
     Args:
         author: Filter by PR author (use "me" for current user)
+        all_authors: List every author's PRs (needs repos; excludes author/reviewer/refs)
         reviewer: Filter by requested reviewer (use "me" for current user)
         repos: List of repos to filter by (owner/repo format)
         pr_refs: Specific PR references (owner/repo#number format)
@@ -87,9 +90,22 @@ def cmd_list(
         return 1
     date_qualifier = window.to_qualifier() if window else None
 
+    if all_authors and reviewer:
+        console.print(
+            "[red]Error:[/] --all-authors cannot be combined with --reviewer: review-requested "
+            "PRs already include every author. Drop one of them."
+        )
+        return 1
+
     try:
+        target_repos = None if pr_refs else _get_repos(repos, board_name)
+        if all_authors:
+            error = all_authors_error(has_refs=bool(pr_refs), repos=target_repos, noun="PRs")
+            if error:
+                console.print(f"[red]Error:[/] {error}")
+                return 1
+
         with PRClient() as client:
-            target_repos = None if pr_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if pr_refs:
                 # Use case 3: Arbitrary PR list
@@ -113,8 +129,9 @@ def cmd_list(
                 )
             else:
                 # Default: current user's PRs from default board's repos
+                # (None = every author's, with --all-authors)
                 result = client.list_prs_by_author(
-                    "me",
+                    None if all_authors else "me",
                     repos=target_repos,
                     states=states,
                     limit=limit,
@@ -135,6 +152,7 @@ def cmd_list(
                 scope = SnapshotScope.from_pr_args(
                     board=board_name,
                     author=author,
+                    all_authors=all_authors,
                     reviewer=reviewer,
                     repos=target_repos,
                     refs=pr_refs,

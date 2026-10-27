@@ -86,7 +86,8 @@ class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author, repos, refs, states, labels, limit, date window). `fingerprint`
+    (same board, author or all-authors, repos, refs, states, labels, limit, date
+    window). `fingerprint`
     yields a stable short digest used to detect scope drift between runs.
 
     The `from_{pr,issue,review}_args` factories are the only supported way
@@ -98,6 +99,7 @@ class SnapshotScope:
 
     board: str | None = None
     author: str | None = None
+    all_authors: bool = False  # pr/issue list: --all-authors
     reviewer: str | None = None
     # Repos actually queried (explicit --repo, else the board's list at run time),
     # sorted, so editing a board's repos is flagged as a scope change.
@@ -123,7 +125,9 @@ class SnapshotScope:
             "include_all": self.include_all,
             "limit": self.limit,
         }
-        # Omitted when unset so scopes saved before date windows keep their hash.
+        # Omitted when unset so scopes saved before these options keep their hash.
+        if self.all_authors:
+            data["all_authors"] = True
         if self.window:
             data["window"] = self.window.to_dict()
         return data
@@ -133,6 +137,7 @@ class SnapshotScope:
         return cls(
             board=data.get("board"),
             author=data.get("author"),
+            all_authors=bool(data.get("all_authors", False)),
             reviewer=data.get("reviewer"),
             repos=tuple(data["repos"]) if data.get("repos") else None,
             refs=tuple(data["refs"]) if data.get("refs") else None,
@@ -158,11 +163,13 @@ class SnapshotScope:
         states: list[str] | None,
         limit: int,
         window: DateWindow | None = None,
+        all_authors: bool = False,
     ) -> SnapshotScope:
         """Build the scope that `pr list` queries contribute to the hash."""
         return cls(
             board=board,
             author=author,
+            all_authors=all_authors,
             reviewer=reviewer,
             repos=tuple(sorted(repos)) if repos else None,
             refs=tuple(sorted(refs)) if refs else None,
@@ -183,11 +190,13 @@ class SnapshotScope:
         labels: list[str] | None,
         limit: int,
         window: DateWindow | None = None,
+        all_authors: bool = False,
     ) -> SnapshotScope:
         """Build the scope that `issue list` queries contribute to the hash."""
         return cls(
             board=board,
             author=author,
+            all_authors=all_authors,
             repos=tuple(sorted(repos)) if repos else None,
             refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
