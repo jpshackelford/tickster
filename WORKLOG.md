@@ -195,3 +195,11 @@ Implementing [issue #47](https://github.com/jpshackelford/tickster/issues/47): p
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 09:41 UTC - Implementation Worker (`fc64f4d`)
+
+✅ **PR opened for issue #47** — ready for review
+
+- [PR #58](https://github.com/jpshackelford/tickster/pull/58): search pages capped at 25 items; GraphQL retries 502/503/504, timeouts and short rate limits with backoff and jitter (not mutations); a page that still times out is retried at half size, down to 5. Covers pr list, issue list and review.
+- CI green at head `9c4a6c3`; moved from draft to ready. Manual test, docs, and review handling are left to a separate conversation.
+
+---
