@@ -349,6 +349,111 @@ tkt repo add octocat/spoon-knife -d         # add and set board as default
 tkt repo list --all                         # repos across all boards
 ```
 
+## `tkt norms`
+
+A repo's conventions live in `.agents/tickster.toml`, committed to the repo. tickster
+keeps only GitHub's own meanings in code; who counts as an agent or a bot, how a test
+report is recognised, and which checks to ignore are data the repo owns.
+
+```bash
+tkt norms init [--from SOURCE [--ref REF] [--path PATH]] [--force]
+tkt norms check [PATH | --repo OWNER/NAME] [--strict]
+tkt norms show --repo OWNER/NAME
+tkt norms upgrade [PATH] [--write]
+```
+
+- `init` writes `.agents/tickster.toml` at the root of the current git work tree. With
+  no `--from` it writes a neutral, self-documenting template. It refuses to overwrite a
+  file unless you pass `--force`, exits non-zero outside a git work tree, and never
+  commits or pushes. Commit it and merge it to the default branch; it takes effect
+  from there.
+- `init --from SOURCE` copies another file (never a live reference). `SOURCE` is:
+  - `github:owner/repo[/path]`: read through the GitHub API with your token, so private
+    repos work. Without `/path` it reads `.agents/tickster.toml`.
+  - a git URL (`https://`, `ssh://`, `git://`, `file://` or scp-style
+    `git@host:org/repo.git`): fetched with your own `git`, so SSH keys, credential
+    helpers and proxies apply. Other transports are refused. Use `--path` for a file
+    other than `.agents/tickster.toml`.
+  - a local file, or a directory holding `.agents/tickster.toml`.
+  - `--ref` picks a branch, tag or commit for `github:` and git URLs.
+  The copy starts with a header naming the source (credentials removed), the path and
+  the commit read. A source with an older schema is migrated; a source with a newer
+  schema is refused. Afterwards `init` warns about `ignore_paths` / `only_paths` globs
+  that match nothing in your tree.
+- `check` validates the file: schema, types, unknown keys and every regex. Problems name
+  the file and the key. `--strict` turns the unknown-key warning into an error.
+- `show` prints the settings in effect for a repo and the blob SHA of the file read.
+- `upgrade` prints the file migrated to the current schema; `--write` rewrites it
+  (comments are not preserved).
+
+### The file
+
+```toml
+schema = 1                                # required integer
+
+[actors]
+agent_logins = ["all-hands-bot"]          # AI actors; globs; win over the [bot] suffix
+agent_disclosure = 'created by an AI agent \(OpenHands\)'
+bots = []                                 # non-AI automation beyond the [bot] suffix
+
+[labels]
+stale = ["stale"]                         # closed_by_bot; this is the fallback; [] disables
+
+[review]
+count_reviews_from = ["humans", "agents"] # humans | agents | bots
+rerequest_labels = ["review-this"]
+
+[ci]
+ignore_checks = ["codecov/*"]
+
+[commits]
+ignore_paths = ["docs/**", "**/*.md"]
+min_changed_lines = 0
+
+[reports.manual_test]                     # any [reports.<name>] table works
+required = true
+only_paths = []
+marker = '^#+ *Manual Test Results'
+fail = '❌ *FAIL'
+
+[reports.manual_test.impact_line]
+pattern = 'manual[- ]test impact:\s*(none|re-?run)'
+from = ["agents", "author"]
+unassessed = "rerun"                      # or "ignore"
+```
+
+- Patterns are Python regexes, matched case-insensitively against the first 200
+  characters of a comment. Use single-quoted strings so backslashes stay literal.
+- Globs (`ignore_paths`, `only_paths`, `agent_logins`, `bots`, `ignore_checks`) use `*`
+  (within one path segment) and `**` (across segments).
+- tickster reads the file from the repo's **default branch** through the contents API,
+  never from a PR's head, so a PR cannot change the rules that judge it. The file is
+  cached under `$TKT_HOME/norms/` and re-fetched when its blob SHA changes.
+- With no file, convention-based steps report "not configured"; tickster never guesses.
+
+### Schema version
+
+`schema` is an integer covering the whole file. It is bumped only for breaking changes
+(a key renamed or removed, a key whose meaning changes, a default that changes answers);
+new optional keys do not bump it.
+
+| Situation | What happens |
+|-----------|--------------|
+| file older than this tkt | migrated in memory, with a warning; no commit is ever required |
+| file newer than this tkt | not an error: steps that need it report `unknown (config schema N; this tkt understands M)`; GitHub-only data still answers, and `tkt pr list` / `tkt issue list` keep working |
+| unknown key | warning naming the key; error with `check --strict` |
+| missing or non-integer `schema`, bad TOML, wrong type, invalid regex | the file is rejected with a message naming the file and key; GitHub data alone is used |
+
+### What uses it today
+
+- `$has_agent_assigned` is true when an assignee matches the repo's `[actors]
+  agent_logins`, which win over a board's `agent_username_pattern`. With neither, it is
+  false, and a rule that needs it prints a one-time warning pointing to
+  `tkt norms init --from github:jpshackelford/tickster`.
+- `$closed_by_bot` also matches the `[labels] stale` labels.
+- Bot detection for issue history is the union of the `[bot]` suffix, `[issue]
+  bot_usernames` and the repo's `[actors] bots`.
+
 ## `tkt snapshot`
 
 Manage saved query snapshots stored under `~/.tkt/snapshots/`. Snapshots
@@ -618,9 +723,10 @@ Examples:
 
 Bot **comments** get the distinct `B` marker (bot labels use `L`, like other
 humans). A username is treated as a bot when it ends in `[bot]` or appears in the
-configurable list under `[issue]` in `~/.tkt/config.toml`. Default recognised
-bots include `github-actions[bot]`, `stale[bot]`, `dependabot[bot]`,
-`renovate[bot]`, `allcontributors[bot]`, `codecov[bot]`, and `sonarcloud[bot]`.
+list under `[issue] bot_usernames` in `~/.tkt/config.toml`, or in the repo's
+`[actors] bots` ([norms file](#tkt-norms)). There is no built-in name list: every
+well-known bot already ends in `[bot]`. A login in `[actors] agent_logins` is an
+AI actor instead, even if it ends in `[bot]`.
 
 `tkt issue list` also prints a one-line legend beneath the table, so the
 encoding is self-documenting at the terminal.

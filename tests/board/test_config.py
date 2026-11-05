@@ -106,7 +106,7 @@ class TestBoardConfig:
         assert config.username is None
         assert config.repos == []
         assert config.scan_lookback_days == 90
-        assert config.agent_username_pattern == "openhands"
+        assert config.agent_username_pattern is None
         assert config.scope == BoardScope.USER
         assert config.overview_item is None
         assert config.mission is None
@@ -509,13 +509,22 @@ class TestNonDefaultSettings:
             name="test",
             project_id="PVT_123",
             scan_lookback_days=90,  # default
-            agent_username_pattern="openhands",  # default
         )
         save_board_config(board, "test")
 
         content = config_file.read_text()
         assert "scan_lookback_days" not in content
         assert "agent_username_pattern" not in content
+
+    def test_agent_pattern_saved_even_when_openhands(self, temp_config_dir):  # noqa: ARG002
+        """An explicit agent pattern is always written; there is no default to omit it for."""
+        _, config_file = temp_config_dir
+
+        board = BoardConfig(name="test", project_id="PVT_123", agent_username_pattern="openhands")
+        save_board_config(board, "test")
+
+        assert 'agent_username_pattern = "openhands"' in config_file.read_text()
+        assert load_board_config("test").agent_username_pattern == "openhands"
 
 
 class TestProjectScopedBoards:

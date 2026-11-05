@@ -361,7 +361,7 @@ agent_username_pattern = "openhands"
 | `username` | auto-detected | GitHub username for searches |
 | `watched_repos` | `[]` | List of repositories to track |
 | `scan_lookback_days` | `90` | Default lookback period for scans |
-| `agent_username_pattern` | `"openhands"` | Pattern to identify agent accounts |
+| `agent_username_pattern` | — | Substring that identifies agent accounts. No default: with neither this nor a repo's `[actors] agent_logins` (see [Norms](usage.md#tkt-norms)), `$has_agent_assigned` is false |
 
 ### Cache Location
 
@@ -455,8 +455,8 @@ Macros provide complex conditions for rules. Use them with the `$` prefix:
 
 | Macro | Description |
 |-------|-------------|
-| `$closed_by_bot` | True if item was closed by a bot (stale bot, etc.) |
-| `$has_agent_assigned` | True if an agent account is assigned |
+| `$closed_by_bot` | True if item was closed by a bot, or has a label from the repo's `[labels] stale` norms (default `stale`) |
+| `$has_agent_assigned` | True if an agent account is assigned: the repo's `[actors] agent_logins` win, else `agent_username_pattern` |
 | `$has_label: <name>` | True if item has the specified label |
 | `$ci_status: <status>` | Check CI status: `success`, `failure`, `pending` |
 

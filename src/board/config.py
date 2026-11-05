@@ -142,7 +142,7 @@ class BoardConfig:
     scan_lookback_days: int = 90
 
     # Agent username pattern (for detecting agent assignments)
-    agent_username_pattern: str = "openhands"
+    agent_username_pattern: str | None = None
 
     # Custom column name mappings (optional overrides)
     column_names: dict[str, str] = field(default_factory=dict)
@@ -353,7 +353,7 @@ def _migrate_legacy_config(board_data: dict) -> dict:
     # Include non-default settings
     if board_data.get("scan_lookback_days", 90) != 90:
         board_entry["scan_lookback_days"] = board_data["scan_lookback_days"]
-    if board_data.get("agent_username_pattern", "openhands") != "openhands":
+    if board_data.get("agent_username_pattern"):
         board_entry["agent_username_pattern"] = board_data["agent_username_pattern"]
     if columns_data:
         board_entry["columns"] = columns_data
@@ -432,7 +432,7 @@ def load_boards_config() -> BoardsConfig:
                 username=value.get("username"),
                 repos=value.get("repos", []),
                 scan_lookback_days=value.get("scan_lookback_days", 90),
-                agent_username_pattern=value.get("agent_username_pattern", "openhands"),
+                agent_username_pattern=value.get("agent_username_pattern"),
                 column_names=value.get("columns", {}),
                 updated_at=_parse_datetime(value.get("_updated_at")),
                 scope=value.get("scope", BoardScope.USER),
@@ -510,7 +510,7 @@ def save_boards_config(config: BoardsConfig) -> None:
             entry["repos"] = board.repos
         if board.scan_lookback_days != 90:
             entry["scan_lookback_days"] = board.scan_lookback_days
-        if board.agent_username_pattern != "openhands":
+        if board.agent_username_pattern:
             entry["agent_username_pattern"] = board.agent_username_pattern
         if board.column_names:
             entry["columns"] = board.column_names
