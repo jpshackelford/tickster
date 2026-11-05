@@ -27,6 +27,9 @@ CI (`.github/workflows/ci.yml`) runs all four on every PR; all must be clean.
 
 - Attribution: any comment, issue, or PR body an agent posts must include
   _"created by an AI agent (OpenHands) on behalf of @jpshackelford"_.
-- Never push directly to `main`. Open a PR.
+- Never push directly to `main`. Open a PR. The one exception: the orchestrator
+  commits `WORKLOG.md` to `main`.
+- The orchestrator and its workers read `.agents/resources/`. Scope is set with
+  labels: work only on issues labelled `ready`, and never on ones labelled `hold`.
 - Keep this file short. Add new procedures as skills under
   `.openhands/skills/`, not as prose here.
