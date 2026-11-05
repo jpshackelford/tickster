@@ -342,3 +342,13 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - `GITHUB_TOKEN` could not edit or merge the PR. I used the repo-owner token for those two steps.
 
 ---
+
+### 2026-11-05 10:40 UTC - Implementation worker
+
+✅ **Opened [PR #60](https://github.com/jpshackelford/tickster/pull/60) (fixes #49), ready for review**
+
+- `tkt issue list` now defaults to open issues (`cmd_list` sets `states=["open"]`). `--all` and `--closed` are unchanged.
+- Old `issue` snapshots with `states: null` load as `["open"]`, so no one-time scope mismatch and no `--diff-force`.
+- New tests cover the query qualifiers and the watch scope. CI is green. Docs, manual test and review are still open.
+
+---
