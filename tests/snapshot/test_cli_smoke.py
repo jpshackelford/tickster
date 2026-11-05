@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import io
+import sys
+
 import pytest
 
 from src.__main__ import main
@@ -42,3 +45,24 @@ def test_diff_include_unchanged_flag_parses(capsys):
     captured = capsys.readouterr()
     assert "unrecognized arguments" not in captured.err
     assert "--diff-include-unchanged" not in captured.err or "unrecognized" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("module", "argv"),
+    [
+        ("src.pr.cli", ["pr", "list"]),
+        ("src.issue.cli", ["issue", "list"]),
+        ("src.review.cli", ["review"]),
+    ],
+)
+def test_diff_resolve_flag_reaches_the_list_command(module, argv, monkeypatch):
+    seen: list[bool] = []
+    tty = io.StringIO()
+    tty.isatty = lambda: True  # type: ignore[method-assign]
+    monkeypatch.setattr(sys, "stdin", tty)
+    monkeypatch.setattr(
+        f"{module}.cmd_list", lambda **kw: seen.append(kw["diff_resolve"]) or 0, raising=True
+    )
+    assert main([*argv, "--watch", "w"]) == 0
+    assert main([*argv, "--watch", "w", "--diff-resolve"]) == 0
+    assert seen == [False, True]

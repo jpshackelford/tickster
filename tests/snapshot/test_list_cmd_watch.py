@@ -6,7 +6,9 @@ store, diff, and render code run for real against a tmp TKT_HOME.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -74,9 +76,16 @@ def _review(number: int) -> ReviewInfo:
 
 
 class FakeClient:
-    """Context-manager client whose list/get methods return `numbers` as rows."""
+    """Context-manager client whose list/get methods return `numbers` as rows.
+
+    `has_more` marks list results truncated. `lookup`, when set, maps a number to
+    its current state for the by-ref getters; numbers missing from it are not found.
+    """
 
     numbers: list[int] = []
+    has_more: bool = False
+    lookup: dict[int, str] | None = None
+    ref_calls: list[list[str]] = []
 
     def __enter__(self) -> FakeClient:
         return self
@@ -84,28 +93,46 @@ class FakeClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def _by_ref(self, refs: list[str]) -> dict[int, str]:
+        FakeClient.ref_calls.append(refs)
+        numbers = [int(r.split("#")[1]) for r in refs]
+        if self.lookup is None:
+            return dict.fromkeys(numbers, "open")
+        return {n: self.lookup[n] for n in numbers if n in self.lookup}
+
     def list_prs_by_author(self, *_: Any, **__: Any) -> PRListResult:
-        return PRListResult(prs=[_pr(n) for n in self.numbers])
+        return PRListResult(prs=[_pr(n) for n in self.numbers], has_more=self.has_more)
 
     def get_prs_by_ref(self, refs: list[str]) -> PRListResult:
-        return PRListResult(prs=[_pr(int(r.split("#")[1])) for r in refs])
+        found = self._by_ref(refs)
+        return PRListResult(prs=[replace(_pr(n), state=PRState(s)) for n, s in found.items()])
 
     def list_issues_by_author(self, *_: Any, **__: Any) -> IssueListResult:
-        return IssueListResult(issues=[_issue(n) for n in self.numbers])
+        return IssueListResult(issues=[_issue(n) for n in self.numbers], has_more=self.has_more)
 
     def get_issues_by_ref(self, refs: list[str]) -> IssueListResult:
-        return IssueListResult(issues=[_issue(int(r.split("#")[1])) for r in refs])
+        found = self._by_ref(refs)
+        return IssueListResult(
+            issues=[replace(_issue(n), state=IssueState(s)) for n, s in found.items()]
+        )
 
     def list_reviews(self, *_: Any, **__: Any) -> ReviewListResult:
         reviews = [_review(n) for n in self.numbers]
         return ReviewListResult(
-            reviews=reviews, total_count=len(reviews), has_more=False, action_count=len(reviews)
+            reviews=reviews,
+            total_count=len(reviews),
+            has_more=self.has_more,
+            action_count=len(reviews),
         )
 
 
 @pytest.fixture
 def fake_client(monkeypatch) -> type[FakeClient]:
     monkeypatch.setattr(FakeClient, "numbers", [])
+    monkeypatch.setattr(FakeClient, "has_more", False)
+    monkeypatch.setattr(FakeClient, "lookup", None)
+    monkeypatch.setattr(FakeClient, "ref_calls", [])
+    monkeypatch.setattr(review_list, "PRClient", FakeClient)
     for module, client_attr in (
         (pr_list, "PRClient"),
         (issue_list, "IssueClient"),
@@ -336,3 +363,123 @@ def test_listing_without_window_has_no_window_line(command, fake_client, capsys)
     fake_client.numbers = [1]
     assert cmd_list() == 0
     assert "Window:" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_watch_names_a_row_pushed_past_the_limit(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [3, 2, 1]
+    assert cmd_list(watch_name="hourly", limit=3) == 0
+    assert not store.load(kind, "hourly").has_more
+    capsys.readouterr()
+
+    fake_client.numbers = [4, 3, 2]
+    fake_client.has_more = True
+    assert cmd_list(watch_name="hourly", limit=3) == 0
+    out = capsys.readouterr().out
+    assert "limit?" in out
+    assert "closed?" not in out and "done?" not in out
+    assert store.load(kind, "hourly").has_more
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_json_reason_is_limit_for_a_row_pushed_past_the_limit(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [2, 1]
+    assert cmd_list(watch_name="hourly", limit=2) == 0
+    capsys.readouterr()
+
+    fake_client.numbers = [3, 2]
+    fake_client.has_more = True
+    assert cmd_list(watch_name="hourly", limit=2, diff_format="json") == 0
+    deltas = json.loads(capsys.readouterr().out)["deltas"]
+    assert {d["key"]: d["disappearance_reason"] for d in deltas if d["kind"] == "removed"} == {
+        "o/r#1": "limit"
+    }
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_resolve_replaces_the_guess_with_the_current_state(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1, 2, 3]
+    assert cmd_list(watch_name="hourly") == 0
+    capsys.readouterr()
+
+    fake_client.numbers = []
+    fake_client.lookup = {1: "closed", 2: "open"}
+    assert cmd_list(watch_name="hourly", diff_resolve=True, diff_format="json") == 0
+    deltas = json.loads(capsys.readouterr().out)["deltas"]
+    assert {d["key"]: d["disappearance_reason"] for d in deltas} == {
+        "o/r#1": "closed",
+        "o/r#2": "still-open",
+        "o/r#3": "not-found",
+    }
+    assert fake_client.ref_calls == [["o/r#1", "o/r#2", "o/r#3"]]
+    assert store.load(kind, "hourly").items == ()
+
+
+@pytest.mark.parametrize("command", ["pr", "review"])
+def test_diff_resolve_table_names_merged_and_not_found(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1, 2]
+    assert cmd_list(watch_name="hourly") == 0
+    capsys.readouterr()
+
+    fake_client.numbers = []
+    fake_client.lookup = {1: "merged"}
+    assert cmd_list(watch_name="hourly", diff_resolve=True) == 0
+    rows = [line for line in capsys.readouterr().out.splitlines() if line.lstrip().startswith("-")]
+    assert [row.split("ago", 1)[1].strip() for row in rows] == ["merged", "not found"]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_resolve_is_off_by_default(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(watch_name="hourly") == 0
+    capsys.readouterr()
+
+    fake_client.numbers = []
+    assert cmd_list(watch_name="hourly") == 0
+    assert fake_client.ref_calls == []
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_resolve_with_nothing_gone_makes_no_lookup(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(watch_name="hourly") == 0
+    capsys.readouterr()
+
+    assert cmd_list(watch_name="hourly", diff_resolve=True) == 0
+    assert fake_client.ref_calls == []

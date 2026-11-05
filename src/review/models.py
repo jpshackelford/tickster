@@ -32,6 +32,7 @@ class ReviewInfo:
     unresolved_thread_count: int
     author: str
     last_activity: datetime
+    mergeable: str | None = None
 
     @property
     def needs_action(self) -> bool:

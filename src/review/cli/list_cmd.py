@@ -12,7 +12,8 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.pr.models import CIStatus
+from src.pr.github_api import PRClient
+from src.pr.models import CIStatus, PRInfo
 from src.review.github_api import ReviewClient
 from src.review.models import ReviewInfo, ReviewStatus
 from src.snapshot.convert import snapshot_from_reviews
@@ -25,6 +26,12 @@ logger = logging.getLogger(__name__)
 # Wait time thresholds (in seconds)
 WAIT_CRITICAL_SECONDS = 48 * 3600  # 48 hours
 WAIT_WARNING_SECONDS = 24 * 3600  # 24 hours
+
+
+def _fetch_prs_by_ref(refs: list[str]) -> list[PRInfo]:
+    """Look up PRs for `--diff-resolve`; review rows are PRs, which ReviewClient can't fetch."""
+    with PRClient() as pr_client:
+        return pr_client.get_prs_by_ref(refs).prs
 
 
 def cmd_list(
@@ -44,6 +51,7 @@ def cmd_list(
     diff_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
+    diff_resolve: bool = False,
     since_days: int | None = None,
     after: str | None = None,
     before: str | None = None,
@@ -138,6 +146,7 @@ def cmd_list(
                 output_format=diff_format,
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
+                resolve=diff_resolve,
             )
             if plan is not None:
                 scope = SnapshotScope.from_review_args(
@@ -152,8 +161,15 @@ def cmd_list(
                     window=window,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
-                curr_snapshot = snapshot_from_reviews(result.reviews, scope=scope, name=save_name)
-                return plan.execute(curr_snapshot, console, print_table=print_table)
+                curr_snapshot = snapshot_from_reviews(
+                    result.reviews, scope=scope, name=save_name, has_more=result.has_more
+                )
+                return plan.execute(
+                    curr_snapshot,
+                    console,
+                    print_table=print_table,
+                    fetch_by_ref=_fetch_prs_by_ref,
+                )
 
             print_table()
             if not result.reviews:

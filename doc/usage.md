@@ -580,7 +580,7 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 * OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago!
 - OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
 
-Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.  head!/review!/merge!: PR head commit, review decision or merge state changed.
+Δ: + new row, * changed, - gone (Note: why, `?` = a guess), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.  head!/review!/merge!: PR head commit, review decision or merge state changed.
 ```
 
 ### Head, review and merge changes
@@ -609,27 +609,58 @@ instead of a Note.
 
 - GitHub reports `UNKNOWN` mergeability while it computes it after a push or a
   base change. A move to or from `UNKNOWN` is not a change, so `UNKNOWN` →
-  `CLEAN` on the next run is silent.
+  `CLEAN` on the next run is silent. The same goes for the CI column: while
+  either run has `UNKNOWN` mergeability, CI falls back to the check rollup
+  (for example `green`) and then shows `conflict` once GitHub answers, so a CI
+  move to or from `conflict` is not flagged. A real rollup change
+  (`green` → `red`) is still flagged, and a push shows as `head!`.
 - A baseline saved before these fields existed has no head SHA, so these
   fields are not compared until it is replaced; the first run after upgrading
   does not flag every row.
-- `tkt issue list` and `tkt review` snapshots do not record these fields.
+- `tkt issue list` snapshots do not record these fields. `tkt review` snapshots
+  record `mergeable` only, for the CI rule above.
 
 ### Why a row is gone
 
-The Note on a `-` row is a hint, not a fact: the snapshot only knows the
-row is no longer in the result.
+By default the Note on a `-` row is a hint, not a fact: the snapshot only
+knows the row is no longer in the result.
 
 | Note | JSON `disappearance_reason` | Meaning |
 | --- | --- | --- |
 | `closed?` | `closed-or-gone` | `pr list` / `issue list`: it was open and no longer matches, most likely closed or merged (or deleted / transferred). |
 | `done?` | `left-queue` | `tkt review`: it left your queue, usually because you approved it or it went on hold. |
+| `limit?` | `limit` | The current result was cut off by `--limit` and the row was among the last ones of the previous result, as many rows as were added. It probably still matches; it just no longer fits. |
 | `scope` | `scope` | The two snapshots used different scopes (only seen with `--diff-force`). |
 | `?` | `unknown` | It wasn't open in the previous snapshot. |
 
-Other things can also drop a row: it fell past `--limit`, a filter
-attribute changed (label removed, review request withdrawn), or GitHub's
-search index briefly lagged.
+Snapshots record whether the query matched more rows than `--limit` kept
+(`has_more` in `tkt snapshot show --format json`; absent when it did not). A
+baseline saved before this was recorded never says `limit?` for its own run,
+since only the current result's flag is used.
+
+Other things can also drop a row: a filter attribute changed (label removed,
+review request withdrawn), or GitHub's search index briefly lagged.
+
+#### `--diff-resolve`: look the rows up
+
+`--diff-resolve` replaces the guess with a fact. Each `-` row is fetched by
+ref (one batched GitHub query per 20 gone rows; no query when no row is gone)
+and the Note says what GitHub reports now:
+
+| Note | JSON `disappearance_reason` | Meaning |
+| --- | --- | --- |
+| `merged` | `merged` | The PR was merged. |
+| `closed` | `closed` | The PR or issue was closed. |
+| `still open` | `still-open` | It is open but no longer matches the query: a filter attribute changed, it fell past `--limit`, or the search index lagged. |
+| `not found` | `not-found` | GitHub no longer returns it (deleted, transferred or no access). |
+
+Without the flag the diff makes no extra network calls. `tkt review` rows are
+looked up as PRs. A failed lookup is an error and the baseline is not
+overwritten.
+
+```bash
+tkt pr list --watch hourly --diff-resolve
+```
 
 ### Shared flags on list commands
 
@@ -643,6 +674,7 @@ All three list commands accept the same snapshot flags:
 | `--diff-format {table,json}` | Format for `--diff`/`--watch` output (default `table`). |
 | `--diff-include-unchanged` | Include unchanged rows in the diff view (default: only changes shown). |
 | `--diff-force` | Proceed with the diff even if the snapshot scope doesn't match the current query. |
+| `--diff-resolve` | Look up each gone (`-`) row and say why (`closed`, `merged`, `still open`, `not found`) instead of guessing. See [Why a row is gone](#why-a-row-is-gone). |
 
 `--watch NAME` is the common agent idiom: it diffs against the previous
 `NAME` and then overwrites `NAME` with the fresh result, so the next hour
