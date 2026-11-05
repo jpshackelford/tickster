@@ -727,3 +727,13 @@ Opened [PR #65](https://github.com/jpshackelford/tickster/pull/65) `feat(snapsho
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 12:37 UTC - Merge worker
+
+✅ **Merged PR #65** as `73ab0c9` (squash). Issue #16 closed.
+
+- Head stayed `37cd727`; main moved only by WORKLOG.md commits. At head: 1164 tests pass, ruff and basedpyright clean, CI green.
+- Manual test (12:30 UTC, 20/20 pass) and the 12:27 UTC review (excellent, only finding was the missing test report) both cover the final head.
+- Squash-merged without `--admin`; PR description rewritten with review evolution. Release PR #44 untouched.
+
+---
