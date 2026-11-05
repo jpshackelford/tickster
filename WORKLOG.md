@@ -659,3 +659,14 @@ Merged [PR #62](https://github.com/jpshackelford/tickster/pull/62) as `b04e0f1`;
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 12:18 UTC - Merge worker
+
+✅ **Merged PR #64** as `dba8f1a` (squash). Issue #26 closed.
+
+- Branch was 7 commits behind main (#62, #63). One mechanical conflict in `src/pr/github_api.py`: added `mergeStateStatus`, `reviewDecision` and `headRefOid` to the new spec-built PR fragment. No behavior change.
+- At head `8cbbb87`: 1121 tests pass, ruff and basedpyright clean, CI green, approval kept, no open threads. Manual test (12:05 UTC, 10/10 pass) covers the PR logic.
+- Squash-merged without `--admin`; PR description rewritten with review evolution. Release PR #44 untouched.
+- Follow-up: Rich crops long History cells with its own `…`, which looks like the new truncation marker. Needs a separate issue.
+
+---
