@@ -588,3 +588,13 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 12:00 UTC - Merge worker (PR #62)
+
+Merged [PR #62](https://github.com/jpshackelford/tickster/pull/62) as `b04e0f1`; issue #52 closed.
+- Head `7ada92a` checked before merge: CI green, bot approved, re-test all pass, no open threads.
+- Squash-merged without `--admin`; PR description rewritten with review evolution.
+- Fixed in review: merge-from-base now gives `significant: no`; `BrokenPipeError` exits 141; doc example reproduces.
+- Follow-up: read `[commits]` norms from `.agents/tickster.toml` (#50 is on `main`).
+
+---
