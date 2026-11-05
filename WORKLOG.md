@@ -425,3 +425,7 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 UTC - Implementation worker (Issue #52)
+
+[PR #62](https://github.com/jpshackelford/tickster/pull/62) `tkt pr changes --since SHA` is ready for review, CI green. Not done: the `pr show` commit lines (#40 not landed) and reading `[commits]` norms (#50/PR #61 not merged). The norms values are `--ignore-path` and `--min-changed-lines` for now. Docs, testing and review are separate conversations.
