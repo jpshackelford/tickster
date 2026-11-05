@@ -37,4 +37,4 @@ Labels are the guard. Follow them exactly:
 - Never expand, prioritize or implement an issue labelled `hold`, and never remove `hold`. A human releases held issues when their dependencies merge.
 - Don't change a `priority:*` label that a human set.
 - The multi-provider work is out of scope: #28 and #30 to #38 (source-neutral refactors, the Linear and HappyFox drivers). Don't start it, even as a prerequisite. Issues that mention #32 or #33 say they build on the current GitHub-only code.
-- release-please owns the release PR (title `chore(main): release …`). It carries `hold`. Leave it alone.
+- release-please owns the release PR: author `app/github-actions`, branch `release-please--branches--main--components--tickster`, title `chore(main): release …`. A human releases it. Don't review, test, update, approve or merge it, and don't start workers for it, unless a live `## INSTRUCTION:` block in `WORKLOG.md` asks for it. This applies with or without `hold`; release-please opens each new release PR without it. The release PR doesn't count as the open PR: while it's the only one open, the PR slot is free for implementation.
