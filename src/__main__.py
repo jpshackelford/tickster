@@ -484,6 +484,12 @@ Examples:
         action="store_true",
         help="Show weekly merge/age graph (only works with --merged)",
     )
+    pr_list_parser.add_argument(
+        "--detail",
+        dest="show_detail",
+        action="store_true",
+        help="Add Head, Review and Merge columns (head commit, review decision, merge state)",
+    )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
@@ -760,6 +766,12 @@ Examples:
         choices=["table", "json"],
         default="table",
         help="Output format (default: table)",
+    )
+    snapshot_diff_parser.add_argument(
+        "--detail",
+        dest="show_detail",
+        action="store_true",
+        help="PR snapshots: add Head, Review and Merge columns",
     )
 
     # repo command
@@ -1052,6 +1064,7 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 show_graph=args.show_graph,
+                show_detail=args.show_detail,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
@@ -1177,6 +1190,7 @@ Examples:
                 args.curr_ref,
                 show_unchanged=args.show_unchanged,
                 output_format=args.output_format,
+                detail=args.show_detail,
             )
 
     # Handle repo command

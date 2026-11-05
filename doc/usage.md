@@ -154,6 +154,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max PRs to show (default: 100) |
 | `--title, -t` | Show PR titles |
 | `--graph, -g` | Weekly merge/age graph (use with `--merged`) |
+| `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -464,7 +465,7 @@ are the raw input to the diff view documented in
 tkt snapshot list [--kind {pr,issue,review}]
 tkt snapshot show KIND/NAME [--format {table,json}]
 tkt snapshot rm   KIND/NAME [KIND/NAME ...]
-tkt snapshot diff PREV CURR  [--all] [--format {table,json}]
+tkt snapshot diff PREV CURR  [--all] [--format {table,json}] [--detail]
 ```
 
 - `KIND/NAME` refs use `/` as the separator, e.g. `pr/hourly`,
@@ -512,8 +513,40 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 * OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago!
 - OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
 
-Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
+Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.  head!/review!/merge!: PR head commit, review decision or merge state changed.
 ```
+
+### Head, review and merge changes
+
+PR snapshots (`tkt pr list`) also record four fields from GitHub: `head_sha`
+(the full head commit), `review_decision` (`APPROVED`, `CHANGES_REQUESTED`,
+`REVIEW_REQUIRED`, or null), `merge_state` (`mergeStateStatus`: `BEHIND`,
+`DIRTY`, `BLOCKED`, `CLEAN`, `UNSTABLE`, …) and `mergeable` (`MERGEABLE`,
+`CONFLICTING`, `UNKNOWN`). A change in any of them marks the row `*`, so a push
+that leaves CI, history and 💬 unchanged still shows up. The Note names what
+changed:
+
+| Note | JSON `changed_fields` | Meaning |
+| --- | --- | --- |
+| `head!` | `head_sha` | New head commit (a push or force-push). |
+| `review!` | `review_decision` | GitHub's review decision changed, e.g. an approval was withdrawn. |
+| `merge!` | `merge_state`, `mergeable` | Merge state changed, e.g. the branch fell behind base or into conflict. |
+
+The review decision is whatever GitHub reports for the PR, so an approval made
+before a new push keeps showing `approved` next to `head!` unless the repo
+dismisses stale approvals, so read the two together.
+
+With `--detail` (on `tkt pr list`, or `tkt snapshot diff`) the Head, Review and
+Merge columns are shown and a changed value gets the `!` itself (`3f9a1c2!`)
+instead of a Note.
+
+- GitHub reports `UNKNOWN` mergeability while it computes it after a push or a
+  base change. A move to or from `UNKNOWN` is not a change, so `UNKNOWN` →
+  `CLEAN` on the next run is silent.
+- A baseline saved before these fields existed has no head SHA, so these
+  fields are not compared until it is replaced; the first run after upgrading
+  does not flag every row.
+- `tkt issue list` and `tkt review` snapshots do not record these fields.
 
 ### Why a row is gone
 

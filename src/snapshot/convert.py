@@ -48,6 +48,10 @@ def item_from_pr(pr: PRInfo) -> ItemSnapshot:
         ci_status=_ci_value(pr.ci_status),
         is_draft=pr.is_draft,
         unresolved_thread_count=pr.unresolved_thread_count,
+        head_sha=pr.head_sha,
+        review_decision=pr.review_decision,
+        merge_state=pr.merge_state,
+        mergeable=pr.mergeable,
     )
 
 

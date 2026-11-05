@@ -6,7 +6,9 @@ both snapshots we compare the fields that drive the display and produce an
 
 - `changed_fields` — which of (history, state, ci_status, labels,
   unresolved_thread_count, is_draft, linked_pr, review_status) differ,
-  plus `"activity"` when `last_activity` moved. History collapses
+  plus `"activity"` when `last_activity` moved. PR rows also compare
+  `head_sha`, `review_decision`, `merge_state` and `mergeable` (see
+  `_compare_pr_detail`). History collapses
   consecutive same-type events, so new comments or reviews can leave the
   string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
@@ -40,6 +42,10 @@ _FIELDS_TO_COMPARE: tuple[str, ...] = (
     "linked_pr",
     "review_status",
 )
+
+_PR_DETAIL_FIELDS: tuple[str, ...] = ("head_sha", "review_decision", "merge_state", "mergeable")
+_MERGEABILITY_FIELDS = ("merge_state", "mergeable")
+_MERGEABILITY_UNKNOWN = "UNKNOWN"
 
 
 def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
@@ -143,12 +149,34 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
             continue
         if a != b:
             changed.append(field_name)
+    changed.extend(_compare_pr_detail(prev, curr))
     if prev.last_activity != curr.last_activity:
         changed.append("activity")
     # History-rewritten tag: history changed but prev is not a prefix of curr.
     if "history" in changed and not curr.history.startswith(prev.history):
         changed.append("history-rewritten")
     return tuple(changed)
+
+
+def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:
+    """Names of head / review / mergeability fields that differ.
+
+    A snapshot without `head_sha` predates these fields, so comparing would flag
+    every row. GitHub reports `UNKNOWN` mergeability while it computes it after a
+    push or a base change; a move to or from `UNKNOWN` is warm-up noise.
+    """
+    if prev.head_sha is None or curr.head_sha is None:
+        return []
+    changed: list[str] = []
+    for field_name in _PR_DETAIL_FIELDS:
+        a = getattr(prev, field_name)
+        b = getattr(curr, field_name)
+        if a == b:
+            continue
+        if field_name in _MERGEABILITY_FIELDS and _MERGEABILITY_UNKNOWN in (a, b):
+            continue
+        changed.append(field_name)
+    return changed
 
 
 def _new_history_tail(prev_history: str, curr_history: str) -> str:
