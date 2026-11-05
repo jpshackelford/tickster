@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from rich.console import Console
 
@@ -61,6 +63,23 @@ def test_render_diff_with_missing_baseline_treats_all_as_new(tkt_home, capsys): 
     assert "+1 new" in out
 
 
+def test_json_missing_baseline_notice_goes_to_stderr(tkt_home, capsys):  # noqa: ARG001
+    plan = SnapshotPlan.from_args(
+        kind=KIND_PR,
+        snapshot_name=None,
+        diff_name=None,
+        watch_name="hourly",
+        output_format="json",
+    )
+    assert plan is not None
+    curr = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    rc = plan.render_diff(curr, Console(width=200, color_system=None))
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert json.loads(captured.out)["counts"]["added"] == 1
+    assert "No snapshot pr/hourly" in captured.err
+
+
 @pytest.mark.parametrize("output_format", ["table", "json"])
 def test_scope_mismatch_blocks_without_force_in_both_formats(
     tkt_home,  # noqa: ARG001
@@ -88,10 +107,13 @@ def test_scope_mismatch_blocks_without_force_in_both_formats(
         scope=SnapshotScope(board="B"),
     )
     rc = plan.render_diff(curr, Console(width=200, color_system=None))
-    out = capsys.readouterr().out
+    captured = capsys.readouterr()
+    out = captured.out if output_format == "table" else captured.err
     assert rc == 2
     assert "scope mismatch" in out
     assert "--diff-force" in out
+    if output_format == "json":
+        assert captured.out == ""
 
 
 def test_scope_mismatch_renders_with_force(tkt_home, capsys):  # noqa: ARG001

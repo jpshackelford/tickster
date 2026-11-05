@@ -125,20 +125,21 @@ def cmd_diff(
     output_format: str = "table",
 ) -> int:
     """Diff two stored snapshots (`kind/name`)."""
+    err = Console(stderr=True) if output_format == "json" else console
     try:
         p_kind, p_name = _parse_ref(prev_ref)
         c_kind, c_name = _parse_ref(curr_ref)
     except ValueError as e:
-        console.print(f"[red]Error:[/] {e}")
+        err.print(f"[red]Error:[/] {e}")
         return 2
     if p_kind != c_kind:
-        console.print(f"[red]Error:[/] cannot diff across kinds ({prev_ref} vs {curr_ref})")
+        err.print(f"[red]Error:[/] cannot diff across kinds ({prev_ref} vs {curr_ref})")
         return 2
     try:
         prev = store.load(p_kind, p_name)
         curr = store.load(c_kind, c_name)
     except FileNotFoundError as e:
-        console.print(f"[red]Error:[/] {e}")
+        err.print(f"[red]Error:[/] {e}")
         return 1
     result = diff_module.diff_snapshots(prev, curr)
     render.render_diff(
