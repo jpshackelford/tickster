@@ -11,7 +11,8 @@ from src.board.github_api import (
     get_github_token,
     get_github_username,
 )
-from src.pr.github_api import PR_FIELDS_FRAGMENT
+from src.connection_paging import is_truncated
+from src.pr.github_api import PR_FIELDS_FRAGMENT, complete_pr_connections
 from src.pr.history import (
     _build_history_string,
     _count_unresolved_threads,
@@ -268,6 +269,7 @@ class ReviewClient:
 
             for node in search_result["nodes"]:
                 if node:  # Skip null nodes
+                    complete_pr_connections(self._client, node)
                     all_prs.append(node)
                     if len(all_prs) >= limit:
                         break
@@ -321,7 +323,9 @@ class ReviewClient:
         events = _extract_timeline_events(pr_data, author)
 
         # Build history string from reviewer's perspective
-        history = _build_history_string(events, reviewer)
+        history = _build_history_string(
+            events, reviewer, truncated=is_truncated(pr_data, "timelineItems")
+        )
 
         # Find last activity time
         last_activity = _find_last_activity(events, created_at)

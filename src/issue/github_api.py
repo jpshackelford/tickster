@@ -9,33 +9,24 @@ from src.board.github_api import (
     get_github_token,
     get_github_username,
 )
+from src.connection_paging import ConnectionSpec, complete_connection
 from src.issue.models import IssueInfo, IssueListResult
 
 logger = logging.getLogger(__name__)
 
-# GraphQL fragment for issue fields we need
-ISSUE_FIELDS_FRAGMENT = """
-fragment IssueFields on Issue {
-    number
-    title
-    state
-    createdAt
-    closedAt
-    author { login }
-    repository { nameWithOwner }
-    labels(first: 20) {
-        nodes { name }
-    }
-    timelineItems(first: 100, itemTypes: [
+ISSUE_TIMELINE = ConnectionSpec(
+    type_name="Issue",
+    field="timelineItems",
+    args="""itemTypes: [
         ISSUE_COMMENT,
         LABELED_EVENT,
         CLOSED_EVENT,
         REOPENED_EVENT,
         ASSIGNED_EVENT,
         CROSS_REFERENCED_EVENT
-    ]) {
-        nodes {
-            __typename
+    ]""",
+    cap=500,
+    selection="""            __typename
             ... on IssueComment {
                 author { login }
                 createdAt
@@ -73,11 +64,37 @@ fragment IssueFields on Issue {
                 }
                 actor { login }
                 createdAt
-            }
-        }
-    }
-}
+            }""",
+)
+ISSUE_LABELS = ConnectionSpec(
+    type_name="Issue",
+    field="labels",
+    selection="        name",
+    cap=100,
+    first=20,
+)
+
+# GraphQL fragment for issue fields we need
+ISSUE_FIELDS_FRAGMENT = f"""
+fragment IssueFields on Issue {{
+    id
+    number
+    title
+    state
+    createdAt
+    closedAt
+    author {{ login }}
+    repository {{ nameWithOwner }}
+    {ISSUE_LABELS.fragment_field()}
+    {ISSUE_TIMELINE.fragment_field()}
+}}
 """
+
+
+def complete_issue_connections(client: GitHubClient, issue_node: dict) -> None:
+    """Page through timeline events and labels past the first page."""
+    complete_connection(client, issue_node, ISSUE_TIMELINE)
+    complete_connection(client, issue_node, ISSUE_LABELS)
 
 
 class IssueClient:
@@ -237,6 +254,7 @@ class IssueClient:
                     # Skip PRs that might appear in search results
                     if node.get("__typename") == "PullRequest":
                         continue
+                    complete_issue_connections(self._client, node)
                     issue_info = process_issue_data(node, reference_user)
 
                     # Apply OR label filters client-side
@@ -317,6 +335,7 @@ class IssueClient:
             alias = f"issue{idx}"
             repo_data = data.get(alias)
             if repo_data and repo_data.get("issue"):
+                complete_issue_connections(self._client, repo_data["issue"])
                 issue_info = process_issue_data(repo_data["issue"], reference_user)
                 issues.append(issue_info)
             else:

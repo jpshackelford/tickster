@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from src.connection_paging import TRUNCATION_MARKER, is_truncated
 from src.issue.config import is_bot_user
 from src.issue.models import IssueActionType, IssueInfo, IssueState, TimelineEvent
 from src.norms.model import Norms
@@ -34,7 +35,9 @@ def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
 
     # Process timeline into history string and find linked PR
     events, linked_pr = _extract_timeline_events(issue_data, author, get_repo_norms(repo))
-    history = _build_history_string(events, reference_user)
+    history = _build_history_string(
+        events, reference_user, truncated=is_truncated(issue_data, "timelineItems")
+    )
 
     # Find last activity time
     last_activity = _find_last_activity(events, created_at)
@@ -224,6 +227,7 @@ def _format_action(action: IssueActionType, actor: str, reference_user: str) -> 
 def _build_history_string(
     events: list[TimelineEvent],
     reference_user: str,
+    truncated: bool = False,
 ) -> str:
     """Build the compact history string from timeline events.
 
@@ -232,9 +236,11 @@ def _build_history_string(
     - Uppercase = action by someone else
     - BOT_COMMENT is always "B"
     - Consecutive duplicates are collapsed
+    - ``truncated`` appends a marker: events past the fetch cap are missing
     """
     deduped = _deduplicate_consecutive(events)
-    return "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
+    history = "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
+    return history + TRUNCATION_MARKER if truncated else history
 
 
 def _find_last_activity(events: list[TimelineEvent], created_at: datetime) -> datetime:
