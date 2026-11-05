@@ -10,6 +10,8 @@ import pytest
 from src.__main__ import main
 from src.board.github_api import GitHubClient
 from src.pr.changes import (
+    REASON_ONLY_MERGES,
+    REASON_ONLY_MERGES_AND_BASE,
     REASON_REWRITTEN,
     REASON_TOO_LARGE,
     REASON_UNCHANGED,
@@ -21,15 +23,31 @@ from src.pr.changes import (
     pr_changes,
 )
 
-FIXTURE = json.loads(
-    (Path(__file__).parent / "fixtures" / "compare_tickster_2b09310_f41cd83.json").read_text()
-)
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _fixture(name: str) -> dict:
+    return json.loads((FIXTURES / name).read_text())
+
+
+FIXTURE = _fixture("compare_tickster_2b09310_f41cd83.json")
 SINCE = "2b09310abcdef"
 HEAD = "f41cd838ab430067f143e547283090565f2c4b89"
+BASE = "75d1faacb87d639de2bd81afaa00c4cbfd26a243"
+
+# OpenHands/software-agent-sdk#6471: its head 043e0fd is "Merge branch 'main'", which
+# brought in main's f987cb4. The PR's own commits are 4c8680e and the merge.
+SDK_HEAD = "043e0fd332d0cc4164b9396832603fc379f05151"
+SDK_BASE = "f987cb468997ee05dd763adff4e0cc2277957ac1"
+SDK_PREV_TIP = "4c8680ef8ad9e72135dfa3d173311bdfb33612f6"
+SDK_MERGE_ALONE = _fixture("compare_sdk_6471_4c8680e_043e0fd.json")
+SDK_MERGE_AND_COMMIT = _fixture("compare_sdk_6471_e0f52ea_043e0fd.json")
+SDK_OWN_COMMITS = _fixture("compare_sdk_6471_base_f987cb4_043e0fd.json")
+SDK_BEFORE_REAL_COMMIT = "e0f52ea"
 
 
-def _commit(sha: str, *, merge: bool = False) -> ChangedCommit:
-    return ChangedCommit(sha, f"commit {sha}", "alice", "2026-11-05T10:00:00Z", merge)
+def _commit(sha: str, *, merge: bool = False, from_base: bool = False) -> ChangedCommit:
+    return ChangedCommit(sha, f"commit {sha}", "alice", "2026-11-05T10:00:00Z", merge, from_base)
 
 
 def _file(path: str, add: int = 1, delete: int = 0) -> ChangedFile:
@@ -50,27 +68,49 @@ def _api_file(path: str, add: int = 1, delete: int = 0) -> dict:
 
 
 class FakeGitHub:
-    """Serves the PR and compare REST endpoints through a real httpx client."""
+    """Serves the PR and compare REST endpoints through a real httpx client.
 
-    def __init__(self, compare_pages: list[dict] | None = None, compare_status: int = 200):
+    ``compare_pages`` answers ``since...head``; ``base_pages`` answers ``base...head``.
+    A test that gives no ``base_pages`` fails if the code asks for them.
+    """
+
+    def __init__(
+        self,
+        compare_pages: list[dict] | None = None,
+        compare_status: int = 200,
+        *,
+        head: str = HEAD,
+        base: str = BASE,
+        base_pages: list[dict] | None = None,
+        base_status: int = 200,
+    ):
         self.compare_pages = compare_pages if compare_pages is not None else [FIXTURE]
         self.compare_status = compare_status
+        self.head = head
+        self.base = base
+        self.base_pages = base_pages
+        self.base_status = base_status
         self.requests: list[httpx.Request] = []
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         path = request.url.path
         if path.endswith("/pulls/7"):
-            return httpx.Response(200, json={"head": {"sha": HEAD}})
+            return httpx.Response(
+                200, json={"head": {"sha": self.head}, "base": {"sha": self.base}}
+            )
         if path.endswith("/pulls/404"):
             return httpx.Response(404, json={"message": "Not Found"})
         if "/compare/" in path:
-            if self.compare_status != 200:
-                return httpx.Response(self.compare_status, json={"message": "nope"})
+            is_base = f"/compare/{self.base}..." in path
+            pages = self.base_pages if is_base else self.compare_pages
+            status = self.base_status if is_base else self.compare_status
+            if pages is None:
+                return httpx.Response(500, json={"message": f"unexpected call {path}"})
+            if status != 200:
+                return httpx.Response(status, json={"message": "nope"})
             page = int(request.url.params["page"])
-            return httpx.Response(
-                200, json=self.compare_pages[min(page, len(self.compare_pages)) - 1]
-            )
+            return httpx.Response(200, json=pages[min(page, len(pages)) - 1])
         return httpx.Response(500)
 
     @property
@@ -83,6 +123,10 @@ class FakeGitHub:
         client = ChangesClient.__new__(ChangesClient)
         client._client = gh
         return client
+
+
+def _sdk_fake(pages: dict) -> FakeGitHub:
+    return FakeGitHub([pages], head=SDK_HEAD, base=SDK_BASE, base_pages=[SDK_OWN_COMMITS])
 
 
 def _page(commits: list[dict], files: list[dict], status: str = "ahead") -> dict:
@@ -123,7 +167,30 @@ class TestAssess:
         significant, reasons, _ = assess(compare)
 
         assert not significant
-        assert reasons == ["only merge commits"]
+        assert reasons == [REASON_ONLY_MERGES]
+
+    def test_commits_brought_in_from_base_are_not_changes(self):
+        compare = Compare(
+            "ahead",
+            [_commit("b", from_base=True), _commit("m", merge=True)],
+            [_file("src/from_base.py", 400)],
+        )
+
+        significant, reasons, _ = assess(compare)
+
+        assert not significant
+        assert reasons == [REASON_ONLY_MERGES_AND_BASE]
+
+    def test_real_commit_next_to_base_commits_is_significant(self):
+        compare = Compare(
+            "ahead",
+            [_commit("b", from_base=True), _commit("a"), _commit("m", merge=True)],
+            [_file("src/a.py")],
+        )
+
+        significant, _, _ = assess(compare)
+
+        assert significant
 
     def test_merge_plus_real_commit_is_significant(self):
         compare = Compare("ahead", [_commit("m", merge=True), _commit("a")], [_file("src/a.py")])
@@ -234,6 +301,73 @@ class TestPrChanges:
         assert result.reasons == [REASON_UNCHANGED]
         assert fake.compare_calls == []
 
+    def test_merge_from_base_alone_is_not_significant(self):
+        fake = _sdk_fake(SDK_MERGE_ALONE)
+
+        result = pr_changes(fake.client(), "o/r", 7, SDK_PREV_TIP)
+
+        assert [(c.sha[:7], c.merge, c.from_base) for c in result.commits] == [
+            ("f987cb4", False, True),
+            ("043e0fd", True, False),
+        ]
+        assert len(result.files) == 2
+        assert not result.significant
+        assert result.reasons == [REASON_ONLY_MERGES_AND_BASE]
+
+    def test_merge_from_base_plus_real_commit_is_significant(self):
+        fake = _sdk_fake(SDK_MERGE_AND_COMMIT)
+
+        result = pr_changes(fake.client(), "o/r", 7, SDK_BEFORE_REAL_COMMIT)
+
+        assert [(c.sha[:7], c.merge, c.from_base) for c in result.commits] == [
+            ("f987cb4", False, True),
+            ("4c8680e", False, False),
+            ("043e0fd", True, False),
+        ]
+        assert result.significant
+
+    def test_merge_from_base_makes_two_compare_calls(self):
+        fake = _sdk_fake(SDK_MERGE_ALONE)
+
+        pr_changes(fake.client(), "o/r", 7, SDK_PREV_TIP)
+
+        since_call, base_call = fake.compare_calls
+        assert since_call.url.path == f"/repos/o/r/compare/{SDK_PREV_TIP}...{SDK_HEAD}"
+        assert base_call.url.path == f"/repos/o/r/compare/{SDK_BASE}...{SDK_HEAD}"
+
+    def test_range_without_a_merge_does_not_ask_for_the_base_range(self):
+        fake = FakeGitHub([_page([_api_commit("a")], [_api_file("a.py")])])
+
+        pr_changes(fake.client(), "o/r", 7, SINCE)
+
+        assert len(fake.compare_calls) == 1
+
+    def test_unreadable_base_range_raises(self):
+        fake = FakeGitHub(
+            [SDK_MERGE_ALONE], head=SDK_HEAD, base=SDK_BASE, base_pages=[{}], base_status=404
+        )
+
+        with pytest.raises(ValueError, match="cannot compare base"):
+            pr_changes(fake.client(), "o/r", 7, SDK_PREV_TIP)
+
+    def test_endless_base_range_reports_too_large(self):
+        counter = iter(range(10_000))
+        full = lambda: _page(  # noqa: E731
+            [_api_commit(f"b{next(counter)}") for _ in range(100)],
+            [_api_file(f"g{next(counter)}.py") for _ in range(100)],
+        )
+        fake = FakeGitHub(
+            [SDK_MERGE_ALONE],
+            head=SDK_HEAD,
+            base=SDK_BASE,
+            base_pages=[full() for _ in range(20)],
+        )
+
+        result = pr_changes(fake.client(), "o/r", 7, SDK_PREV_TIP)
+
+        assert result.significant
+        assert result.reasons == [REASON_TOO_LARGE]
+
     def test_unknown_since_commit_is_history_rewritten(self):
         fake = FakeGitHub(compare_status=404)
 
@@ -266,14 +400,16 @@ class TestPrChanges:
         second = _page(
             [_api_commit("c100", parents=2)], [_api_file("f100.py"), _api_file("f99.py")]
         )
-        fake = FakeGitHub([first, second])
+        own = _page([_api_commit(f"c{i}") for i in range(100, 101)], [])
+        fake = FakeGitHub([first, second], base_pages=[own])
 
         result = pr_changes(fake.client(), "o/r", 7, SINCE)
 
         assert len(result.commits) == 101
         assert len(result.files) == 101
         assert result.commits[-1].merge
-        assert [r.url.params["page"] for r in fake.compare_calls] == ["1", "2"]
+        since_calls = [r for r in fake.compare_calls if f"/compare/{SINCE}..." in r.url.path]
+        assert [r.url.params["page"] for r in since_calls] == ["1", "2"]
 
     def test_endless_pages_report_too_large(self):
         counter = iter(range(10_000))
@@ -303,9 +439,9 @@ class TestPrChanges:
 
 @pytest.fixture
 def run(capsys):
-    def _run(fake: FakeGitHub, *args: str) -> tuple[int, str, str]:
+    def _run(fake: FakeGitHub, *args: str, since: str = SINCE) -> tuple[int, str, str]:
         with patch("src.pr.cli.changes_cmd.ChangesClient", return_value=fake.client()):
-            code = main(["pr", "changes", "o/r#7", "--since", SINCE, *args])
+            code = main(["pr", "changes", "o/r#7", "--since", since, *args])
         captured = capsys.readouterr()
         return code, captured.out, captured.err
 
@@ -349,13 +485,46 @@ class TestCli:
         _, out, _ = run(FakeGitHub([page]), "--format", "json")
         assert json.loads(out)["significant"] is True
 
-    def test_merge_from_base_alone_is_not_significant(self, run):
+    def test_merge_commit_alone_is_not_significant(self, run):
         page = _page([_api_commit("m", parents=2)], [_api_file("src/from_base.py", 99)])
+        fake = FakeGitHub([page], base_pages=[page])
 
-        _, out, _ = run(FakeGitHub([page]))
+        _, out, _ = run(fake)
 
         assert "significant: no (only merge commits)" in out
         assert "\tmerge\tBob\tmsg m" in out
+
+    def test_merge_from_base_alone_is_not_significant(self, run):
+        fake = FakeGitHub(
+            [SDK_MERGE_ALONE], head=SDK_HEAD, base=SDK_BASE, base_pages=[SDK_OWN_COMMITS]
+        )
+
+        _, out, _ = run(fake, since=SDK_PREV_TIP)
+
+        lines = out.splitlines()
+        assert lines[0].startswith("o/r#7 4c8680e..043e0fd 2 commits 2 files +172 -5")
+        assert lines[1] == (
+            "significant: no (only merge commits and commits brought in from the base)"
+        )
+        assert any(
+            line.startswith("commit\tf987cb4\tbase\tak684\tfix(workspace)") for line in lines
+        )
+        assert any(line.startswith("commit\t043e0fd\tmerge\t") for line in lines)
+
+    def test_merge_from_base_plus_real_commit_is_significant(self, run):
+        fake = FakeGitHub(
+            [SDK_MERGE_AND_COMMIT], head=SDK_HEAD, base=SDK_BASE, base_pages=[SDK_OWN_COMMITS]
+        )
+
+        _, out, _ = run(fake, "--format", "json", since=SDK_BEFORE_REAL_COMMIT)
+
+        data = json.loads(out)
+        assert data["significant"] is True
+        assert [(c["sha"][:7], c["from_base"]) for c in data["commits"]] == [
+            ("f987cb4", True),
+            ("4c8680e", False),
+            ("043e0fd", False),
+        ]
 
     def test_force_push_reports_history_rewritten(self, run):
         _, out, _ = run(FakeGitHub(compare_status=404))

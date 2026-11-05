@@ -7,6 +7,7 @@ requests, and project boards.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from dotenv import find_dotenv, load_dotenv
@@ -45,8 +46,30 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+EXIT_BROKEN_PIPE = 141
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Main entry point for the CLI.
+    """Main entry point for the CLI; a closed stdout (``| head``) ends quietly.
+
+    Args:
+        argv: Command line arguments (defaults to sys.argv[1:])
+
+    Returns:
+        Exit code
+    """
+    try:
+        code = _run(argv)
+        sys.stdout.flush()
+        return code
+    except BrokenPipeError:
+        # Point stdout at devnull so the flush at interpreter exit can't fail again.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return EXIT_BROKEN_PIPE
+
+
+def _run(argv: list[str] | None = None) -> int:
+    """Parse arguments and dispatch the command.
 
     Args:
         argv: Command line arguments (defaults to sys.argv[1:])

@@ -1,0 +1,151 @@
+{
+  "status": "ahead",
+  "ahead_by": 4,
+  "behind_by": 0,
+  "total_commits": 4,
+  "commits": [
+    {
+      "sha": "ee7022e0581be7220ace87741b3b7ec559a85d7b",
+      "parents": [
+        {
+          "sha": "2b4d980b6a54ef6685e4337e7643c40ec24be1bb"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "feat(agent-server): accept conversation-scoped tokens",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-04T21:38:44Z"
+        }
+      }
+    },
+    {
+      "sha": "e0f52ea506550cd62ef590132cdbe849b6ebed52",
+      "parents": [
+        {
+          "sha": "ee7022e0581be7220ace87741b3b7ec559a85d7b"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "fix(agent-server): scope conversation tokens with a method-aware allow list",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T03:31:21Z"
+        }
+      }
+    },
+    {
+      "sha": "4c8680ef8ad9e72135dfa3d173311bdfb33612f6",
+      "parents": [
+        {
+          "sha": "e0f52ea506550cd62ef590132cdbe849b6ebed52"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "fix(agent-server): close token WebSockets when the token expires",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T03:32:30Z"
+        }
+      }
+    },
+    {
+      "sha": "043e0fd332d0cc4164b9396832603fc379f05151",
+      "parents": [
+        {
+          "sha": "4c8680ef8ad9e72135dfa3d173311bdfb33612f6"
+        },
+        {
+          "sha": "f987cb468997ee05dd763adff4e0cc2277957ac1"
+        }
+      ],
+      "author": {
+        "login": "jpshackelford"
+      },
+      "commit": {
+        "message": "Merge branch 'main' into feat/conversation-scoped-tokens",
+        "author": {
+          "name": "John-Mason P. Shackelford",
+          "date": "2026-11-05T05:10:19Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "AGENTS.md",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 0
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/README.md",
+      "status": "modified",
+      "additions": 30,
+      "deletions": 0
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/__init__.py",
+      "status": "modified",
+      "additions": 7,
+      "deletions": 0
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/conversation_token.py",
+      "status": "added",
+      "additions": 255,
+      "deletions": 0
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/dependencies.py",
+      "status": "modified",
+      "additions": 28,
+      "deletions": 3
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/docker_runtime/routers.py",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 1
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/server_details_router.py",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 0
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/session_socket.py",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 1
+    },
+    {
+      "filename": "openhands-agent-server/openhands/agent_server/sockets.py",
+      "status": "modified",
+      "additions": 100,
+      "deletions": 9
+    },
+    {
+      "filename": "tests/agent_server/test_conversation_token.py",
+      "status": "added",
+      "additions": 837,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/cross/test_remote_conversation_live_server.py",
+      "status": "modified",
+      "additions": 53,
+      "deletions": 1
+    }
+  ]
+}

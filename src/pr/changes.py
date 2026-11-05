@@ -1,14 +1,16 @@
 """What changed in a PR since a commit, and whether it matters.
 
-The facts come from one REST compare call (``since...head``). Whether the change
-matters is decided by :func:`assess`, a pure function of those facts plus the
-``[commits]`` norms (``ignore_paths``, ``min_changed_lines``). With no norms every
+The facts come from one REST compare call (``since...head``). When that range holds
+a merge commit, a second compare (``base...head``) tells which commits belong to the
+PR and which a merge brought in from the base. Whether the change matters is decided
+by :func:`assess`, a pure function of those facts plus the ``[commits]`` norms
+(``ignore_paths``, ``min_changed_lines``). With no norms every PR-authored
 non-merge change counts.
 """
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
 from src.board.github_api import GitHubClient, get_github_token
@@ -19,6 +21,8 @@ MAX_PAGES = 10
 REASON_REWRITTEN = "history rewritten"
 REASON_TOO_LARGE = "too large to inspect"
 REASON_UNCHANGED = "no changes since commit"
+REASON_ONLY_MERGES = "only merge commits"
+REASON_ONLY_MERGES_AND_BASE = "only merge commits and commits brought in from the base"
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,13 @@ class ChangedCommit:
     author: str | None
     date: str | None
     merge: bool
+    from_base: bool = False
+
+
+@dataclass(frozen=True)
+class PullRef:
+    head: str
+    base: str
 
 
 @dataclass(frozen=True)
@@ -101,12 +112,13 @@ def assess(
 ) -> tuple[bool, list[str], frozenset[str]]:
     """Decide whether a compare result is a change that matters.
 
-    Returns ``(significant, reasons, ignored_paths)``. Merge commits are skipped by
-    structure (two or more parents). ``ignore_paths`` drops files first, then
-    ``min_changed_lines`` is applied to what remains.
+    Returns ``(significant, reasons, ignored_paths)``. Merge commits (two or more
+    parents) and commits a merge brought in from the base (``from_base``) are not
+    PR changes. ``ignore_paths`` drops files first, then ``min_changed_lines`` is
+    applied to what remains.
 
     The compare file list is the net diff of the whole range, so files a merge
-    brought in are counted when the range also holds a non-merge commit. That can
+    brought in are counted when the range also holds a PR-authored commit. That can
     only over-report.
     """
     if compare.truncated:
@@ -115,8 +127,13 @@ def assess(
         return True, [REASON_REWRITTEN], frozenset()
     if not compare.commits:
         return False, [REASON_UNCHANGED], frozenset()
-    if all(c.merge for c in compare.commits):
-        return False, ["only merge commits"], frozenset()
+    if all(c.merge or c.from_base for c in compare.commits):
+        reason = (
+            REASON_ONLY_MERGES_AND_BASE
+            if any(c.from_base for c in compare.commits)
+            else REASON_ONLY_MERGES
+        )
+        return False, [reason], frozenset()
 
     ignored = frozenset(f.path for f in compare.files if _is_ignored(f.path, ignore_paths))
     kept = [f for f in compare.files if f.path not in ignored]
@@ -171,12 +188,13 @@ class ChangesClient:
     def __exit__(self, *args) -> None:
         self.close()
 
-    def get_head_sha(self, repo: str, number: int) -> str:
+    def get_pull(self, repo: str, number: int) -> PullRef:
         resp = self._client.rest_get(f"{GitHubClient.REST_BASE}/repos/{repo}/pulls/{number}")
         if resp.status_code == 404:
             raise ValueError(f"PR not found: {repo}#{number}")
         resp.raise_for_status()
-        return resp.json()["head"]["sha"]
+        data = resp.json()
+        return PullRef(head=data["head"]["sha"], base=data["base"]["sha"])
 
     def compare(self, repo: str, since: str, head: str) -> Compare:
         """One compare call, plus further pages while a page comes back full.
@@ -184,7 +202,17 @@ class ChangesClient:
         A ``since`` GitHub can't find (404/422) means the commit is no longer on any
         branch, which is reported as a diverged range.
         """
-        url = f"{GitHubClient.REST_BASE}/repos/{repo}/compare/{since}...{head}"
+        return self._compare(repo, since, head) or Compare(status="diverged")
+
+    def pr_commits(self, repo: str, base: str, head: str) -> Compare:
+        """The commits the PR itself carries: reachable from ``head``, not from ``base``."""
+        result = self._compare(repo, base, head)
+        if result is None:
+            raise ValueError(f"cannot compare base {base[:7]} with head {head[:7]}")
+        return result
+
+    def _compare(self, repo: str, start: str, head: str) -> Compare | None:
+        url = f"{GitHubClient.REST_BASE}/repos/{repo}/compare/{start}...{head}"
         result = Compare(status="")
         seen_commits: set[str] = set()
         seen_files: set[str] = set()
@@ -192,7 +220,7 @@ class ChangesClient:
         for page in range(1, MAX_PAGES + 1):
             resp = self._client.rest_get(url, params={"per_page": PER_PAGE, "page": page})
             if resp.status_code in (404, 422):
-                return Compare(status="diverged")
+                return None
             resp.raise_for_status()
             data = resp.json()
             result.status = data["status"]
@@ -213,6 +241,25 @@ class ChangesClient:
         return result
 
 
+def _mark_base_commits(client: ChangesClient, repo: str, pull: PullRef, compare: Compare) -> None:
+    """Flag range commits that a merge brought in from the base.
+
+    Only a merge can bring them in, so the second compare runs only when the range
+    holds one. A commit the PR carries is in ``base...head``; any other commit in
+    the range is reachable from the base.
+    """
+    if compare.truncated or compare.status in ("diverged", "behind"):
+        return
+    if not any(c.merge for c in compare.commits):
+        return
+    own = client.pr_commits(repo, pull.base, pull.head)
+    if own.truncated:
+        compare.truncated = True
+        return
+    own_shas = {c.sha for c in own.commits}
+    compare.commits = [replace(c, from_base=c.sha not in own_shas) for c in compare.commits]
+
+
 def pr_changes(
     client: ChangesClient,
     repo: str,
@@ -223,11 +270,13 @@ def pr_changes(
     min_changed_lines: int = 0,
 ) -> PRChanges:
     """Library entry point: commits and files since ``since``, and whether they matter."""
-    head = client.get_head_sha(repo, number)
+    pull = client.get_pull(repo, number)
+    head = pull.head
     if len(since) >= 7 and head.startswith(since.lower()):
         return PRChanges(repo, number, since, head, False, [REASON_UNCHANGED])
 
     compare = client.compare(repo, since, head)
+    _mark_base_commits(client, repo, pull, compare)
     significant, reasons, ignored = assess(
         compare, ignore_paths=ignore_paths, min_changed_lines=min_changed_lines
     )

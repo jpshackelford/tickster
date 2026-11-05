@@ -1,0 +1,61 @@
+{
+  "status": "ahead",
+  "ahead_by": 2,
+  "behind_by": 0,
+  "total_commits": 2,
+  "commits": [
+    {
+      "sha": "f987cb468997ee05dd763adff4e0cc2277957ac1",
+      "parents": [
+        {
+          "sha": "2b4d980b6a54ef6685e4337e7643c40ec24be1bb"
+        }
+      ],
+      "author": {
+        "login": "ak684"
+      },
+      "commit": {
+        "message": "fix(workspace): read the named MCP server map in OpenHandsCloudWorkspace.get_mcp_config (#6478)",
+        "author": {
+          "name": "Alona",
+          "date": "2026-11-05T01:33:34Z"
+        }
+      }
+    },
+    {
+      "sha": "043e0fd332d0cc4164b9396832603fc379f05151",
+      "parents": [
+        {
+          "sha": "4c8680ef8ad9e72135dfa3d173311bdfb33612f6"
+        },
+        {
+          "sha": "f987cb468997ee05dd763adff4e0cc2277957ac1"
+        }
+      ],
+      "author": {
+        "login": "jpshackelford"
+      },
+      "commit": {
+        "message": "Merge branch 'main' into feat/conversation-scoped-tokens",
+        "author": {
+          "name": "John-Mason P. Shackelford",
+          "date": "2026-11-05T05:10:19Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "openhands-workspace/openhands/workspace/cloud/workspace.py",
+      "status": "modified",
+      "additions": 44,
+      "deletions": 5
+    },
+    {
+      "filename": "tests/workspace/test_cloud_workspace_sdk_settings.py",
+      "status": "modified",
+      "additions": 128,
+      "deletions": 0
+    }
+  ]
+}

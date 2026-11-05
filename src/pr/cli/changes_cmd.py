@@ -8,7 +8,7 @@ from typing import Literal
 
 from rich.console import Console
 
-from src.pr.changes import ChangesClient, PRChanges, pr_changes
+from src.pr.changes import ChangedCommit, ChangesClient, PRChanges, pr_changes
 from src.pr.checks import parse_pr_ref
 
 console = Console(stderr=True)
@@ -69,6 +69,7 @@ def to_dict(changes: PRChanges) -> dict:
                 "author": c.author,
                 "date": c.date,
                 "merge": c.merge,
+                "from_base": c.from_base,
             }
             for c in changes.commits
         ],
@@ -85,6 +86,12 @@ def to_dict(changes: PRChanges) -> dict:
     }
 
 
+def _commit_marker(commit: ChangedCommit) -> str:
+    if commit.merge:
+        return "merge"
+    return "base" if commit.from_base else "--"
+
+
 def _print_text(changes: PRChanges) -> None:
     additions = sum(f.additions for f in changes.files)
     deletions = sum(f.deletions for f in changes.files)
@@ -94,7 +101,7 @@ def _print_text(changes: PRChanges) -> None:
     )
     print(f"significant: {'yes' if changes.significant else 'no'} ({'; '.join(changes.reasons)})")
     for c in changes.commits:
-        fields = [c.sha[:SHORT_SHA], "merge" if c.merge else "--", c.author or "--", c.headline]
+        fields = [c.sha[:SHORT_SHA], _commit_marker(c), c.author or "--", c.headline]
         print("commit\t" + "\t".join(fields))
     for f in changes.files:
         marker = "ignored" if f.path in changes.ignored else "--"

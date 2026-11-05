@@ -254,8 +254,12 @@ tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
 | `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
 
 It makes one REST compare call (`SHA...head`, plus further pages for very large
-ranges) and prints a summary line, a verdict, then one tab-separated line per
-commit (`commit<TAB>sha<TAB>merge|--<TAB>author<TAB>headline`) and per file
+ranges). When that range holds a merge commit it makes one more (`base...head`, the
+commits the PR itself carries) to tell which commits a merge brought in from the
+base branch. It prints a summary line, a verdict, then one tab-separated line per
+commit (`commit<TAB>sha<TAB>merge|base|--<TAB>author<TAB>headline`; `merge` is a
+merge commit, `base` a commit reachable from the base branch that a merge brought
+in) and per file
 (`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
 
 ```text
@@ -278,21 +282,24 @@ Verdict rules, in order:
   (force-push) or the range is diverged or behind.
 - `significant: yes (too large to inspect)`: the range needs more than 10 pages.
 - `significant: no`: nothing changed, or every commit is a merge commit (two or
-  more parents), or no files remain after `--ignore-path`, or the remaining
-  lines are below `--min-changed-lines`.
+  more parents) or a `base` commit, or no files remain after `--ignore-path`, or
+  the remaining lines are below `--min-changed-lines`. A merge-from-base commit
+  alone is `no`, however much the base brought in.
 - Otherwise `significant: yes`. Without `--ignore-path` and `--min-changed-lines`
-  every non-merge change is significant.
+  every change the PR itself authored is significant.
 
 Notes:
 
-- The file list is the net diff of the range. When a range holds a merge commit
-  and a real commit, files the merge brought in are counted too, so the verdict
-  can only over-report.
-- A merge-from-base commit alone also usually reports `significant: yes` on real
-  data. The compare range lists the base commits the merge brought in as
-  ordinary commits, and their files count. Only a merge that brings in nothing
-  new reports `no`, unless `--ignore-path` or `--min-changed-lines` cover the
-  incoming changes.
+- The file list is the net diff of the range. When a range holds a merge-from-base
+  commit and a real commit, files the merge brought in are counted too, so the
+  verdict can only over-report. Use `--ignore-path` or `--min-changed-lines` to
+  discount them.
+- The `base` marker comes from the PR's current base branch. If the base branch
+  was rewound, a commit it no longer holds counts as the PR's own.
+- If `base...head` is too large to read (more than 10 pages), the verdict is
+  `yes (too large to inspect)`.
+- A pipe closed by the reader (`tkt pr changes ... | head -1`) ends quietly with
+  exit code 141, without a traceback.
 - The exit code is 0 whether or not the change is significant; errors exit 1.
 - The command is also a library function, `src.pr.changes.pr_changes`.
 
