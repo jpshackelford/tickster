@@ -143,3 +143,25 @@ Testing [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 09:30 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merging [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor fix (issue #25)
+- CI green, manual test PASS (09:09), review `Acceptable` (approved), no open threads; head `b5b0b2e` unchanged.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/31a0852a6b1a4aed9128337a11e93c27
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `31a0852` | merge | PR #57 | **NEW** |
+
+**Current State:**
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): `approved green ready` — merge in flight (head `b5b0b2e`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
