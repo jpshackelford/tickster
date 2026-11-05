@@ -21,6 +21,10 @@ tkt repo add jpshackelford/tickster 2>/dev/null || true
 - Self-review: disabled
 - Docs update before testing: enabled
 
+## Concurrency
+- Attempt to keep two worker slots busy
+- Allocate workers to WIP PRs before starting a new PR.
+
 ## Plugin Source
 github:OpenHands/extensions-private/plugins/sample-dark-factory@main
 
