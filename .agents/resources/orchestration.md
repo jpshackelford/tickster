@@ -24,6 +24,7 @@ tkt repo add jpshackelford/tickster 2>/dev/null || true
 ## Concurrency
 - Attempt to keep two worker slots busy
 - Allocate workers to WIP PRs before starting a new PR.
+- Always report the number of busy slots and free slots after spawning workers.
 
 ## Plugin Source
 github:OpenHands/extensions-private/plugins/sample-dark-factory@main
