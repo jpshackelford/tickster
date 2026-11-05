@@ -400,3 +400,85 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 11:00 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Testing worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61) (#50 norms): CI green, head `ceee52d`, docs in `doc/usage.md`, review bot asked for a manual test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/d5c8f49bc584487e8425c0de388890f0
+- Implementation worker for [issue #52](https://github.com/jpshackelford/tickster/issues/52) (`priority:low`), the next ready, unheld issue. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/e1a32732042b4a96bd6d9cf7410964db
+- PR #60 merged; workers `9771c32`, `85b533c`, `b89559a` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `d5c8f49` | testing | PR #61 | **NEW** |
+| `e1a3273` | implementation | Issue #52 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `ceee52d`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #52 (in flight), #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
+
+### 2026-11-05 UTC - Implementation worker (Issue #52)
+
+[PR #62](https://github.com/jpshackelford/tickster/pull/62) `tkt pr changes --since SHA` is ready for review, CI green. Not done: the `pr show` commit lines (#40 not landed) and reading `[commits]` norms (#50/PR #61 not merged). The norms values are `--ignore-path` and `--min-changed-lines` for now. Docs, testing and review are separate conversations.
+
+### 2026-11-05 11:10 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Docs-fix worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): review "Good", CI green, tested at head `ceee52d`, but manual test item #32 failed (`agent_username_pattern` example should be `agent-username-pattern`, and this PR's migration advice leans on it). Fix first, merge next tick. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/9dade39743a94e0b8a802b90af31f6f1
+- Testing worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62) (#52): CI green, head `bff03b3`, docs in `doc/usage.md`, no test report yet. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/914dea67018b4fc4ab9eb0d87e76adea
+- Workers `d5c8f49`, `e1a3273` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `9dade39` | docs-fix | PR #61 | **NEW** |
+| `914dea6` | testing | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `ceee52d`, docs fix in flight
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `green ready` — head `bff03b3`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
+
+### 2026-11-05 11:25 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Re-testing worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): review "Good", CI green, but docs-fix commit `1ba6a83` changed `src/board/macros.py` after the 10:58 test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/808aff9d22b242eab43ca6e0d5f372d2
+- Docs worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): approved, CI green, but manual test item #18 failed (`doc/usage.md` example not reproducible) and #19 gap (merge-from-base alone reports `significant: yes`) needs documenting. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/87d29c87637e4c3ca7c55a514ad4aca2
+- Workers `9dade39`, `914dea6` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+- Human decision needed on #62: accept the merge-from-base over-reporting (issue #52 criterion) or change the code.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `808aff9` | re-testing | PR #61 | **NEW** |
+| `87d29c8` | docs | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `1ba6a83`, re-test in flight
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `A green ready` — head `bff03b3`, docs fix in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
