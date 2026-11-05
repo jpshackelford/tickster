@@ -2,14 +2,20 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
 from src.pr.history import (
     _build_history_string,
     _deduplicate_consecutive,
     _determine_ci_status,
     _filter_timeline_events,
     _format_action,
+    _login,
+    _parse_timeline_item,
+    process_pr_data,
 )
 from src.pr.models import ActionType, CIStatus, TimelineEvent
+from tests.pr.null_actor_cases import NULL_ACTOR_CASES, PR_AUTHOR, make_pr_data
 
 
 class TestBuildHistoryString:
@@ -248,3 +254,36 @@ class TestFormatAction:
         """User comparison should be case-insensitive."""
         assert _format_action(ActionType.OPENED, "Alice", "alice") == "o"
         assert _format_action(ActionType.OPENED, "ALICE", "alice") == "o"
+
+
+class TestNullActor:
+    """GitHub reports deleted accounts as a null author/actor; parsing must not crash."""
+
+    @pytest.mark.parametrize(("item", "action", "actor"), NULL_ACTOR_CASES)
+    def test_parse_timeline_item(self, item, action, actor):
+        event = _parse_timeline_item(item["__typename"], item, PR_AUTHOR)
+
+        assert event is not None
+        assert event.action == action
+        assert event.actor == actor
+
+    @pytest.mark.parametrize(("item", "action", "actor"), NULL_ACTOR_CASES)
+    def test_process_pr_data(self, item, action, actor):
+        pr_info = process_pr_data(make_pr_data(item), PR_AUTHOR)
+
+        char = action.value if actor == PR_AUTHOR else action.value.upper()
+        assert pr_info.history == "oA" + char
+        assert pr_info.last_activity == datetime(2024, 1, 3, tzinfo=UTC)
+
+    @pytest.mark.parametrize(
+        ("node", "default", "expected"),
+        [
+            ({"login": "carol"}, "ghost", "carol"),
+            (None, "ghost", "ghost"),
+            ({}, "ghost", "ghost"),
+            ({"login": None}, "ghost", "ghost"),
+            (None, "alice", "alice"),
+        ],
+    )
+    def test_login(self, node, default, expected):
+        assert _login(node, default) == expected
