@@ -261,11 +261,13 @@ commit (`commit<TAB>sha<TAB>merge|--<TAB>author<TAB>headline`) and per file
 ```text
 $ tkt pr changes jpshackelford/tickster#58 --since 2b09310 --ignore-path 'doc/**' --ignore-path '**/*.md'
 jpshackelford/tickster#58 2b09310..f41cd83 5 commits 5 files +173 -4
-significant: yes (4 files, 112 changed lines)
-commit75d1faa--openhands-agentchore(worklog): PR #59 merged, #48 closed
+significant: yes (4 files, 108 changed lines)
+commit	75d1faa	--	openhands-agent	chore(worklog): PR #59 merged, #48 closed
 ...
-filemodified+7-2--src/snapshot/models.py
-filemodified+69-0ignoredWORKLOG.md
+commit	f41cd83	--	jpshackelford	fix(issue): default `issue list` to open issues (#60)
+file	modified	+69	-0	ignored	WORKLOG.md
+file	modified	+2	-1	--	src/issue/cli/list_cmd.py
+...
 ```
 
 Verdict rules, in order:
