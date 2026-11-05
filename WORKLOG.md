@@ -455,3 +455,30 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 11:25 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Re-testing worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): review "Good", CI green, but docs-fix commit `1ba6a83` changed `src/board/macros.py` after the 10:58 test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/808aff9d22b242eab43ca6e0d5f372d2
+- Docs worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): approved, CI green, but manual test item #18 failed (`doc/usage.md` example not reproducible) and #19 gap (merge-from-base alone reports `significant: yes`) needs documenting. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/87d29c87637e4c3ca7c55a514ad4aca2
+- Workers `9dade39`, `914dea6` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+- Human decision needed on #62: accept the merge-from-base over-reporting (issue #52 criterion) or change the code.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `808aff9` | re-testing | PR #61 | **NEW** |
+| `87d29c8` | docs | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `1ba6a83`, re-test in flight
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `A green ready` — head `bff03b3`, docs fix in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
