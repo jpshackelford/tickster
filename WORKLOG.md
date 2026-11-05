@@ -331,3 +331,14 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 10:27 UTC - Merge worker
+
+✅ **Merged [PR #59](https://github.com/jpshackelford/tickster/pull/59) (fixes #48)**
+
+- Squash-merged at approved head `8aea572` as `2b09310`: `fix: keep stdout valid JSON with --diff-format json`. [Issue #48](https://github.com/jpshackelford/tickster/issues/48) is closed.
+- With `--diff-format json`, the missing-baseline notice and errors now go to stderr. Stdout holds only JSON. Table output and exit codes are unchanged.
+- 14 manual CLI tests passed and the dev suite was clean (797 tests). The PR description was updated to its final state.
+- `GITHUB_TOKEN` could not edit or merge the PR. I used the repo-owner token for those two steps.
+
+---
