@@ -261,6 +261,10 @@ class ItemSnapshot:
     linked_pr: str | None = None  # issue
     review_status: str | None = None  # review
     wait_seconds: float | None = None  # review
+    head_sha: str | None = None  # pr: full head commit SHA; None = not recorded
+    review_decision: str | None = None  # pr: GitHub reviewDecision; None = no decision
+    merge_state: str | None = None  # pr: GitHub mergeStateStatus
+    mergeable: str | None = None  # pr: GitHub mergeable
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -285,6 +289,10 @@ class ItemSnapshot:
             linked_pr=data.get("linked_pr"),
             review_status=data.get("review_status"),
             wait_seconds=data.get("wait_seconds"),
+            head_sha=data.get("head_sha"),
+            review_decision=data.get("review_decision"),
+            merge_state=data.get("merge_state"),
+            mergeable=data.get("mergeable"),
         )
 
 

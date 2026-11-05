@@ -123,6 +123,7 @@ def cmd_diff(
     *,
     show_unchanged: bool = False,
     output_format: str = "table",
+    detail: bool = False,
 ) -> int:
     """Diff two stored snapshots (`kind/name`)."""
     err = Console(stderr=True) if output_format == "json" else console
@@ -147,5 +148,6 @@ def cmd_diff(
         console=console,
         show_unchanged=show_unchanged,
         output_format=output_format,
+        detail=detail,
     )
     return 0

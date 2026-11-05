@@ -21,6 +21,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.pr.detail import merge_label, review_label, short_sha
 from src.snapshot.models import ChangeKind, DiffResult, ItemDelta, Snapshot
 
 _KIND_GLYPH = {
@@ -29,6 +30,8 @@ _KIND_GLYPH = {
     ChangeKind.REMOVED: "[red]-[/]",
     ChangeKind.UNCHANGED: " ",
 }
+
+_MERGE_FIELDS = frozenset({"merge_state", "mergeable"})
 
 # The `-` glyph already says "gone"; the note only hints at why.
 _REMOVAL_LABEL = {
@@ -44,8 +47,12 @@ def render_diff(
     console: Console | None = None,
     show_unchanged: bool = False,
     output_format: str = "table",
+    detail: bool = False,
 ) -> None:
-    """Render a diff to the console. `output_format` ∈ {"table", "json"}."""
+    """Render a diff to the console. `output_format` ∈ {"table", "json"}.
+
+    `detail` adds the PR head / review / merge columns to the table.
+    """
     console = console or Console()
     if output_format == "json":
         console.print_json(json.dumps(diff.to_dict()))
@@ -61,7 +68,7 @@ def render_diff(
 
     kind = diff.curr.kind
     if kind == "pr" or kind == "review":
-        _print_pr_like_table(deltas, console=console, kind=kind)
+        _print_pr_like_table(deltas, console=console, kind=kind, detail=detail)
     elif kind == "issue":
         _print_issue_table(deltas, console=console)
     else:  # pragma: no cover — guarded upstream
@@ -71,7 +78,8 @@ def render_diff(
     console.print(
         "[dim]Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  "
         "History: \\[bracketed] = new since last snapshot.  "
-        "Field!: value changed; prior value via `tkt snapshot diff`.[/]"
+        "Field!: value changed; prior value via `tkt snapshot diff`.  "
+        "head!/review!/merge!: PR head commit, review decision or merge state changed.[/]"
     )
 
 
@@ -138,13 +146,20 @@ def _print_table(table: Table, *, console: Console) -> None:
         console.width = saved
 
 
-def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str) -> None:
+def _print_pr_like_table(
+    deltas: list[ItemDelta], *, console: Console, kind: str, detail: bool = False
+) -> None:
+    show_detail = detail and kind == "pr"
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
     _add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("PR", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     _add_shrinkable_column(table, "CI")
+    if show_detail:
+        _add_shrinkable_column(table, "Head")
+        _add_shrinkable_column(table, "Review")
+        _add_shrinkable_column(table, "Merge")
     if kind == "review":
         _add_shrinkable_column(table, "Status")
     _add_shrinkable_column(table, "State")
@@ -161,6 +176,18 @@ def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str
             _render_history(item.history, d),
             _render_field(item.ci_status or "--", "ci_status" in d.changed_fields),
         ]
+        if show_detail:
+            changed = d.changed_fields
+            row.extend(
+                [
+                    _render_field(short_sha(item.head_sha), "head_sha" in changed),
+                    _render_field(review_label(item.review_decision), "review_decision" in changed),
+                    _render_field(
+                        merge_label(item.merge_state, item.mergeable),
+                        bool(_MERGE_FIELDS.intersection(changed)),
+                    ),
+                ]
+            )
         if kind == "review":
             row.append(
                 _render_field(item.review_status or "--", "review_status" in d.changed_fields)
@@ -170,7 +197,7 @@ def _print_pr_like_table(deltas: list[ItemDelta], *, console: Console, kind: str
                 _render_field(item.state, "state" in d.changed_fields),
                 _render_thread_count(item.unresolved_thread_count, d),
                 _render_last_activity(item.last_activity, d),
-                _render_note(d),
+                _render_note(d, show_pr_detail=not show_detail),
             ]
         )
         table.add_row(*row)
@@ -275,10 +302,28 @@ def relative_time(iso_timestamp: str) -> str:
     return f"{int(secs / 86400)}d ago"
 
 
-def _render_note(d: ItemDelta) -> str:
+def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
     if d.kind is ChangeKind.REMOVED:
         label = _REMOVAL_LABEL.get(d.disappearance_reason or "", "?")
         return f"[dim]{label}[/]"
+    notes: list[str] = []
     if "history-rewritten" in d.changed_fields:
-        return "[dim](history rewritten)[/]"
-    return ""
+        notes.append("(history rewritten)")
+    if show_pr_detail:
+        notes.extend(_pr_detail_tags(d.changed_fields))
+    return f"[dim]{' '.join(notes)}[/]" if notes else ""
+
+
+def _pr_detail_tags(changed_fields: tuple[str, ...]) -> list[str]:
+    """`head!` / `review!` / `merge!` for the PR fields that changed.
+
+    Without `--detail` there is no column to carry the `!`, so the Note does.
+    """
+    tags = []
+    if "head_sha" in changed_fields:
+        tags.append("head!")
+    if "review_decision" in changed_fields:
+        tags.append("review!")
+    if _MERGE_FIELDS.intersection(changed_fields):
+        tags.append("merge!")
+    return tags

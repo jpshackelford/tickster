@@ -154,6 +154,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max PRs to show (default: 100) |
 | `--title, -t` | Show PR titles |
 | `--graph, -g` | Weekly merge/age graph (use with `--merged`) |
+| `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -235,6 +236,73 @@ Notes:
   read some check fields on the repo (typically a GitHub App token without
   checks access, reported as `Resource not accessible by integration`), the
   command exits 1 with that error rather than showing a partial list.
+
+### `tkt pr changes`
+
+Answer "has the code changed in a way that matters since commit X?", for example
+to decide whether a manual test report posted against X still holds.
+
+```bash
+tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
+    [--ignore-path GLOB ...] [--min-changed-lines N]
+```
+
+| Option | Description |
+| --- | --- |
+| `--since SHA` | Required. The commit to compare from |
+| `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
+| `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments) |
+| `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
+
+It makes one REST compare call (`SHA...head`, plus further pages for very large
+ranges). When that range holds a merge commit it makes one more (`base...head`, the
+commits the PR itself carries) to tell which commits a merge brought in from the
+base branch. It prints a summary line, a verdict, then one tab-separated line per
+commit (`commit<TAB>sha<TAB>merge|base|--<TAB>author<TAB>headline`; `merge` is a
+merge commit, `base` a commit reachable from the base branch that a merge brought
+in) and per file
+(`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
+
+```text
+$ tkt pr changes jpshackelford/tickster#60 --since 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
+jpshackelford/tickster#60 75d1faa..742dbea 1 commits 4 files +104 -4
+significant: yes (4 files, 108 changed lines)
+commit  742dbea --      openhands-agent fix(issue): default 'issue list' to open issues
+file    modified        +0      -1      --      src/__main__.py
+file    modified        +2      -1      --      src/issue/cli/list_cmd.py
+file    modified        +7      -2      --      src/snapshot/models.py
+file    added   +95     -0      --      tests/snapshot/test_issue_default_state.py
+```
+
+The example uses a merged PR, whose head is fixed, and `75d1faa`, the `main`
+commit it branched from, so it reproduces. No file matched `--ignore-path` here.
+
+Verdict rules, in order:
+
+- `significant: yes (history rewritten)`: `SHA` is gone from the history
+  (force-push) or the range is diverged or behind.
+- `significant: yes (too large to inspect)`: the range needs more than 10 pages.
+- `significant: no`: nothing changed, or every commit is a merge commit (two or
+  more parents) or a `base` commit, or no files remain after `--ignore-path`, or
+  the remaining lines are below `--min-changed-lines`. A merge-from-base commit
+  alone is `no`, however much the base brought in.
+- Otherwise `significant: yes`. Without `--ignore-path` and `--min-changed-lines`
+  every change the PR itself authored is significant.
+
+Notes:
+
+- The file list is the net diff of the range. When a range holds a merge-from-base
+  commit and a real commit, files the merge brought in are counted too, so the
+  verdict can only over-report. Use `--ignore-path` or `--min-changed-lines` to
+  discount them.
+- The `base` marker comes from the PR's current base branch. If the base branch
+  was rewound, a commit it no longer holds counts as the PR's own.
+- If `base...head` is too large to read (more than 10 pages), the verdict is
+  `yes (too large to inspect)`.
+- A pipe closed by the reader (`tkt pr changes ... | head -1`) ends quietly with
+  exit code 141, without a traceback.
+- The exit code is 0 whether or not the change is significant; errors exit 1.
+- The command is also a library function, `src.pr.changes.pr_changes`.
 
 ## `tkt review`
 
@@ -464,7 +532,7 @@ are the raw input to the diff view documented in
 tkt snapshot list [--kind {pr,issue,review}]
 tkt snapshot show KIND/NAME [--format {table,json}]
 tkt snapshot rm   KIND/NAME [KIND/NAME ...]
-tkt snapshot diff PREV CURR  [--all] [--format {table,json}]
+tkt snapshot diff PREV CURR  [--all] [--format {table,json}] [--detail]
 ```
 
 - `KIND/NAME` refs use `/` as the separator, e.g. `pr/hourly`,
@@ -512,8 +580,40 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 * OpenHands/OpenHands   #1234  oRfA[fR]     red!    open    2    1m ago!
 - OpenHands/infra       #87    oCax         --      open    --   1d ago   closed?
 
-Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.
+Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.  head!/review!/merge!: PR head commit, review decision or merge state changed.
 ```
+
+### Head, review and merge changes
+
+PR snapshots (`tkt pr list`) also record four fields from GitHub: `head_sha`
+(the full head commit), `review_decision` (`APPROVED`, `CHANGES_REQUESTED`,
+`REVIEW_REQUIRED`, or null), `merge_state` (`mergeStateStatus`: `BEHIND`,
+`DIRTY`, `BLOCKED`, `CLEAN`, `UNSTABLE`, …) and `mergeable` (`MERGEABLE`,
+`CONFLICTING`, `UNKNOWN`). A change in any of them marks the row `*`, so a push
+that leaves CI, history and 💬 unchanged still shows up. The Note names what
+changed:
+
+| Note | JSON `changed_fields` | Meaning |
+| --- | --- | --- |
+| `head!` | `head_sha` | New head commit (a push or force-push). |
+| `review!` | `review_decision` | GitHub's review decision changed, e.g. an approval was withdrawn. |
+| `merge!` | `merge_state`, `mergeable` | Merge state changed, e.g. the branch fell behind base or into conflict. |
+
+The review decision is whatever GitHub reports for the PR, so an approval made
+before a new push keeps showing `approved` next to `head!` unless the repo
+dismisses stale approvals, so read the two together.
+
+With `--detail` (on `tkt pr list`, or `tkt snapshot diff`) the Head, Review and
+Merge columns are shown and a changed value gets the `!` itself (`3f9a1c2!`)
+instead of a Note.
+
+- GitHub reports `UNKNOWN` mergeability while it computes it after a push or a
+  base change. A move to or from `UNKNOWN` is not a change, so `UNKNOWN` →
+  `CLEAN` on the next run is silent.
+- A baseline saved before these fields existed has no head SHA, so these
+  fields are not compared until it is replaced; the first run after upgrading
+  does not flag every row.
+- `tkt issue list` and `tkt review` snapshots do not record these fields.
 
 ### Why a row is gone
 

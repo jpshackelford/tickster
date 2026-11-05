@@ -7,6 +7,7 @@ requests, and project boards.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from dotenv import find_dotenv, load_dotenv
@@ -45,8 +46,30 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+EXIT_BROKEN_PIPE = 141
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Main entry point for the CLI.
+    """Main entry point for the CLI; a closed stdout (``| head``) ends quietly.
+
+    Args:
+        argv: Command line arguments (defaults to sys.argv[1:])
+
+    Returns:
+        Exit code
+    """
+    try:
+        code = _run(argv)
+        sys.stdout.flush()
+        return code
+    except BrokenPipeError:
+        # Point stdout at devnull so the flush at interpreter exit can't fail again.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return EXIT_BROKEN_PIPE
+
+
+def _run(argv: list[str] | None = None) -> int:
+    """Parse arguments and dispatch the command.
 
     Args:
         argv: Command line arguments (defaults to sys.argv[1:])
@@ -484,6 +507,12 @@ Examples:
         action="store_true",
         help="Show weekly merge/age graph (only works with --merged)",
     )
+    pr_list_parser.add_argument(
+        "--detail",
+        dest="show_detail",
+        action="store_true",
+        help="Add Head, Review and Merge columns (head commit, review decision, merge state)",
+    )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
@@ -521,6 +550,48 @@ Examples:
         default=None,
         metavar="N",
         help="With --full, keep only the last N log lines per check (default: 100, 0 = all)",
+    )
+
+    # pr changes
+    pr_changes_parser = pr_subparsers.add_parser(
+        "changes",
+        help="Show what changed in a PR since a commit, and whether it matters",
+        description="List the commits and files between --since and the PR's head, "
+        "and report whether the change is significant.",
+    )
+    pr_changes_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    pr_changes_parser.add_argument(
+        "--since",
+        required=True,
+        metavar="SHA",
+        help="Commit to compare from (for example the commit a test report was posted against)",
+    )
+    pr_changes_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    pr_changes_parser.add_argument(
+        "--ignore-path",
+        dest="ignore_paths",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="Ignore changed files matching GLOB (repeatable; * stays in a segment, "
+        "** crosses segments)",
+    )
+    pr_changes_parser.add_argument(
+        "--min-changed-lines",
+        type=_non_negative_int,
+        default=0,
+        metavar="N",
+        help="After ignoring paths, changes below N added+deleted lines are not significant",
     )
 
     # review command - reviewer's view of PR queue
@@ -760,6 +831,12 @@ Examples:
         choices=["table", "json"],
         default="table",
         help="Output format (default: table)",
+    )
+    snapshot_diff_parser.add_argument(
+        "--detail",
+        dest="show_detail",
+        action="store_true",
+        help="PR snapshots: add Head, Review and Merge columns",
     )
 
     # repo command
@@ -1008,9 +1085,19 @@ Examples:
 
     # Handle pr command
     if args.command == "pr":
+        from src.pr.cli import cmd_changes as pr_cmd_changes
         from src.pr.cli import cmd_checks as pr_cmd_checks
         from src.pr.cli import cmd_list as pr_cmd_list
         from src.pr.cli.checks_cmd import DEFAULT_TAIL
+
+        if args.pr_command == "changes":
+            return pr_cmd_changes(
+                ref=args.ref,
+                since=args.since,
+                output_format=args.output_format,
+                ignore_paths=args.ignore_paths,
+                min_changed_lines=args.min_changed_lines,
+            )
 
         if args.pr_command == "checks":
             tail = DEFAULT_TAIL if args.tail is None else args.tail
@@ -1052,6 +1139,7 @@ Examples:
                 limit=args.limit,
                 show_title=args.show_title,
                 show_graph=args.show_graph,
+                show_detail=args.show_detail,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
@@ -1177,6 +1265,7 @@ Examples:
                 args.curr_ref,
                 show_unchanged=args.show_unchanged,
                 output_format=args.output_format,
+                detail=args.show_detail,
             )
 
     # Handle repo command

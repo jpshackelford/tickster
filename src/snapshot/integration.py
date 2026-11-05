@@ -47,6 +47,7 @@ class SnapshotPlan:
     output_format: str = "table"
     show_unchanged: bool = False
     force: bool = False
+    detail: bool = False
 
     @property
     def wants_diff(self) -> bool:
@@ -67,6 +68,7 @@ class SnapshotPlan:
         output_format: str = "table",
         show_unchanged: bool = False,
         force: bool = False,
+        detail: bool = False,
     ) -> SnapshotPlan | None:
         """Build a plan from parsed CLI arguments, or None if no snapshot work.
 
@@ -100,6 +102,7 @@ class SnapshotPlan:
             output_format=output_format,
             show_unchanged=show_unchanged,
             force=force,
+            detail=detail,
         )
 
     def execute(self, curr: Snapshot, console: Console, print_table: Callable[[], None]) -> int:
@@ -148,6 +151,7 @@ class SnapshotPlan:
             console=console,
             show_unchanged=self.show_unchanged,
             output_format=self.output_format,
+            detail=self.detail,
         )
         return 0
 

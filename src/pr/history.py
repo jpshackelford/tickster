@@ -56,6 +56,10 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
         author=author,
         is_draft=is_draft,
         unresolved_thread_count=unresolved_thread_count,
+        head_sha=pr_data.get("headRefOid"),
+        review_decision=pr_data.get("reviewDecision"),
+        merge_state=pr_data.get("mergeStateStatus"),
+        mergeable=pr_data.get("mergeable"),
     )
 
 
