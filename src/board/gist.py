@@ -196,7 +196,7 @@ def boards_config_to_toml(config: BoardsConfig) -> str:
             entry["repos"] = board.repos
         if board.scan_lookback_days != 90:
             entry["scan_lookback_days"] = board.scan_lookback_days
-        if board.agent_username_pattern != "openhands":
+        if board.agent_username_pattern:
             entry["agent_username_pattern"] = board.agent_username_pattern
         if board.column_names:
             entry["columns"] = board.column_names
@@ -258,7 +258,7 @@ def toml_to_boards_config(content: str) -> BoardsConfig:
                 username=value.get("username"),
                 repos=value.get("repos", []),
                 scan_lookback_days=value.get("scan_lookback_days", 90),
-                agent_username_pattern=value.get("agent_username_pattern", "openhands"),
+                agent_username_pattern=value.get("agent_username_pattern"),
                 column_names=value.get("columns", {}),
                 updated_at=_parse_datetime(value.get("_updated_at")),
             )

@@ -1,7 +1,6 @@
 """Tests for issue config."""
 
 from src.issue.config import (
-    DEFAULT_BOT_USERNAMES,
     get_bot_usernames,
     is_bot_user,
 )
@@ -10,18 +9,9 @@ from src.issue.config import (
 class TestGetBotUsernames:
     """Tests for get_bot_usernames function."""
 
-    def test_returns_default_when_no_config(self):
-        """Test that defaults are returned when no config exists."""
-        # This will use defaults since no config is set
-        usernames = get_bot_usernames()
-        assert isinstance(usernames, list)
-        assert len(usernames) > 0
-
-    def test_default_bots_included(self):
-        """Verify expected bots are in defaults."""
-        assert "github-actions[bot]" in DEFAULT_BOT_USERNAMES
-        assert "stale[bot]" in DEFAULT_BOT_USERNAMES
-        assert "dependabot[bot]" in DEFAULT_BOT_USERNAMES
+    def test_no_defaults(self):
+        """No vendor-specific bot names are built in; the [bot] suffix covers them."""
+        assert get_bot_usernames() == []
 
 
 class TestIsBotUser:

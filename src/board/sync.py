@@ -83,7 +83,7 @@ def _board_tiebreak_key(board: BoardConfig) -> BoardTieBreakKey:
         board.username or "",
         tuple(board.repos),
         board.scan_lookback_days,
-        board.agent_username_pattern,
+        board.agent_username_pattern or "",
         tuple(sorted(board.column_names.items())),
         board.scope,
         board.overview_item or "",

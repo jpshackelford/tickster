@@ -42,7 +42,7 @@ def determine_column(item: Item, config: BoardConfig | None = None) -> str:
         Column name as string
     """
     board_def = get_default_board_definition()
-    agent_pattern = config.agent_username_pattern if config else board_def.agent_pattern
+    agent_pattern = (config.agent_username_pattern if config else None) or board_def.agent_pattern
     return determine_column_from_rules(item, board_def, agent_pattern)
 
 
@@ -87,7 +87,7 @@ def explain_column(item: Item, config: BoardConfig | None = None) -> str:
         Human-readable explanation
     """
     column = determine_column(item, config)
-    agent_pattern = config.agent_username_pattern if config else "openhands"
+    agent_pattern = (config.agent_username_pattern if config else None) or ""
 
     if column == COLUMN_DONE:
         return f"PR #{item.number} is merged"
@@ -112,6 +112,8 @@ def explain_column(item: Item, config: BoardConfig | None = None) -> str:
 
     if column == COLUMN_AGENT_CODING:
         agent_assignees = [a for a in item.assignees if agent_pattern.lower() in a.lower()]
+        if not agent_assignees:
+            agent_assignees = list(item.assignees)
         return f"Issue #{item.number} has agent assigned: {agent_assignees}"
 
     return f"{'PR' if item.type == ItemType.PULL_REQUEST else 'Issue'} #{item.number} is open and ready to work"

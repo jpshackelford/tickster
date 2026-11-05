@@ -898,6 +898,72 @@ Examples:
         help="Show repos from all boards",
     )
 
+    # norms command
+    norms_parser = subparsers.add_parser(
+        "norms",
+        help="Manage a repo's .agents/tickster.toml conventions file",
+    )
+    norms_subparsers = norms_parser.add_subparsers(dest="norms_command", required=True)
+
+    norms_init_parser = norms_subparsers.add_parser(
+        "init",
+        help="Write .agents/tickster.toml at the root of the current git work tree",
+    )
+    norms_init_parser.add_argument(
+        "--from",
+        dest="source",
+        metavar="SOURCE",
+        help=(
+            "Copy another file instead of the neutral template: github:owner/repo[/path], "
+            "a git URL (https, ssh, git, file or scp-style), or a local file/directory"
+        ),
+    )
+    norms_init_parser.add_argument(
+        "--ref", metavar="REF", help="Branch, tag or commit to read (github: and git URL sources)"
+    )
+    norms_init_parser.add_argument(
+        "--path",
+        metavar="PATH",
+        help="File within a git URL source (default: .agents/tickster.toml)",
+    )
+    norms_init_parser.add_argument(
+        "--force", action="store_true", help="Overwrite an existing file"
+    )
+
+    norms_check_parser = norms_subparsers.add_parser(
+        "check", help="Validate a norms file: schema, types, unknown keys, regexes"
+    )
+    norms_check_parser.add_argument(
+        "path",
+        nargs="?",
+        metavar="PATH",
+        help="File or directory (default: ./.agents/tickster.toml)",
+    )
+    norms_check_parser.add_argument(
+        "--repo", metavar="OWNER/NAME", help="Check the file on this repo's default branch instead"
+    )
+    norms_check_parser.add_argument(
+        "--strict", action="store_true", help="Treat unknown keys as errors"
+    )
+
+    norms_show_parser = norms_subparsers.add_parser(
+        "show", help="Show the settings in effect for a repo and where they come from"
+    )
+    norms_show_parser.add_argument("--repo", required=True, metavar="OWNER/NAME")
+
+    norms_upgrade_parser = norms_subparsers.add_parser(
+        "upgrade", help="Print a norms file migrated to the current schema"
+    )
+    norms_upgrade_parser.add_argument(
+        "path",
+        nargs="?",
+        metavar="PATH",
+        help="File or directory (default: ./.agents/tickster.toml)",
+    )
+    norms_upgrade_parser.add_argument(
+        "--write", action="store_true", help="Write the migrated file instead of printing it"
+    )
+
     args = parser.parse_args(argv)
     _validate_snapshot_args(parser, args)
     _validate_checks_args(args)
@@ -1211,6 +1277,19 @@ Examples:
                 board_name=args.board_name,
                 all_boards=args.all_boards,
             )
+
+    # Handle norms command
+    if args.command == "norms":
+        from src.norms.cli import cmd_check, cmd_init, cmd_show, cmd_upgrade
+
+        if args.norms_command == "init":
+            return cmd_init(source=args.source, ref=args.ref, path=args.path, force=args.force)
+        if args.norms_command == "check":
+            return cmd_check(args.path, repo=args.repo, strict=args.strict)
+        if args.norms_command == "show":
+            return cmd_show(args.repo)
+        if args.norms_command == "upgrade":
+            return cmd_upgrade(args.path, write=args.write)
 
     return 0
 

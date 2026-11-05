@@ -27,8 +27,9 @@ board:
 # Repositories to watch (add your repos here)
 repos: []
 
-# Agent detection pattern (case-insensitive substring match)
-agent_pattern: "openhands"
+# Agent detection pattern (case-insensitive substring match). Optional: a repo's
+# .agents/tickster.toml [actors] agent_logins wins over it. Example:
+# agent_pattern: "my-agent"
 
 # Column definitions - order determines display order on board
 columns:
@@ -151,7 +152,7 @@ class BoardDefinition:
     name: str
     description: str = ""
     repos: list[str] = field(default_factory=list)
-    agent_pattern: str = "openhands"
+    agent_pattern: str | None = None
     columns: list[ColumnDefinition] = field(default_factory=list)
     rules: list[Rule] = field(default_factory=list)
 
@@ -243,7 +244,7 @@ def _parse_board_definition(
         repos = [repos] if repos else []
 
     # Parse agent pattern
-    agent_pattern = data.get("agent_pattern", "openhands")
+    agent_pattern = data.get("agent_pattern")
 
     # Parse columns
     columns = []
@@ -339,7 +340,7 @@ def save_board_definition(definition: BoardDefinition, path: Path) -> None:
     if definition.repos:
         data["repos"] = definition.repos
 
-    if definition.agent_pattern != "openhands":
+    if definition.agent_pattern:
         data["agent_pattern"] = definition.agent_pattern
 
     # Columns

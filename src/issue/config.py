@@ -4,26 +4,20 @@ Configuration is stored in ~/.tkt/config.toml under the [issue] section.
 
 Configuration structure:
     [issue]
-    bot_usernames = ["github-actions[bot]", "stale[bot]", "dependabot[bot]"]
+    bot_usernames = ["some-automation"]
+
+Any login ending in [bot] is a bot without being listed. A repo's
+.agents/tickster.toml [actors] bots adds to this, and [actors] agent_logins
+turns a login into an AI actor instead.
 """
 
 from src.board.config import CONFIG_FILE
+from src.norms.model import Norms
 
 try:
     import tomllib
 except ImportError:
     import tomli as tomllib  # type: ignore[import-not-found]
-
-# Default bot usernames - any username ending in [bot] is also detected
-DEFAULT_BOT_USERNAMES = [
-    "github-actions[bot]",
-    "stale[bot]",
-    "dependabot[bot]",
-    "renovate[bot]",
-    "allcontributors[bot]",
-    "codecov[bot]",
-    "sonarcloud[bot]",
-]
 
 
 def _load_issue_section() -> dict:
@@ -36,34 +30,28 @@ def _load_issue_section() -> dict:
 
 
 def get_bot_usernames() -> list[str]:
-    """Get list of bot usernames from config.
-
-    Returns config value if set, otherwise returns defaults.
-    """
-    config = _load_issue_section()
-    return config.get("bot_usernames", DEFAULT_BOT_USERNAMES)
+    """Get the bot usernames listed under [issue] bot_usernames (none by default)."""
+    return _load_issue_section().get("bot_usernames", [])
 
 
-# Cached lowercase bot usernames to avoid repeated list comprehensions
-_bot_usernames_lower: list[str] | None = None
+_bot_usernames_lower: set[str] | None = None
 
 
-def is_bot_user(username: str) -> bool:
+def is_bot_user(username: str, norms: Norms | None = None) -> bool:
     """Check if a username belongs to a bot.
 
-    Detection rules:
-    1. Username ends with [bot]
-    2. Username is in the configured bot_usernames list
+    A bot is the union of: a login ending in [bot], the [issue] bot_usernames list
+    and the repo's [actors] bots. A login in the repo's [actors] agent_logins is an
+    AI actor, not a bot, even when it ends in [bot].
     """
-    global _bot_usernames_lower
-    if _bot_usernames_lower is None:
-        _bot_usernames_lower = [b.lower() for b in get_bot_usernames()]
-
+    if norms is not None and norms.is_agent(username):
+        return False
     username_lower = username.lower()
-
-    # Rule 1: Ends with [bot]
     if username_lower.endswith("[bot]"):
         return True
-
-    # Rule 2: In configured list
-    return username_lower in _bot_usernames_lower
+    global _bot_usernames_lower
+    if _bot_usernames_lower is None:
+        _bot_usernames_lower = {b.lower() for b in get_bot_usernames()}
+    if username_lower in _bot_usernames_lower:
+        return True
+    return norms is not None and norms.is_listed_bot(username)

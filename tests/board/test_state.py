@@ -97,10 +97,10 @@ class TestDetermineColumn:
         pr = make_pr(is_draft=True)
         assert determine_column(pr) == COLUMN_HUMAN_REVIEW
 
-    def test_issue_with_agent_assigned_goes_to_agent_coding(self):
-        """Issues with agent assigned go to Agent Coding."""
+    def test_issue_with_agent_assigned_and_no_agent_setting_is_not_agent_coding(self):
+        """With no norms file and no board setting nobody counts as an agent."""
         issue = make_issue(assignees=["openhands-agent"])
-        assert determine_column(issue) == COLUMN_AGENT_CODING
+        assert determine_column(issue) != COLUMN_AGENT_CODING
 
     def test_issue_with_agent_pattern_match(self):
         """Agent detection is case-insensitive and pattern-based."""

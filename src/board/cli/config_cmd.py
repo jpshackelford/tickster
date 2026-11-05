@@ -134,7 +134,7 @@ def _show_configuration(config) -> None:
     )
     table.add_row("username", config.username or "[dim](not set)[/]")
     table.add_row("scan_lookback_days", str(config.scan_lookback_days))
-    table.add_row("agent_username_pattern", config.agent_username_pattern)
+    table.add_row("agent_username_pattern", config.agent_username_pattern or "[dim](not set)[/]")
 
     console.print()
     console.print(table)

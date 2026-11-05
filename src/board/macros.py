@@ -19,7 +19,25 @@ Usage in YAML:
           $has_label: blocked
 """
 
+import sys
+
 from src.board.rules import MacroContext, macro
+from src.norms.model import DEFAULT_STALE_LABELS, any_glob_match
+
+_agent_warning_shown = False
+
+
+def _warn_no_agent_setting(repo: str) -> None:
+    global _agent_warning_shown
+    if _agent_warning_shown:
+        return
+    _agent_warning_shown = True
+    print(
+        f"tkt: $has_agent_assigned is always false for {repo}: no agent setting applies. "
+        "Run `tkt norms init --from github:jpshackelford/tickster` in the repo, "
+        "or run `tkt board config set agent-username-pattern <pattern>`.",
+        file=sys.stderr,
+    )
 
 
 @macro
@@ -28,7 +46,7 @@ def closed_by_bot(ctx: MacroContext) -> bool:
 
     Detects closure by examining:
     - The closed_by_bot flag on the item
-    - Presence of 'stale' label
+    - A label from the repo's [labels] stale norms (default: 'stale'; [] disables)
 
     YAML usage:
         $closed_by_bot: true
@@ -37,20 +55,32 @@ def closed_by_bot(ctx: MacroContext) -> bool:
     if ctx.item.closed_by_bot:
         return True
 
-    # Check for stale label
-    labels_lower = [label.lower() for label in ctx.item.labels]
-    return "stale" in labels_lower
+    norms = ctx.norms
+    if norms is None:
+        stale = {s.lower() for s in DEFAULT_STALE_LABELS}
+        return any(label.lower() in stale for label in ctx.item.labels)
+    return norms.has_stale_label(ctx.item.labels)
 
 
 @macro
 def has_agent_assigned(ctx: MacroContext) -> bool:
-    """Check if an agent is assigned based on username pattern.
+    """Check if an agent is assigned.
 
-    Uses the agent_pattern from context (defaults to 'openhands').
+    The repo's [actors] agent_logins norms win when set; otherwise the board's
+    agent pattern (case-insensitive substring) applies. With neither, it is false.
 
     YAML usage:
         $has_agent_assigned: true
     """
+    norms = ctx.norms
+    if norms is not None and norms.actors.agent_logins:
+        return any(
+            any_glob_match(norms.actors.agent_logins, a, ignore_case=True)
+            for a in ctx.item.assignees
+        )
+    if not ctx.agent_pattern:
+        _warn_no_agent_setting(ctx.item.repo)
+        return False
     pattern = ctx.agent_pattern.lower()
     return any(pattern in assignee.lower() for assignee in ctx.item.assignees)
 
