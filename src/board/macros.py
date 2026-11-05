@@ -35,7 +35,7 @@ def _warn_no_agent_setting(repo: str) -> None:
     print(
         f"tkt: $has_agent_assigned is always false for {repo}: no agent setting applies. "
         "Run `tkt norms init --from github:jpshackelford/tickster` in the repo, "
-        "or set agent_username_pattern on the board.",
+        "or run `tkt board config set agent-username-pattern <pattern>`.",
         file=sys.stderr,
     )
 

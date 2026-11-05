@@ -181,8 +181,8 @@ tkt board config repos add owner/repo
 tkt board config repos remove owner/repo
 
 # Set a configuration value
-tkt board config set scan_lookback_days 60
-tkt board config set agent_username_pattern openhands
+tkt board config set scan-lookback-days 60
+tkt board config set agent-username-pattern openhands
 ```
 
 ### `tkt board apply`

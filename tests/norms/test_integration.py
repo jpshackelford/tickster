@@ -102,7 +102,7 @@ class TestNoAgentSettingWarning:
         assert err.count("$has_agent_assigned") == 1
         assert "a/one" in err
         assert "tkt norms init --from github:jpshackelford/tickster" in err
-        assert "agent_username_pattern" in err
+        assert "tkt board config set agent-username-pattern" in err
 
     def test_not_printed_when_a_setting_applies(self, capsys):
         matches_rule(item(assignees=["x"]), AGENT_RULE, agent_pattern="x")
