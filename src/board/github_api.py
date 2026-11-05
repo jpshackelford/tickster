@@ -240,6 +240,10 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.text
 
+    def rest_get(self, url: str, params: dict | None = None) -> httpx.Response:
+        """GET a REST URL and return the response without raising on HTTP errors."""
+        return self._client.get(url, params=params)
+
     def search_issues(
         self,
         query: str,

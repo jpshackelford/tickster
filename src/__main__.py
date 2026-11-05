@@ -523,6 +523,48 @@ Examples:
         help="With --full, keep only the last N log lines per check (default: 100, 0 = all)",
     )
 
+    # pr changes
+    pr_changes_parser = pr_subparsers.add_parser(
+        "changes",
+        help="Show what changed in a PR since a commit, and whether it matters",
+        description="List the commits and files between --since and the PR's head, "
+        "and report whether the change is significant.",
+    )
+    pr_changes_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    pr_changes_parser.add_argument(
+        "--since",
+        required=True,
+        metavar="SHA",
+        help="Commit to compare from (for example the commit a test report was posted against)",
+    )
+    pr_changes_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    pr_changes_parser.add_argument(
+        "--ignore-path",
+        dest="ignore_paths",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="Ignore changed files matching GLOB (repeatable; * stays in a segment, "
+        "** crosses segments)",
+    )
+    pr_changes_parser.add_argument(
+        "--min-changed-lines",
+        type=_non_negative_int,
+        default=0,
+        metavar="N",
+        help="After ignoring paths, changes below N added+deleted lines are not significant",
+    )
+
     # review command - reviewer's view of PR queue
     review_parser = subparsers.add_parser(
         "review",
@@ -942,9 +984,19 @@ Examples:
 
     # Handle pr command
     if args.command == "pr":
+        from src.pr.cli import cmd_changes as pr_cmd_changes
         from src.pr.cli import cmd_checks as pr_cmd_checks
         from src.pr.cli import cmd_list as pr_cmd_list
         from src.pr.cli.checks_cmd import DEFAULT_TAIL
+
+        if args.pr_command == "changes":
+            return pr_cmd_changes(
+                ref=args.ref,
+                since=args.since,
+                output_format=args.output_format,
+                ignore_paths=args.ignore_paths,
+                min_changed_lines=args.min_changed_lines,
+            )
 
         if args.pr_command == "checks":
             tail = DEFAULT_TAIL if args.tail is None else args.tail

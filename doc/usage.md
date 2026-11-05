@@ -236,6 +236,57 @@ Notes:
   checks access, reported as `Resource not accessible by integration`), the
   command exits 1 with that error rather than showing a partial list.
 
+### `tkt pr changes`
+
+Answer "has the code changed in a way that matters since commit X?", for example
+to decide whether a manual test report posted against X still holds.
+
+```bash
+tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
+    [--ignore-path GLOB ...] [--min-changed-lines N]
+```
+
+| Option | Description |
+| --- | --- |
+| `--since SHA` | Required. The commit to compare from |
+| `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
+| `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments) |
+| `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
+
+It makes one REST compare call (`SHA...head`, plus further pages for very large
+ranges) and prints a summary line, a verdict, then one tab-separated line per
+commit (`commit<TAB>sha<TAB>merge|--<TAB>author<TAB>headline`) and per file
+(`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
+
+```text
+$ tkt pr changes jpshackelford/tickster#58 --since 2b09310 --ignore-path 'doc/**' --ignore-path '**/*.md'
+jpshackelford/tickster#58 2b09310..f41cd83 5 commits 5 files +173 -4
+significant: yes (4 files, 112 changed lines)
+commit75d1faa--openhands-agentchore(worklog): PR #59 merged, #48 closed
+...
+filemodified+7-2--src/snapshot/models.py
+filemodified+69-0ignoredWORKLOG.md
+```
+
+Verdict rules, in order:
+
+- `significant: yes (history rewritten)`: `SHA` is gone from the history
+  (force-push) or the range is diverged or behind.
+- `significant: yes (too large to inspect)`: the range needs more than 10 pages.
+- `significant: no`: nothing changed, or every commit is a merge commit (two or
+  more parents), or no files remain after `--ignore-path`, or the remaining
+  lines are below `--min-changed-lines`.
+- Otherwise `significant: yes`. Without `--ignore-path` and `--min-changed-lines`
+  every non-merge change is significant.
+
+Notes:
+
+- The file list is the net diff of the range. When a range holds a merge commit
+  and a real commit, files the merge brought in are counted too, so the verdict
+  can only over-report.
+- The exit code is 0 whether or not the change is significant; errors exit 1.
+- The command is also a library function, `src.pr.changes.pr_changes`.
+
 ## `tkt review`
 
 Show PRs from a reviewer's perspective. By default shows only PRs that need

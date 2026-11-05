@@ -1,0 +1,135 @@
+{
+  "status": "ahead",
+  "ahead_by": 5,
+  "behind_by": 0,
+  "total_commits": 5,
+  "commits": [
+    {
+      "sha": "75d1faacb87d639de2bd81afaa00c4cbfd26a243",
+      "parents": [
+        {
+          "sha": "2b093107ad13ea90d39059daaf354788c1c76cba"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "chore(worklog): PR #59 merged, #48 closed\n\nCo-authored-by: openhands <openhands@all-hands.dev>",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:26:15Z"
+        }
+      }
+    },
+    {
+      "sha": "845a2c33c514dfac8221e234f52c85fcbaaaacc7",
+      "parents": [
+        {
+          "sha": "75d1faacb87d639de2bd81afaa00c4cbfd26a243"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "chore(worklog): PR #60 opened for #49\n\nCo-authored-by: openhands <openhands@all-hands.dev>",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:29:08Z"
+        }
+      }
+    },
+    {
+      "sha": "39ecd9ee268452641b6305c40d3e31cc6650bab2",
+      "parents": [
+        {
+          "sha": "845a2c33c514dfac8221e234f52c85fcbaaaacc7"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "chore(worklog): 2026-11-05T10:35:34Z\n\nCo-authored-by: openhands <openhands@all-hands.dev>",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:35:34Z"
+        }
+      }
+    },
+    {
+      "sha": "5c5e5877cb12de183119ffe1b6ec005c70aae178",
+      "parents": [
+        {
+          "sha": "39ecd9ee268452641b6305c40d3e31cc6650bab2"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "chore(worklog): 2026-11-05T10:45:14Z\n\nCo-authored-by: openhands <openhands@all-hands.dev>",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:45:14Z"
+        }
+      }
+    },
+    {
+      "sha": "f41cd838ab430067f143e547283090565f2c4b89",
+      "parents": [
+        {
+          "sha": "5c5e5877cb12de183119ffe1b6ec005c70aae178"
+        }
+      ],
+      "author": {
+        "login": "jpshackelford"
+      },
+      "commit": {
+        "message": "fix(issue): default `issue list` to open issues (#60)\n\n`tkt issue list` with no state flag returned open and closed issues,\nalthough --help and doc/usage.md document the default as open only\n(`pr list` already behaves that way). Nothing applied the default, so\nthe search query carried no is:open/is:closed qualifier.\n\n- default `states` to [\"open\"] in `cmd_list`; the saved snapshot scope\n  now matches the query actually sent\n- `--all`, `--closed` and `--open --closed` behave as before; explicit\n  issue refs to closed issues are still listed\n- load `issue` snapshots stored with `states: null` as [\"open\"] so\n  existing `issue list --watch` snapshots do not report a scope mismatch\n  or need --diff-force; `pr` and `review` snapshots are untouched\n- first --watch after upgrade shows previously tracked closed issues as\n  one-time \"gone\" rows (data change, not a scope error)\n\nTests: query qualifier per flag combination, watch scope matching\n(default == --open, --all differs), and old states:null snapshot\ncompatibility. Manually verified through the CLI (12/12) at the\napproved head.\n\nFixes #49\n\nCo-authored-by: openhands <openhands@all-hands.dev>",
+        "author": {
+          "name": "John-Mason P. Shackelford",
+          "date": "2026-11-05T10:45:36Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "WORKLOG.md",
+      "status": "modified",
+      "additions": 69,
+      "deletions": 0,
+      "changes": 69
+    },
+    {
+      "filename": "src/__main__.py",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 1,
+      "changes": 1
+    },
+    {
+      "filename": "src/issue/cli/list_cmd.py",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 1,
+      "changes": 3
+    },
+    {
+      "filename": "src/snapshot/models.py",
+      "status": "modified",
+      "additions": 7,
+      "deletions": 2,
+      "changes": 9
+    },
+    {
+      "filename": "tests/snapshot/test_issue_default_state.py",
+      "status": "added",
+      "additions": 95,
+      "deletions": 0,
+      "changes": 95
+    }
+  ]
+}
