@@ -623,3 +623,14 @@ Merged [PR #62](https://github.com/jpshackelford/tickster/pull/62) as `b04e0f1`;
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 12:10 UTC - Merge worker
+
+✅ **Merged PR #63** as `9264498` (squash). Issue #42 closed.
+
+- Branch was 5 commits behind main (#62). Merged main in: no conflicts, mechanical only (`doc/usage.md`, `src/__main__.py`, `src/board/github_api.py`). Behavior unchanged, so no re-test needed.
+- At head `0e117e8`: 1103 tests pass, ruff and basedpyright clean, CI green, approval kept.
+- PR description updated with design decisions and test coverage. Release PR #44 untouched.
+- Note: `GITHUB_TOKEN` can't push or edit PRs here. `JPSHACKELFORD_GITHUB_TOKEN` was needed.
+
+---
