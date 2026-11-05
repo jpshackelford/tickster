@@ -70,3 +70,25 @@ _None._
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 08:30 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merging [PR #46](https://github.com/jpshackelford/tickster/pull/46): feat(cli): add --all-authors to issue list and pr list
+- All gates met at head `c12d56b` (CI green, docs in diff, manual tests current, approved). `<HOST>` is available this cycle.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/744f0b6f858a4a0ebffe27b465e260e2
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `744f0b6` | merge | PR #46 | **NEW** |
+
+**Current State:**
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46): `approved green ready` — merge in flight (head `c12d56b`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #45 (PR #46), #47, #48, #49, #25 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
