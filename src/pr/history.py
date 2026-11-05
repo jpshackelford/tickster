@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from src.connection_paging import TRUNCATION_MARKER, is_truncated
 from src.pr.models import ActionType, CIStatus, PRInfo, PRState, TimelineEvent
 
 
@@ -35,7 +36,9 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
 
     # Process timeline into history string
     events = _extract_timeline_events(pr_data, author)
-    history = _build_history_string(events, reference_user)
+    history = _build_history_string(
+        events, reference_user, truncated=is_truncated(pr_data, "timelineItems")
+    )
 
     # Find last activity time
     last_activity = _find_last_activity(events, created_at)
@@ -264,6 +267,7 @@ def _format_action(action: ActionType, actor: str, reference_user: str) -> str:
 def _build_history_string(
     events: list[TimelineEvent],
     reference_user: str,
+    truncated: bool = False,
 ) -> str:
     """Build the compact history string from timeline events.
 
@@ -271,12 +275,14 @@ def _build_history_string(
     - Lowercase = action by reference_user
     - Uppercase = action by someone else
     - Consecutive duplicates are collapsed
+    - ``truncated`` appends a marker: events past the fetch cap are missing
     - Commits before any review are ignored (not "fixes")
     - If merged, don't also show killed
     """
     filtered = _filter_timeline_events(events)
     deduped = _deduplicate_consecutive(filtered)
-    return "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
+    history = "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
+    return history + TRUNCATION_MARKER if truncated else history
 
 
 def _find_last_activity(events: list[TimelineEvent], created_at: datetime) -> datetime:

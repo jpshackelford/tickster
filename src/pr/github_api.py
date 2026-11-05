@@ -9,49 +9,25 @@ from src.board.github_api import (
     get_github_token,
     get_github_username,
 )
+from src.connection_paging import ConnectionSpec, complete_connection
 from src.pr.models import PRInfo, PRListResult
 
 logger = logging.getLogger(__name__)
 
-# GraphQL fragment for PR fields we need
-PR_FIELDS_FRAGMENT = """
-fragment PRFields on PullRequest {
-    number
-    title
-    state
-    isDraft
-    createdAt
-    closedAt
-    mergeable
-    mergeStateStatus
-    reviewDecision
-    headRefOid
-    author { login }
-    repository { nameWithOwner }
-    reviewThreads(first: 100) {
-        nodes {
-            isResolved
-        }
-    }
-    commits(last: 1) {
-        nodes {
-            commit {
-                statusCheckRollup {
-                    state
-                }
-            }
-        }
-    }
-    timelineItems(first: 100, itemTypes: [
+# Only the oldest PR_TIMELINE.cap events are kept per PR; see complete_pr_connections.
+PR_TIMELINE = ConnectionSpec(
+    type_name="PullRequest",
+    field="timelineItems",
+    args="""itemTypes: [
         PULL_REQUEST_REVIEW,
         ISSUE_COMMENT,
         PULL_REQUEST_COMMIT,
         REVIEW_REQUESTED_EVENT,
         CLOSED_EVENT,
         MERGED_EVENT
-    ]) {
-        nodes {
-            __typename
+    ]""",
+    cap=500,
+    selection="""            __typename
             ... on PullRequestReview {
                 author { login }
                 state
@@ -84,11 +60,50 @@ fragment PRFields on PullRequest {
             ... on MergedEvent {
                 actor { login }
                 createdAt
-            }
-        }
-    }
-}
+            }""",
+)
+PR_REVIEW_THREADS = ConnectionSpec(
+    type_name="PullRequest",
+    field="reviewThreads",
+    selection="            isResolved",
+    cap=1000,
+)
+
+# GraphQL fragment for PR fields we need
+PR_FIELDS_FRAGMENT = f"""
+fragment PRFields on PullRequest {{
+    id
+    number
+    title
+    state
+    isDraft
+    createdAt
+    closedAt
+    mergeable
+    mergeStateStatus
+    reviewDecision
+    headRefOid
+    author {{ login }}
+    repository {{ nameWithOwner }}
+    {PR_REVIEW_THREADS.fragment_field()}
+    commits(last: 1) {{
+        nodes {{
+            commit {{
+                statusCheckRollup {{
+                    state
+                }}
+            }}
+        }}
+    }}
+    {PR_TIMELINE.fragment_field()}
+}}
 """
+
+
+def complete_pr_connections(client: GitHubClient, pr_node: dict) -> None:
+    """Page through timeline events and review threads past the first 100."""
+    complete_connection(client, pr_node, PR_TIMELINE)
+    complete_connection(client, pr_node, PR_REVIEW_THREADS)
 
 
 class PRClient:
@@ -330,6 +345,7 @@ class PRClient:
 
             for node in search_result["nodes"]:
                 if node:  # Skip null nodes
+                    complete_pr_connections(self._client, node)
                     pr_info = process_pr_data(node, reference_user)
                     # Apply client-side state filter if needed
                     if client_side_states:
@@ -411,6 +427,7 @@ class PRClient:
             alias = f"pr{idx}"
             repo_data = data.get(alias)
             if repo_data and repo_data.get("pullRequest"):
+                complete_pr_connections(self._client, repo_data["pullRequest"])
                 pr_info = process_pr_data(repo_data["pullRequest"], reference_user)
                 prs.append(pr_info)
             else:

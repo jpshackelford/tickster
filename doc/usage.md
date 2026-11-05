@@ -778,6 +778,11 @@ Two conventions apply to every history string:
   `--reviewer`/`--author` selects); UPPERCASE = someone else.
 - **Consecutive duplicates collapse.** Ten review comments in a row render as a
   single `C`, so the string stays short and skimmable.
+- **A trailing `…` means the history is cut off.** `tkt` reads up to 500 timeline
+  events per PR or issue (extra GraphQL requests are made only for items with
+  more than 100). If an item has more, the oldest 500 are shown and the string
+  ends in `…`; later events, including a final `M` or `x`, are not shown. Review
+  threads are counted up to 1000 and labels are read up to 100 per issue.
 
 ### PR history characters
 
