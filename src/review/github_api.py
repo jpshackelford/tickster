@@ -4,7 +4,13 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.board.github_api import GitHubClient, get_github_token, get_github_username
+from src.board.github_api import (
+    SEARCH_PAGE_SIZE,
+    GitHubClient,
+    fetch_search_page,
+    get_github_token,
+    get_github_username,
+)
 from src.pr.github_api import PR_FIELDS_FRAGMENT
 from src.pr.history import (
     _build_history_string,
@@ -250,14 +256,15 @@ class ReviewClient:
 
         all_prs: list[dict] = []
         cursor: str | None = None
+        page_size = SEARCH_PAGE_SIZE
 
         while len(all_prs) < limit:
-            batch_limit = min(100, limit - len(all_prs))
-            data = self._client.graphql(
+            search_result, page_size = fetch_search_page(
+                self._client,
                 query,
-                {"query": search_query, "limit": batch_limit, "cursor": cursor},
+                {"query": search_query, "cursor": cursor},
+                min(page_size, limit - len(all_prs)),
             )
-            search_result = data["search"]
 
             for node in search_result["nodes"]:
                 if node:  # Skip null nodes
