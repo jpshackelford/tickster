@@ -8,9 +8,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from src.norms.store import get_repo_norms
+
 if TYPE_CHECKING:
     from src.board.models import Item
     from src.board.yaml_config import BoardDefinition
+    from src.norms.model import Norms
 
 # Macro registry
 _MACROS: dict[str, Callable[..., bool]] = {}
@@ -46,7 +49,12 @@ class MacroContext:
 
     item: "Item"
     config: "BoardDefinition | None"
-    agent_pattern: str = "openhands"
+    agent_pattern: str | None = None
+
+    @property
+    def norms(self) -> "Norms | None":
+        """The item's repo norms, fetched on first use."""
+        return get_repo_norms(self.item.repo)
 
 
 @dataclass
@@ -78,7 +86,7 @@ def evaluate_rules(
     item: "Item",
     rules: list[Rule],
     config: "BoardDefinition | None" = None,
-    agent_pattern: str = "openhands",
+    agent_pattern: str | None = None,
 ) -> RuleMatch:
     """Evaluate rules and return matching column.
 
@@ -119,7 +127,7 @@ def matches_rule(
     item: "Item",
     rule: Rule,
     config: "BoardDefinition | None" = None,
-    agent_pattern: str = "openhands",
+    agent_pattern: str | None = None,
 ) -> tuple[bool, dict[str, Any]]:
     """Check if item matches all conditions in a rule.
 
@@ -189,7 +197,7 @@ def invoke_macro(
     name: str,
     item: "Item",
     config: "BoardDefinition | None",
-    agent_pattern: str,
+    agent_pattern: str | None,
     arg: Any,
 ) -> bool:
     """Invoke a macro by name.

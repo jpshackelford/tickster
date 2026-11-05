@@ -106,7 +106,7 @@ rules:
 
         assert board.description == ""
         assert board.repos == []
-        assert board.agent_pattern == "openhands"
+        assert board.agent_pattern is None
         assert board.columns[0].color == "GRAY"
         assert board.columns[0].description == ""
 

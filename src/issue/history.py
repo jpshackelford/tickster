@@ -4,6 +4,8 @@ from datetime import datetime
 
 from src.issue.config import is_bot_user
 from src.issue.models import IssueActionType, IssueInfo, IssueState, TimelineEvent
+from src.norms.model import Norms
+from src.norms.store import get_repo_norms
 
 
 def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
@@ -31,7 +33,7 @@ def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
     labels = sorted([lbl["name"] for lbl in labels_data if lbl])
 
     # Process timeline into history string and find linked PR
-    events, linked_pr = _extract_timeline_events(issue_data, author)
+    events, linked_pr = _extract_timeline_events(issue_data, author, get_repo_norms(repo))
     history = _build_history_string(events, reference_user)
 
     # Find last activity time
@@ -59,7 +61,7 @@ def _parse_datetime(dt_str: str) -> datetime:
 
 
 def _extract_timeline_events(
-    issue_data: dict, issue_author: str
+    issue_data: dict, issue_author: str, norms: Norms | None = None
 ) -> tuple[list[TimelineEvent], str | None]:
     """Extract timeline events and find linked PR.
 
@@ -86,7 +88,7 @@ def _extract_timeline_events(
             continue
 
         typename = item.get("__typename")
-        event = _parse_timeline_item(typename, item)
+        event = _parse_timeline_item(typename, item, norms)
         if event:
             events.append(event)
 
@@ -108,12 +110,15 @@ def _extract_timeline_events(
 def _parse_timeline_item(
     typename: str,
     item: dict,
+    norms: Norms | None = None,
 ) -> TimelineEvent | None:
     """Parse a single timeline item into an event."""
     if typename == "IssueComment":
         actor = item.get("author", {}).get("login", "ghost") if item.get("author") else "ghost"
         timestamp = _parse_datetime(item["createdAt"])
-        action = IssueActionType.BOT_COMMENT if is_bot_user(actor) else IssueActionType.COMMENT
+        action = (
+            IssueActionType.BOT_COMMENT if is_bot_user(actor, norms) else IssueActionType.COMMENT
+        )
         return TimelineEvent(action=action, actor=actor, timestamp=timestamp)
 
     elif typename == "LabeledEvent":

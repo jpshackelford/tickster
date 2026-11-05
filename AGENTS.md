@@ -25,6 +25,7 @@ CI (`.github/workflows/ci.yml`) runs all four on every PR; all must be clean.
 
 ## Conventions
 
+- Report headers and markers are machine-checked through `.agents/tickster.toml`.
 - Attribution: any comment, issue, or PR body an agent posts must include
   _"created by an AI agent (OpenHands) on behalf of @jpshackelford"_.
 - Never push directly to `main`. Open a PR. The one exception: the orchestrator
