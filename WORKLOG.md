@@ -165,3 +165,12 @@ Merging [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 09:26 UTC - Merge Worker
+
+✅ **Merged: [PR #57](https://github.com/jpshackelford/tickster/pull/57)** as `7a6f658` — fix(pr): tolerate null author/actor in PR timeline events
+
+- Squash-merged at 09:26 UTC from head `b5b0b2e`; issue #25 closed.
+- Gates at merge: CI green, manual test PASS (8/8), review `Acceptable` (approved), no open threads.
+- PR body updated to final state; PR #44 and `hold` issues untouched.
+
+---
