@@ -55,7 +55,7 @@ def cmd_list(
         all_authors: List every author's issues (needs repos; excludes author/refs)
         repos: List of repos to filter by (owner/repo format)
         issue_refs: Specific issue references (owner/repo#number format)
-        states: Filter by state (open, closed)
+        states: Filter by state (open, closed); defaults to open
         labels: Filter by labels (comma-separated = OR, multiple = AND)
         board_name: Board to get repos from (default: default board)
         limit: Maximum number of issues to show
@@ -69,6 +69,7 @@ def cmd_list(
     Returns:
         Exit code (0 for success)
     """
+    states = states or ["open"]
     try:
         window = build_date_window(
             states,
