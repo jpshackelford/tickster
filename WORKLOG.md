@@ -278,3 +278,10 @@ Implementing [issue #48](https://github.com/jpshackelford/tickster/issues/48): `
 - Needs expansion: none in scope
 
 ---
+
+### 2026-11-05 UTC - Implementation worker (#48)
+
+- [PR #59](https://github.com/jpshackelford/tickster/pull/59) fixes #48: `--diff-format json` notices and errors go to stderr. CI green; marked ready for review.
+- Skipped the optional `"baseline": "missing"` JSON field (schema change). Docs and manual test are for a separate conversation.
+
+---
