@@ -247,3 +247,12 @@ Merging [PR #58](https://github.com/jpshackelford/tickster/pull/58): search pagi
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 09:56 UTC - Merge Worker
+
+✅ **Merged: [PR #58](https://github.com/jpshackelford/tickster/pull/58)** as `a9cccb9` (squash); closes #47
+
+- Search pages capped at 25 items for `pr list`, `issue list`, `review`; GraphQL retries 502/503/504, timeouts and short rate limits (mutations not retried); slow pages halve down to 5 items.
+- PR description updated to final state; issue #47 closed as completed.
+- Non-blocking follow-ups from manual test: halving warning spans two lines; `tkt board init` prints a raw traceback on a failed mutation (pre-existing on `main`).
+
+---
