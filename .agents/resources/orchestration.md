@@ -23,12 +23,13 @@ tkt repo add jpshackelford/tickster 2>/dev/null || true
 
 ## Concurrency
 
-- You have two slots to which workers may be allocated.
-- Allocate workers in the following order:
+- You have two slots to which expansion workers may be allocated.
+- You have two slots to which PR workers may be allocated.
+- Allocate PR workers in the following order:
 
   1. To WIP PRs before starting a new PR.
   2. If all WIP PRs have workers allocated, start a new PR.
-  3. If you still have free slots you are doing it wrong.
+  3. If you still have free PR slots and ready issues, you are doing it wrong.
   
 - Always report the number of busy slots and free slots after spawning workers.
 
