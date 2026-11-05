@@ -104,7 +104,7 @@ class PRClient:
 
     def list_prs_by_author(
         self,
-        author: str,
+        author: str | None,
         repos: list[str] | None = None,
         states: list[str] | None = None,
         limit: int = 100,
@@ -113,7 +113,8 @@ class PRClient:
         """List PRs by author, optionally filtered by repos and states.
 
         Args:
-            author: GitHub username (or "me" for current user)
+            author: GitHub username, "me" for current user, or None for any
+                author (requires repos)
             repos: List of "owner/repo" strings to filter by
             states: List of states to include ("open", "merged", "closed")
             limit: Maximum number of PRs to fetch
@@ -125,13 +126,9 @@ class PRClient:
         """
         if author == "me":
             author = self.get_current_user()
+        reference_user = author or self.get_current_user()
 
-        # Build search query
-        query_parts = [f"is:pr author:{author}"]
-
-        if repos:
-            for repo in repos:
-                query_parts.append(f"repo:{repo}")
+        query_parts = _build_author_query(author, repos)
 
         client_side_states: set[str] | None = None
         if states:
@@ -143,7 +140,7 @@ class PRClient:
             query_parts.append(date_qualifier)
 
         search_query = " ".join(query_parts)
-        return self._search_prs(search_query, author, limit, client_side_states)
+        return self._search_prs(search_query, reference_user, limit, client_side_states)
 
     def list_prs_for_reviewer(
         self,
@@ -410,3 +407,14 @@ class PRClient:
                 logger.warning(f"PR not found: {repo}#{number}")
 
         return prs
+
+
+def _build_author_query(author: str | None, repos: list[str] | None) -> list[str]:
+    """Start a PR search query. ``author=None`` means any author."""
+    if author is None and not repos:
+        raise ValueError("an any-author PR search must be scoped to repos")
+    parts = ["is:pr"]
+    if author is not None:
+        parts.append(f"author:{author}")
+    parts.extend(f"repo:{repo}" for repo in repos or [])
+    return parts

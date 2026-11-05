@@ -96,7 +96,7 @@ class IssueClient:
 
     def list_issues_by_author(
         self,
-        author: str,
+        author: str | None,
         repos: list[str] | None = None,
         states: list[str] | None = None,
         labels: list[str] | None = None,
@@ -107,7 +107,8 @@ class IssueClient:
         """List issues by author, optionally filtered by repos, states, and labels.
 
         Args:
-            author: GitHub username (or "me" for current user)
+            author: GitHub username, "me" for current user, or None for any
+                author (requires repos)
             repos: List of "owner/repo" strings to filter by
             states: List of states to include ("open", "closed")
             labels: List of label filters (comma-separated = OR, multiple args = AND)
@@ -121,6 +122,7 @@ class IssueClient:
         """
         if author == "me":
             author = self.get_current_user()
+        reference_user = author or self.get_current_user()
 
         # Parse label filters
         and_labels, or_groups = parse_label_filters(labels or [])
@@ -130,7 +132,7 @@ class IssueClient:
 
         return self._search_issues(
             search_query,
-            author,
+            reference_user,
             limit,
             or_groups=or_groups,
             sort_by_activity=sort_by_activity,
@@ -317,14 +319,18 @@ class IssueClient:
 
 
 def _build_search_query(
-    author: str,
+    author: str | None,
     repos: list[str] | None,
     states: list[str] | None,
     and_labels: list[str] | None,
     date_qualifier: str | None = None,
 ) -> str:
-    """Build GitHub search query for issues."""
-    parts = ["is:issue", f"author:{author}"]
+    """Build GitHub search query for issues. ``author=None`` means any author."""
+    if author is None and not repos:
+        raise ValueError("an any-author issue search must be scoped to repos")
+    parts = ["is:issue"]
+    if author is not None:
+        parts.append(f"author:{author}")
 
     if repos:
         for repo in repos:

@@ -401,11 +401,19 @@ Examples:
         help="Specific PR references (owner/repo#number or GitHub PR URL). "
         "Can also be piped via stdin, one per line.",
     )
-    pr_list_parser.add_argument(
+    pr_author_group = pr_list_parser.add_mutually_exclusive_group()
+    pr_author_group.add_argument(
         "--author",
         "-a",
         metavar="USER",
-        help="Filter by PR author (use 'me' for current user)",
+        help="Filter by PR author (use 'me' for current user; default: current user)",
+    )
+    pr_author_group.add_argument(
+        "--all-authors",
+        dest="all_authors",
+        action="store_true",
+        help="List PRs by every author in the repos from --repo or the board "
+        "(requires repos; not with --reviewer or explicit refs)",
     )
     pr_list_parser.add_argument(
         "--reviewer",
@@ -604,7 +612,7 @@ Examples:
         "list",
         help="List issues with history visualization",
         description="List issues with history visualization. "
-        "Default shows issues created by you. "
+        "Default shows issues created by you; --all-authors shows everyone's. "
         "Accepts issue references as arguments (owner/repo#number).",
     )
     issue_list_parser.add_argument(
@@ -613,11 +621,19 @@ Examples:
         metavar="OWNER/REPO#NUM",
         help="Specific issue references (owner/repo#number)",
     )
-    issue_list_parser.add_argument(
+    issue_author_group = issue_list_parser.add_mutually_exclusive_group()
+    issue_author_group.add_argument(
         "--author",
         "-a",
         metavar="USER",
         help="Filter by issue author (default: current user)",
+    )
+    issue_author_group.add_argument(
+        "--all-authors",
+        dest="all_authors",
+        action="store_true",
+        help="List issues by every author in the repos from --repo or the board "
+        "(requires repos; not with explicit refs)",
     )
     issue_list_parser.add_argument(
         "--repo",
@@ -961,6 +977,7 @@ Examples:
 
             return pr_cmd_list(
                 author=args.author,
+                all_authors=args.all_authors,
                 reviewer=args.reviewer,
                 repos=args.repos,
                 pr_refs=pr_refs if pr_refs else None,
@@ -1047,6 +1064,7 @@ Examples:
 
             return issue_cmd_list(
                 author=args.author,
+                all_authors=args.all_authors,
                 repos=args.repos,
                 issue_refs=issue_refs if issue_refs else None,
                 states=issue_states,

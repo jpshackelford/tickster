@@ -7,6 +7,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.all_authors import all_authors_error
 from src.date_window import (
     DateWindow,
     DateWindowError,
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 def cmd_list(
     *,
     author: str | None = None,
+    all_authors: bool = False,
     repos: list[str] | None = None,
     issue_refs: list[str] | None = None,
     states: list[str] | None = None,
@@ -50,6 +52,7 @@ def cmd_list(
 
     Args:
         author: Filter by issue author (use "me" for current user, default)
+        all_authors: List every author's issues (needs repos; excludes author/refs)
         repos: List of repos to filter by (owner/repo format)
         issue_refs: Specific issue references (owner/repo#number format)
         states: Filter by state (open, closed)
@@ -82,15 +85,21 @@ def cmd_list(
     date_qualifier = window.to_qualifier() if window else None
 
     try:
+        target_repos = None if issue_refs else _get_repos(repos, board_name)
+        if all_authors:
+            error = all_authors_error(has_refs=bool(issue_refs), repos=target_repos, noun="issues")
+            if error:
+                console.print(f"[red]Error:[/] {error}")
+                return 1
+
         with IssueClient() as client:
-            target_repos = None if issue_refs else _get_repos(repos, board_name)
             # Determine which use case we're handling
             if issue_refs:
                 # Specific issues by reference
                 result = client.get_issues_by_ref(issue_refs)
             else:
-                # Issues by author (default: current user)
-                target_author = author or "me"
+                # Issues by author (default: current user; None = any author)
+                target_author = None if all_authors else (author or "me")
                 result = client.list_issues_by_author(
                     target_author,
                     repos=target_repos,
@@ -114,6 +123,7 @@ def cmd_list(
                 scope = SnapshotScope.from_issue_args(
                     board=board_name,
                     author=author,
+                    all_authors=all_authors,
                     repos=target_repos,
                     refs=issue_refs,
                     states=states,

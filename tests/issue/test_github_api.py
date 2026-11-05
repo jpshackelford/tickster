@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 from src.issue.github_api import (
     IssueClient,
@@ -172,3 +173,75 @@ class TestGetIssuesByRefWithUnresolvableRef:
             client.close()
 
         assert [(i.repo, i.number) for i in result.issues] == [("owner/repo", 16)]
+
+
+class TestBuildSearchQueryAllAuthors:
+    """`author=None` lists every author's issues, but only within repos."""
+
+    def test_omits_author_and_keeps_repo_qualifiers(self):
+        query = _build_search_query(None, ["owner/repo1", "owner/repo2"], ["open"], ["bug"])
+        assert query.split() == [
+            "is:issue",
+            "repo:owner/repo1",
+            "repo:owner/repo2",
+            "is:open",
+            "label:bug",
+        ]
+
+    @pytest.mark.parametrize("repos", [None, []])
+    def test_refuses_an_unscoped_search(self, repos):
+        with pytest.raises(ValueError, match="scoped to repos"):
+            _build_search_query(None, repos, None, None)
+
+
+def _issue_node(number: int, author: str) -> dict:
+    return {
+        "__typename": "Issue",
+        "number": number,
+        "title": "t",
+        "state": "OPEN",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "closedAt": None,
+        "author": {"login": author},
+        "repository": {"nameWithOwner": "owner/repo"},
+        "labels": {"nodes": []},
+        "timelineItems": {"nodes": []},
+    }
+
+
+class TestListIssuesAllAuthors:
+    """End to end through IssueClient with only the HTTP layer stubbed."""
+
+    def _search_response(self, nodes: list[dict]) -> httpx.Response:
+        body = {
+            "data": {
+                "search": {
+                    "issueCount": len(nodes),
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    "nodes": nodes,
+                }
+            }
+        }
+        return httpx.Response(200, json=body, request=httpx.Request("POST", "https://x"))
+
+    def test_sends_no_author_qualifier_and_keeps_history_relative_to_me(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        response = self._search_response([_issue_node(1, "me-user"), _issue_node(2, "someone")])
+        with patch.object(httpx.Client, "post", return_value=response) as post:
+            client = IssueClient(token="test-token")
+            result = client.list_issues_by_author(None, repos=["owner/repo"])
+            client.close()
+
+        query = post.call_args.kwargs["json"]["variables"]["query"]
+        assert "author:" not in query
+        assert "repo:owner/repo" in query
+        assert {i.number: i.history for i in result.issues} == {1: "o", 2: "O"}
+
+    def test_without_repos_raises_before_any_request(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        with patch.object(httpx.Client, "post") as post:
+            client = IssueClient(token="test-token")
+            with pytest.raises(ValueError, match="scoped to repos"):
+                client.list_issues_by_author(None, repos=None)
+            client.close()
+        post.assert_not_called()

@@ -329,3 +329,57 @@ class TestGetPrsByRefWithUnresolvableRef:
             client.close()
 
         assert [(pr.repo, pr.number) for pr in result.prs] == [("owner/repo", 5)]
+
+
+class TestListPRsAllAuthors:
+    """`author=None` lists every author's PRs, but only within repos."""
+
+    def _empty_search(self) -> MagicMock:
+        mock_client = MagicMock()
+        mock_client.graphql.return_value = {
+            "search": {
+                "issueCount": 0,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                "nodes": [],
+            }
+        }
+        return mock_client
+
+    def test_query_has_no_author_and_keeps_repo_state_and_date_qualifiers(self):
+        with (
+            patch("src.pr.github_api.GitHubClient") as mock_client_class,
+            patch("src.pr.github_api.get_github_username", return_value="currentuser"),
+        ):
+            mock_client = self._empty_search()
+            mock_client_class.return_value = mock_client
+
+            client = PRClient(token="test-token")
+            client.list_prs_by_author(
+                None,
+                repos=["owner/a", "owner/b"],
+                states=["merged"],
+                date_qualifier="merged:>=2026-08-25",
+            )
+
+            query = mock_client.graphql.call_args[0][1]["query"]
+            assert query.split() == [
+                "is:pr",
+                "repo:owner/a",
+                "repo:owner/b",
+                "is:merged",
+                "merged:>=2026-08-25",
+            ]
+
+    @pytest.mark.parametrize("repos", [None, []])
+    def test_refuses_an_unscoped_search(self, repos):
+        with (
+            patch("src.pr.github_api.GitHubClient") as mock_client_class,
+            patch("src.pr.github_api.get_github_username", return_value="currentuser"),
+        ):
+            mock_client = self._empty_search()
+            mock_client_class.return_value = mock_client
+
+            client = PRClient(token="test-token")
+            with pytest.raises(ValueError, match="scoped to repos"):
+                client.list_prs_by_author(None, repos=repos)
+            mock_client.graphql.assert_not_called()

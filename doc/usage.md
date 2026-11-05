@@ -92,7 +92,7 @@ Available commands: `issue`, `pr`, `review`, `board`, `repo`.
 ## `tkt issue`
 
 List issues with a compact history visualization. Default shows issues created
-by you.
+by you; `--all-authors` shows everyone's issues in the scoped repos.
 
 ```bash
 tkt issue list [OWNER/REPO#NUM ...]
@@ -101,6 +101,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 | Option | Description |
 | --- | --- |
 | `--author, -a USER` | Filter by issue author (default: current user) |
+| `--all-authors` | Every author's issues in the repos from `--repo` or the board (see [Listing every author](#listing-every-author)) |
 | `--repo OWNER/REPO` | Filter by repo (repeatable) |
 | `--board, -b NAME` | Use repos from the named board |
 | `--label, -l LABEL` | Filter by label. Repeat for AND (`-l bug -l urgent`), comma for OR (`-l bug,stale`) |
@@ -121,6 +122,7 @@ tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
 tkt issue list --since 14                    # issues touched in the last 2 weeks
+tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's open issues
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
@@ -140,7 +142,8 @@ tkt pr list [OWNER/REPO#NUM ...]
 
 | Option | Description |
 | --- | --- |
-| `--author, -a USER` | Filter by author (`me` = current user) |
+| `--author, -a USER` | Filter by author (`me` = current user; default: current user) |
+| `--all-authors` | Every author's PRs in the repos from `--repo` or the board (see [Listing every author](#listing-every-author)) |
 | `--reviewer, -r USER` | Filter by requested reviewer (`me` = current user) |
 | `--repo OWNER/REPO` | Filter by repo (repeatable) |
 | `--all, -A` | Show all states (open, merged, closed) |
@@ -161,6 +164,7 @@ tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
 tkt pr list --author ak684 --merged --since 14   # merged in the last 2 weeks
+tkt pr list --board oh --all-authors --watch factory   # everyone's open PRs, diffed
 ```
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
@@ -392,7 +396,7 @@ is the same dense table you already read, with two added visual channels:
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
-(same board, author, repos, refs, states, labels, limit). Exact capture
+(same board, author or `--all-authors`, repos, refs, states, labels, limit). Exact capture
 times are in `tkt snapshot show` and `--diff-format json`.
 
 ```
@@ -443,7 +447,7 @@ empty baseline.
 
 ### Scope matching
 
-The query filter set (board, author, reviewer, repos, explicit
+The query filter set (board, author or `--all-authors`, reviewer, repos, explicit
 `owner/repo#N` refs, states, labels, `--all`, limit, and the
 [date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
@@ -526,6 +530,33 @@ tkt issue list --after 2026-08-01 --before 2026-08-31 # opened/updated in August
 tkt pr list --merged --date-field created --since 30  # merged, created in last 30d
 tkt review --merged --since 7                         # reviewed & merged this week
 ```
+
+---
+
+## Listing every author
+
+`tkt issue list` and `tkt pr list` search by author: the current user unless
+`--author` names someone else. `--all-authors` drops the author filter, for
+example to watch every open issue and PR in a repo whoever opened it.
+
+```bash
+tkt issue list --repo octocat/hello-world --all-authors --open
+tkt pr list    --board oh --all-authors --watch factory
+```
+
+- It needs repos, from `--repo` or the board (`--board`, else the default
+  board). With no repos it exits 1 rather than search all of GitHub.
+- It can't be combined with `--author`, with explicit `owner/repo#N` refs
+  (arguments or stdin), or with `pr list --reviewer` (review-requested PRs are
+  already every author's). Each of these is an error, not a silently ignored
+  flag.
+- Labels, states, date windows, `--limit`, `--activity` and the snapshot flags
+  work as usual.
+- History case stays relative to you: `o` = you opened it, `O` = someone else
+  did. The author's login is in the JSON outputs (`--diff-format json`,
+  `tkt snapshot show --format json`).
+- A snapshot taken with `--all-authors` records it in its scope, so diffing it
+  against one taken without the flag is a scope mismatch.
 
 ---
 
