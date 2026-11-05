@@ -19,6 +19,10 @@ both snapshots we compare the fields that drive the display and produce an
   (e.g. GitHub mutated history by deleting a comment), we flag the whole
   `curr.history` as the new tail and record `"history-rewritten"` as a
   changed field so the agent is told the diff is approximate.
+
+A `ci_status` move to or from `conflict` is not flagged while either side's
+`mergeable` is `UNKNOWN` (GitHub computes mergeability lazily); see
+`_is_mergeability_warmup`.
 """
 
 from __future__ import annotations
@@ -64,6 +68,8 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
     curr_items = curr.items_by_key
 
     deltas: list[ItemDelta] = []
+    added_count = len(curr_items.keys() - prev_items.keys())
+    prev_rank = {it.key: i for i, it in enumerate(prev.items)}
 
     # ADDED: in curr, not in prev
     for key in curr_items.keys() - prev_items.keys():
@@ -86,7 +92,12 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
                 kind=ChangeKind.REMOVED,
                 prev=prev_items[key],
                 curr=None,
-                disappearance_reason=_infer_removal_reason(prev_items[key], curr, prev),
+                disappearance_reason=_infer_removal_reason(
+                    prev_items[key],
+                    curr,
+                    prev,
+                    pushed_out=prev_rank[key] >= len(prev.items) - added_count,
+                ),
             )
         )
 
@@ -147,6 +158,8 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
             if set(a) != set(b):
                 changed.append(field_name)
             continue
+        if field_name == "ci_status" and a != b and _is_mergeability_warmup(prev, curr):
+            continue
         if a != b:
             changed.append(field_name)
     changed.extend(_compare_pr_detail(prev, curr))
@@ -179,6 +192,18 @@ def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:
     return changed
 
 
+def _is_mergeability_warmup(prev: ItemSnapshot, curr: ItemSnapshot) -> bool:
+    """True when a CI change to or from `conflict` is only GitHub still computing mergeability.
+
+    While `mergeable` is `UNKNOWN`, `ci_status` falls back to the check rollup,
+    so it flips to `conflict` once the answer arrives. Only moves involving
+    `conflict` are suppressed: a rollup change (green to red) is real.
+    """
+    if _MERGEABILITY_UNKNOWN not in (prev.mergeable, curr.mergeable):
+        return False
+    return "conflict" in (prev.ci_status, curr.ci_status)
+
+
 def _new_history_tail(prev_history: str, curr_history: str) -> str:
     """Characters of `curr_history` that are new relative to `prev_history`.
 
@@ -199,11 +224,16 @@ def _infer_removal_reason(
     prev_item: ItemSnapshot,
     curr_snapshot: Snapshot,
     prev_snapshot: Snapshot,
+    *,
+    pushed_out: bool = False,
 ) -> str:
     """Best-effort reason why an item disappeared between snapshots.
 
     - "scope": the two snapshots were produced by different scope filters,
       so the item may just have been filtered out.
+    - "limit": the current query matched more rows than `--limit` kept and
+      the item sat in the last positions of the previous result, as many as
+      rows were added (`pushed_out`), so it was probably pushed past the limit.
     - "left-queue": a review-queue row is gone. Usually the reviewer acted
       (approved, or the PR went on hold) rather than the PR closing.
     - "closed-or-gone": prev showed it open under a scope that still
@@ -213,6 +243,8 @@ def _infer_removal_reason(
     """
     if prev_snapshot.scope_hash != curr_snapshot.scope_hash:
         return "scope"
+    if curr_snapshot.has_more and pushed_out:
+        return "limit"
     if prev_item.state == "open" and (
         curr_snapshot.scope.states is None or "open" in curr_snapshot.scope.states
     ):

@@ -35,6 +35,7 @@ from src.snapshot import diff as diff_module
 from src.snapshot import render as render_module
 from src.snapshot import store
 from src.snapshot.models import VALID_KINDS, Snapshot
+from src.snapshot.resolve import FetchByRef, resolve_removed
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class SnapshotPlan:
     show_unchanged: bool = False
     force: bool = False
     detail: bool = False
+    resolve: bool = False
 
     @property
     def wants_diff(self) -> bool:
@@ -69,6 +71,7 @@ class SnapshotPlan:
         show_unchanged: bool = False,
         force: bool = False,
         detail: bool = False,
+        resolve: bool = False,
     ) -> SnapshotPlan | None:
         """Build a plan from parsed CLI arguments, or None if no snapshot work.
 
@@ -103,17 +106,26 @@ class SnapshotPlan:
             show_unchanged=show_unchanged,
             force=force,
             detail=detail,
+            resolve=resolve,
         )
 
-    def execute(self, curr: Snapshot, console: Console, print_table: Callable[[], None]) -> int:
+    def execute(
+        self,
+        curr: Snapshot,
+        console: Console,
+        print_table: Callable[[], None],
+        fetch_by_ref: FetchByRef | None = None,
+    ) -> int:
         """Diff and/or save `curr` per the plan. Returns exit code.
+
+        `fetch_by_ref` looks up gone rows when the plan has `resolve` set.
 
         With a diff, the diff output replaces the normal table, and the
         baseline is only overwritten when the diff succeeded so that a
         scope-mismatch error is safe to retry with `--diff-force`.
         """
         if self.wants_diff:
-            rc = self.render_diff(curr, console)
+            rc = self.render_diff(curr, console, fetch_by_ref)
             if rc == 0 and self.wants_save:
                 self.save(curr)
             return rc
@@ -121,7 +133,9 @@ class SnapshotPlan:
         self.save(curr)
         return 0
 
-    def render_diff(self, curr: Snapshot, console: Console) -> int:
+    def render_diff(
+        self, curr: Snapshot, console: Console, fetch_by_ref: FetchByRef | None = None
+    ) -> int:
         """Load the baseline, diff, render. Returns exit code."""
         if self.diff_name is None:
             raise RuntimeError("render_diff called without --diff / --watch")
@@ -138,6 +152,10 @@ class SnapshotPlan:
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
         result = diff_module.diff_snapshots(prev, curr)
+        if self.resolve:
+            if fetch_by_ref is None:
+                raise RuntimeError("--diff-resolve needs a fetch_by_ref")
+            result = resolve_removed(result, fetch_by_ref)
         if not result.scope_matches and not self.force:
             msg.print(
                 "[red]Error:[/] scope mismatch between snapshots "

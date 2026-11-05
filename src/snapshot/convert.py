@@ -83,37 +83,45 @@ def item_from_review(review: ReviewInfo) -> ItemSnapshot:
         labels=(),
         ci_status=_ci_value(review.ci_status),
         unresolved_thread_count=review.unresolved_thread_count,
+        mergeable=review.mergeable,
         review_status=_review_status_value(review.status),
         wait_seconds=review.wait_seconds,
     )
 
 
-def snapshot_from_prs(prs: list[PRInfo], *, scope: SnapshotScope, name: str) -> Snapshot:
+def snapshot_from_prs(
+    prs: list[PRInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
+) -> Snapshot:
     return Snapshot.make(
         kind=KIND_PR,
         name=name,
         scope=scope,
         items=[item_from_pr(p) for p in prs],
+        has_more=has_more,
     )
 
 
-def snapshot_from_issues(issues: list[IssueInfo], *, scope: SnapshotScope, name: str) -> Snapshot:
+def snapshot_from_issues(
+    issues: list[IssueInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
+) -> Snapshot:
     return Snapshot.make(
         kind=KIND_ISSUE,
         name=name,
         scope=scope,
         items=[item_from_issue(i) for i in issues],
+        has_more=has_more,
     )
 
 
 def snapshot_from_reviews(
-    reviews: list[ReviewInfo], *, scope: SnapshotScope, name: str
+    reviews: list[ReviewInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
 ) -> Snapshot:
     return Snapshot.make(
         kind=KIND_REVIEW,
         name=name,
         scope=scope,
         items=[item_from_review(r) for r in reviews],
+        has_more=has_more,
     )
 
 

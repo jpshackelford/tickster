@@ -306,6 +306,7 @@ class Snapshot:
     scope: SnapshotScope
     items: tuple[ItemSnapshot, ...]
     schema: int = SCHEMA_VERSION
+    has_more: bool = False  # the query matched more rows than `--limit` kept
 
     @property
     def scope_hash(self) -> str:
@@ -316,7 +317,7 @@ class Snapshot:
         return {it.key: it for it in self.items}
 
     def to_dict(self) -> dict:
-        return {
+        data = {
             "schema": self.schema,
             "kind": self.kind,
             "name": self.name,
@@ -325,6 +326,10 @@ class Snapshot:
             "scope_hash": self.scope_hash,
             "items": [it.to_dict() for it in self.items],
         }
+        # Omitted when false so snapshots that weren't truncated stay byte-identical.
+        if self.has_more:
+            data["has_more"] = True
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> Snapshot:
@@ -350,6 +355,7 @@ class Snapshot:
             captured_at=data["captured_at"],
             scope=scope,
             items=tuple(ItemSnapshot.from_dict(it) for it in data.get("items", [])),
+            has_more=bool(data.get("has_more", False)),
         )
 
     @classmethod
@@ -360,6 +366,7 @@ class Snapshot:
         name: str,
         scope: SnapshotScope,
         items: list[ItemSnapshot],
+        has_more: bool = False,
     ) -> Snapshot:
         """Build a fresh snapshot with captured_at = now (UTC)."""
         if kind not in VALID_KINDS:
@@ -370,6 +377,7 @@ class Snapshot:
             captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             scope=scope,
             items=tuple(items),
+            has_more=has_more,
         )
 
 

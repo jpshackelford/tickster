@@ -38,6 +38,11 @@ _REMOVAL_LABEL = {
     "closed-or-gone": "closed?",
     "left-queue": "done?",
     "scope": "scope",
+    "limit": "limit?",
+    "closed": "closed",
+    "merged": "merged",
+    "still-open": "still open",
+    "not-found": "not found",
 }
 
 
@@ -76,7 +81,7 @@ def render_diff(
 
     console.print()
     console.print(
-        "[dim]Δ: + new row, * changed, - gone (Note: likely why), (blank) unchanged.  "
+        "[dim]Δ: + new row, * changed, - gone (Note: why, `?` = a guess), (blank) unchanged.  "
         "History: \\[bracketed] = new since last snapshot.  "
         "Field!: value changed; prior value via `tkt snapshot diff`.  "
         "head!/review!/merge!: PR head commit, review decision or merge state changed.[/]"

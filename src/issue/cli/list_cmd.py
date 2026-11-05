@@ -43,6 +43,7 @@ def cmd_list(
     diff_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
+    diff_resolve: bool = False,
     since_days: int | None = None,
     after: str | None = None,
     before: str | None = None,
@@ -119,6 +120,7 @@ def cmd_list(
                 output_format=diff_format,
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
+                resolve=diff_resolve,
             )
             if plan is not None:
                 scope = SnapshotScope.from_issue_args(
@@ -133,13 +135,16 @@ def cmd_list(
                     window=window,
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
-                curr_snapshot = snapshot_from_issues(result.issues, scope=scope, name=save_name)
+                curr_snapshot = snapshot_from_issues(
+                    result.issues, scope=scope, name=save_name, has_more=result.has_more
+                )
                 return plan.execute(
                     curr_snapshot,
                     console,
                     print_table=lambda: _print_issue_table(
                         result.issues, show_title=show_title, window=window
                     ),
+                    fetch_by_ref=lambda refs: client.get_issues_by_ref(refs).issues,
                 )
 
             _print_issue_table(result.issues, show_title=show_title, window=window)

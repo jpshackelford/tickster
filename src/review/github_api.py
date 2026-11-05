@@ -357,4 +357,5 @@ class ReviewClient:
             unresolved_thread_count=unresolved_thread_count,
             author=author,
             last_activity=last_activity,
+            mergeable=pr_data.get("mergeable"),
         )

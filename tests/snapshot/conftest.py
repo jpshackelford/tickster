@@ -61,6 +61,7 @@ def make_snapshot(
     items: list[ItemSnapshot] | None = None,
     scope: SnapshotScope | None = None,
     captured_at: str = "2026-09-30T22:00:00Z",
+    has_more: bool = False,
 ) -> Snapshot:
     return Snapshot(
         kind=kind,
@@ -68,4 +69,5 @@ def make_snapshot(
         captured_at=captured_at,
         scope=scope or SnapshotScope(),
         items=tuple(items or []),
+        has_more=has_more,
     )

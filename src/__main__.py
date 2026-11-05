@@ -1146,6 +1146,7 @@ Examples:
                 diff_format=args.diff_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
+                diff_resolve=args.diff_resolve,
                 since_days=args.since,
                 after=args.after,
                 before=args.before,
@@ -1188,6 +1189,7 @@ Examples:
             diff_format=args.diff_format,
             diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
+            diff_resolve=args.diff_resolve,
             since_days=args.since,
             after=args.after,
             before=args.before,
@@ -1232,6 +1234,7 @@ Examples:
                 diff_format=args.diff_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
+                diff_resolve=args.diff_resolve,
                 since_days=args.since,
                 after=args.after,
                 before=args.before,
@@ -1358,6 +1361,15 @@ def _add_snapshot_flags(parser) -> None:
         dest="diff_force",
         action="store_true",
         help="Proceed with --diff/--watch even if snapshot scope doesn't match the current query.",
+    )
+    group.add_argument(
+        "--diff-resolve",
+        dest="diff_resolve",
+        action="store_true",
+        help=(
+            "Look up each gone (-) row and say why (closed, merged, still open, not found) "
+            "instead of guessing. Costs one batched GitHub query per 20 gone rows."
+        ),
     )
 
 
