@@ -1055,7 +1055,6 @@ Examples:
                     issue_states.append("open")
                 if args.include_closed:
                     issue_states.append("closed")
-            # Default: open only (handled by None -> defaults in cmd_list)
 
             # Read from stdin if no refs provided and stdin has data
             issue_refs = args.issue_refs

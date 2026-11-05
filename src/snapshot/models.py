@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from enum import Enum
 
@@ -330,12 +330,17 @@ class Snapshot:
         kind = data["kind"]
         if kind not in VALID_KINDS:
             raise ValueError(f"invalid snapshot kind: {kind!r}")
+        scope = SnapshotScope.from_dict(data.get("scope", {}))
+        if kind == KIND_ISSUE and scope.states is None:
+            # `issue list` used to leave states unset (listing open and closed) when no
+            # state flag was given; it now defaults to open, so keep old scopes comparable.
+            scope = replace(scope, states=("open",))
         return cls(
             schema=schema,
             kind=kind,
             name=data["name"],
             captured_at=data["captured_at"],
-            scope=SnapshotScope.from_dict(data.get("scope", {})),
+            scope=scope,
             items=tuple(ItemSnapshot.from_dict(it) for it in data.get("items", [])),
         )
 
