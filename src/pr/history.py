@@ -136,6 +136,11 @@ def _extract_timeline_events(pr_data: dict, pr_author: str) -> list[TimelineEven
     return events
 
 
+def _login(node: dict | None, default: str = "ghost") -> str:
+    """Return node's login; GitHub reports deleted accounts as a null author/actor."""
+    return (node or {}).get("login") or default
+
+
 def _parse_timeline_item(
     typename: str,
     item: dict,
@@ -143,7 +148,7 @@ def _parse_timeline_item(
 ) -> TimelineEvent | None:
     """Parse a single timeline item into an event."""
     if typename == "PullRequestReview":
-        actor = item.get("author", {}).get("login", "ghost")
+        actor = _login(item.get("author"))
         timestamp = _parse_datetime(item["createdAt"])
         state = item.get("state")
         has_inline_comments = item.get("comments", {}).get("totalCount", 0) > 0
@@ -161,31 +166,31 @@ def _parse_timeline_item(
         return TimelineEvent(action=action, actor=actor, timestamp=timestamp)
 
     elif typename == "IssueComment":
-        actor = item.get("author", {}).get("login", "ghost")
+        actor = _login(item.get("author"))
         timestamp = _parse_datetime(item["createdAt"])
         return TimelineEvent(action=ActionType.COMMENT, actor=actor, timestamp=timestamp)
 
     elif typename == "PullRequestCommit":
         commit = item.get("commit", {})
-        author_data = commit.get("author", {}).get("user")
-        actor = author_data.get("login") if author_data else pr_author
+        git_actor = commit.get("author")
+        actor = _login(git_actor.get("user") if git_actor else None, default=pr_author)
         timestamp = _parse_datetime(commit["committedDate"])
         # Note: We'll convert this to FIX later if it comes after a review
         return TimelineEvent(action=ActionType.FIX, actor=actor, timestamp=timestamp)
 
     elif typename == "ReviewRequestedEvent":
-        actor = item.get("actor", {}).get("login", "ghost")
+        actor = _login(item.get("actor"))
         timestamp = _parse_datetime(item["createdAt"])
         return TimelineEvent(action=ActionType.HELP, actor=actor, timestamp=timestamp)
 
     elif typename == "MergedEvent":
-        actor = item.get("actor", {}).get("login", "ghost")
+        actor = _login(item.get("actor"))
         timestamp = _parse_datetime(item["createdAt"])
         return TimelineEvent(action=ActionType.MERGED, actor=actor, timestamp=timestamp)
 
     elif typename == "ClosedEvent":
         # Only count as KILLED if not merged (check handled in caller context)
-        actor = item.get("actor", {}).get("login", "ghost")
+        actor = _login(item.get("actor"))
         timestamp = _parse_datetime(item["createdAt"])
         return TimelineEvent(action=ActionType.KILLED, actor=actor, timestamp=timestamp)
 

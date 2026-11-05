@@ -2,13 +2,26 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
 from src.pr.models import CIStatus
 from src.review.github_api import ReviewClient
 from src.review.models import ReviewStatus
+from tests.pr.null_actor_cases import NULL_ACTOR_CASES, REVIEWER, make_pr_data
 
 
 class TestProcessPrForReviewer:
     """Tests for _process_pr_for_reviewer method."""
+
+    @pytest.mark.parametrize(("item", "action", "actor"), NULL_ACTOR_CASES)
+    def test_null_author_or_actor(self, item, action, actor):
+        """Deleted accounts (null author/actor) render as someone else, not a crash."""
+        client = ReviewClient.__new__(ReviewClient)
+        review_info = client._process_pr_for_reviewer(make_pr_data(item), REVIEWER)
+
+        char = action.value if actor == REVIEWER else action.value.upper()
+        assert review_info is not None
+        assert review_info.history == "Oa" + char
 
     def _make_pr_data(
         self,
