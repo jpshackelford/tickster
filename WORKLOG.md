@@ -113,3 +113,11 @@ Implementing [issue #25](https://github.com/jpshackelford/tickster/issues/25): p
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 08:47 UTC - Implementation Worker (`ed59d08`)
+
+✅ **PR opened for issue #25** — ready for review
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor in PR timeline events no longer aborts `tkt pr list` / `tkt review`. Adds `_login` helper in `src/pr/history.py`; parametrized null cases cover `_parse_timeline_item`, `process_pr_data`, and `_process_pr_for_reviewer`.
+- CI green at head `b5b0b2e`; moved from draft to ready. Manual test, docs, and review handling are left to a separate conversation.
+
+---
