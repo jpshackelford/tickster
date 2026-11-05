@@ -16,6 +16,7 @@ from src.date_window import (
     window_suffix,
 )
 from src.pr.cli.graph import render_merged_graph
+from src.pr.detail import merge_label, review_label, short_sha
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
 from src.snapshot.convert import snapshot_from_prs
@@ -38,6 +39,7 @@ def cmd_list(
     limit: int = 100,
     show_title: bool = False,
     show_graph: bool = False,
+    show_detail: bool = False,
     snapshot_name: str | None = None,
     diff_name: str | None = None,
     watch_name: str | None = None,
@@ -62,6 +64,7 @@ def cmd_list(
         limit: Maximum number of PRs to show
         show_title: Include PR titles in output
         show_graph: Show weekly merge/age graph (only for merged PRs)
+        show_detail: Add head commit, review decision and merge state columns
         since_days: Only include PRs within the last N days
         after: Only include PRs on/after this date (YYYY-MM-DD)
         before: Only include PRs on/before this date (YYYY-MM-DD)
@@ -146,6 +149,7 @@ def cmd_list(
                 output_format=diff_format,
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
+                detail=show_detail,
             )
 
             if plan is not None:
@@ -166,7 +170,7 @@ def cmd_list(
                     curr_snapshot,
                     console,
                     print_table=lambda: _print_pr_table(
-                        result.prs, show_title=show_title, window=window
+                        result.prs, show_title=show_title, show_detail=show_detail, window=window
                     ),
                 )
 
@@ -177,7 +181,9 @@ def cmd_list(
                 if merged_prs:
                     render_merged_graph(merged_prs, console=console)
 
-            _print_pr_table(result.prs, show_title=show_title, window=window)
+            _print_pr_table(
+                result.prs, show_title=show_title, show_detail=show_detail, window=window
+            )
 
             if result.has_more:
                 console.print(f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]")
@@ -216,7 +222,11 @@ def _get_repos(
 
 
 def _print_pr_table(
-    prs: list[PRInfo], *, show_title: bool = False, window: DateWindow | None = None
+    prs: list[PRInfo],
+    *,
+    show_title: bool = False,
+    show_detail: bool = False,
+    window: DateWindow | None = None,
 ) -> None:
     """Print PRs in a formatted table."""
     if not prs:
@@ -230,6 +240,10 @@ def _print_pr_table(
         table.add_column("Title", no_wrap=True, overflow="ellipsis", max_width=35)
     table.add_column("History", no_wrap=True)
     table.add_column("CI", no_wrap=True)
+    if show_detail:
+        table.add_column("Head", no_wrap=True)
+        table.add_column("Review", no_wrap=True)
+        table.add_column("Merge", no_wrap=True)
     table.add_column("State", no_wrap=True)
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Age", no_wrap=True)
@@ -246,6 +260,15 @@ def _print_pr_table(
             [
                 _format_history(pr.history),
                 _format_ci_status(pr.ci_status),
+                *(
+                    [
+                        short_sha(pr.head_sha),
+                        review_label(pr.review_decision),
+                        merge_label(pr.merge_state, pr.mergeable),
+                    ]
+                    if show_detail
+                    else []
+                ),
                 _format_state(pr.state, pr.is_draft),
                 _format_unresolved_threads(pr.unresolved_thread_count),
                 _format_duration(pr.age_seconds),

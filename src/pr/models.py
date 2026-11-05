@@ -61,6 +61,10 @@ class PRInfo:
     author: str
     is_draft: bool = False
     unresolved_thread_count: int = 0
+    head_sha: str | None = None
+    review_decision: str | None = None
+    merge_state: str | None = None
+    mergeable: str | None = None
 
     @property
     def age_seconds(self) -> float:

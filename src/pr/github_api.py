@@ -23,6 +23,9 @@ fragment PRFields on PullRequest {
     createdAt
     closedAt
     mergeable
+    mergeStateStatus
+    reviewDecision
+    headRefOid
     author { login }
     repository { nameWithOwner }
     reviewThreads(first: 100) {
