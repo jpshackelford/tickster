@@ -122,24 +122,26 @@ class SnapshotPlan:
         """Load the baseline, diff, render. Returns exit code."""
         if self.diff_name is None:
             raise RuntimeError("render_diff called without --diff / --watch")
+        # In JSON mode stdout must hold only the document, so notices go to stderr.
+        msg = Console(stderr=True) if self.output_format == "json" else console
         try:
             prev = store.load(self.kind, self.diff_name)
         except FileNotFoundError:
             # First run: no baseline yet. The diff is "everything is new".
             # Rather than fail, we tell the user and print the normal table.
-            console.print(
+            msg.print(
                 f"[yellow]No snapshot {self.kind}/{self.diff_name} found; "
                 "treating all current rows as new.[/]"
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
         result = diff_module.diff_snapshots(prev, curr)
         if not result.scope_matches and not self.force:
-            console.print(
+            msg.print(
                 "[red]Error:[/] scope mismatch between snapshots "
                 "(use --diff-force to proceed anyway)"
             )
             if prev.scope.window != curr.scope.window:
-                console.print(f"[dim]{render_module.window_note(prev, curr)}[/]")
+                msg.print(f"[dim]{render_module.window_note(prev, curr)}[/]")
             return 2
         render_module.render_diff(
             result,

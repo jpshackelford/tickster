@@ -129,3 +129,17 @@ def test_diff_rejects_cross_kind(seed, capsys):  # noqa: ARG001
     out = capsys.readouterr().out
     assert rc == 2
     assert "cannot diff across kinds" in out
+
+
+def test_diff_json_errors_go_to_stderr(seed, capsys):  # noqa: ARG001
+    store.save(make_snapshot(kind="issue", name="hourly", items=[]))
+    rc = cli.cmd_diff("pr/hourly", "issue/hourly", output_format="json")
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert "cannot diff across kinds" in captured.err
+    rc = cli.cmd_diff("pr/hourly", "pr/nope", output_format="json")
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+    assert "Error" in captured.err
