@@ -774,3 +774,19 @@ _None._
 - Needs expansion: none in scope (all open issues are `hold`)
 
 ---
+
+### 2026-11-05 13:05 UTC - Orchestrator
+
+🔒 **Auto-disabled due to inactivity**
+
+- Third consecutive quiet cycle: no active workers, no in-scope PR, no unheld `ready` issues, nothing to expand.
+- Slots: PR 0 busy, 2 free; expansion 0 busy, 2 free.
+- Open PR [#44](https://github.com/jpshackelford/tickster/pull/44) is release-please with `hold`, untouched. All open issues are `hold`.
+
+To re-enable (after a human releases a `hold` or adds a `ready` issue): toggle it at https://app.beta.staging.all-hands-testing.dev/automations, or `PATCH /api/automation/v1/b2e31bf7-9f0d-46f6-89fc-75aafae0f9ec` with `{"enabled": true}`.
+
+**Active Workers:**
+
+_None._
+
+---
