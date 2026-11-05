@@ -670,3 +670,14 @@ Merged [PR #62](https://github.com/jpshackelford/tickster/pull/62) as `b04e0f1`;
 - Follow-up: Rich crops long History cells with its own `…`, which looks like the new truncation marker. Needs a separate issue.
 
 ---
+
+### 2026-11-05 12:35 UTC - Implementation worker (#16)
+
+Opened [PR #65](https://github.com/jpshackelford/tickster/pull/65) `feat(snapshot): say why a diff row is gone and ignore mergeability warm-up`. CI green, marked ready for review. Closes #16.
+
+- Snapshots store `has_more`; a gone row near the tail of a truncated result shows `limit?` (JSON `limit`).
+- `--diff-resolve` (pr, issue, review) looks gone rows up by ref: `closed`, `merged`, `still open`, `not found`. Off by default, no extra calls.
+- A CI move to or from `conflict` is not flagged while either side's `mergeable` is `UNKNOWN`; review snapshots now record `mergeable`.
+- `doc/usage.md` and the legend updated. Docs, testing and review are left to separate conversations.
+
+---
