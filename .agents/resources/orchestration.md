@@ -5,7 +5,7 @@
 - Type: cli
 
 ## Automation
-- ID: 3a60277a-4b4a-4f62-a3a6-02e92bccde7d
+- ID: b2e31bf7-9f0d-46f6-89fc-75aafae0f9ec
 - Quiet threshold: 2
 
 ## Setup Commands
