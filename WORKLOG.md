@@ -92,3 +92,24 @@ Merging [PR #46](https://github.com/jpshackelford/tickster/pull/46): feat(cli): 
 - Needs expansion: none in scope
 
 ---
+### 2026-11-05 08:50 UTC - Orchestrator
+
+🛠 **Launched: Implementation Worker**
+
+Implementing [issue #25](https://github.com/jpshackelford/tickster/issues/25): pr list / review abort on null author or actor (`priority:high`)
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46) merged; merge worker `744f0b6` finished. No in-scope PR open.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/ed59d08f5a5b44f9aa4f6a349ca386de
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `ed59d08` | implementation | Issue #25 | **NEW** |
+
+**Current State:**
+
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #25, #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
