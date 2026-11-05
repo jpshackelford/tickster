@@ -259,16 +259,18 @@ commit (`commit<TAB>sha<TAB>merge|--<TAB>author<TAB>headline`) and per file
 (`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
 
 ```text
-$ tkt pr changes jpshackelford/tickster#58 --since 2b09310 --ignore-path 'doc/**' --ignore-path '**/*.md'
-jpshackelford/tickster#58 2b09310..f41cd83 5 commits 5 files +173 -4
+$ tkt pr changes jpshackelford/tickster#60 --since 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
+jpshackelford/tickster#60 75d1faa..742dbea 1 commits 4 files +104 -4
 significant: yes (4 files, 108 changed lines)
-commit	75d1faa	--	openhands-agent	chore(worklog): PR #59 merged, #48 closed
-...
-commit	f41cd83	--	jpshackelford	fix(issue): default `issue list` to open issues (#60)
-file	modified	+69	-0	ignored	WORKLOG.md
-file	modified	+2	-1	--	src/issue/cli/list_cmd.py
-...
+commit  742dbea --      openhands-agent fix(issue): default 'issue list' to open issues
+file    modified        +0      -1      --      src/__main__.py
+file    modified        +2      -1      --      src/issue/cli/list_cmd.py
+file    modified        +7      -2      --      src/snapshot/models.py
+file    added   +95     -0      --      tests/snapshot/test_issue_default_state.py
 ```
+
+The example uses a merged PR, whose head is fixed, and `75d1faa`, the `main`
+commit it branched from, so it reproduces. No file matched `--ignore-path` here.
 
 Verdict rules, in order:
 
@@ -286,6 +288,11 @@ Notes:
 - The file list is the net diff of the range. When a range holds a merge commit
   and a real commit, files the merge brought in are counted too, so the verdict
   can only over-report.
+- A merge-from-base commit alone also usually reports `significant: yes` on real
+  data. The compare range lists the base commits the merge brought in as
+  ordinary commits, and their files count. Only a merge that brings in nothing
+  new reports `no`, unless `--ignore-path` or `--min-changed-lines` cover the
+  incoming changes.
 - The exit code is 0 whether or not the change is significant; errors exit 1.
 - The command is also a library function, `src.pr.changes.pr_changes`.
 
