@@ -429,3 +429,29 @@ Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout
 ### 2026-11-05 UTC - Implementation worker (Issue #52)
 
 [PR #62](https://github.com/jpshackelford/tickster/pull/62) `tkt pr changes --since SHA` is ready for review, CI green. Not done: the `pr show` commit lines (#40 not landed) and reading `[commits]` norms (#50/PR #61 not merged). The norms values are `--ignore-path` and `--min-changed-lines` for now. Docs, testing and review are separate conversations.
+
+### 2026-11-05 11:10 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Docs-fix worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): review "Good", CI green, tested at head `ceee52d`, but manual test item #32 failed (`agent_username_pattern` example should be `agent-username-pattern`, and this PR's migration advice leans on it). Fix first, merge next tick. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/9dade39743a94e0b8a802b90af31f6f1
+- Testing worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62) (#52): CI green, head `bff03b3`, docs in `doc/usage.md`, no test report yet. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/914dea67018b4fc4ab9eb0d87e76adea
+- Workers `d5c8f49`, `e1a3273` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `9dade39` | docs-fix | PR #61 | **NEW** |
+| `914dea6` | testing | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `ceee52d`, docs fix in flight
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `green ready` — head `bff03b3`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
