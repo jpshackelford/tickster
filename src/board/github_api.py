@@ -5,10 +5,14 @@ Uses GitHub's REST API for search/notifications and GraphQL for Project operatio
 
 import logging
 import os
+import random
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from datetime import datetime
+
+import httpx
 
 from src.board.api_logging import create_logging_client
 from src.board.models import (
@@ -21,6 +25,85 @@ from src.board.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+GRAPHQL_MAX_ATTEMPTS = 3
+RETRY_BASE_DELAY = 1.0
+MAX_RETRY_WAIT = 60.0
+TRANSIENT_STATUSES = frozenset({502, 503, 504})
+GATEWAY_TIMEOUT_STATUSES = frozenset({502, 504})
+
+# GitHub's GraphQL time limit is ~10s; a 100-node page of PRs with timelines can exceed it.
+SEARCH_PAGE_SIZE = 25
+MIN_SEARCH_PAGE_SIZE = 5
+
+_sleep = time.sleep
+
+
+def _backoff(attempt: int) -> float:
+    return RETRY_BASE_DELAY * 2**attempt + random.uniform(0, RETRY_BASE_DELAY)
+
+
+def _retry_delay(resp: httpx.Response, attempt: int) -> float | None:
+    """Seconds to wait before retrying ``resp``, or None if it is not worth retrying."""
+    status = resp.status_code
+    if status in TRANSIENT_STATUSES:
+        return _backoff(attempt)
+    if status not in (403, 429):
+        return None
+
+    headers = resp.headers
+    if retry_after := headers.get("retry-after"):
+        try:
+            wait = float(retry_after) + 0.5
+        except ValueError:
+            wait = _backoff(attempt)
+    elif headers.get("x-ratelimit-remaining") == "0":
+        try:
+            wait = max(0.0, float(headers.get("x-ratelimit-reset", "")) - time.time()) + 1.0
+        except ValueError:
+            wait = _backoff(attempt)
+    elif status == 429:
+        wait = _backoff(attempt)
+    elif "secondary rate limit" in resp.text.lower():
+        wait = MAX_RETRY_WAIT
+    else:
+        return None  # a plain 403 is a permission error
+    # Waiting out a primary limit that resets in an hour helps no one; fail now.
+    return wait if wait <= MAX_RETRY_WAIT else None
+
+
+def _is_mutation(query: str) -> bool:
+    return re.search(r"^\s*mutation\b", query, re.MULTILINE) is not None
+
+
+def _is_gateway_timeout(error: Exception) -> bool:
+    if isinstance(error, httpx.TimeoutException):
+        return True
+    return (
+        isinstance(error, httpx.HTTPStatusError)
+        and error.response.status_code in GATEWAY_TIMEOUT_STATUSES
+    )
+
+
+def fetch_search_page(
+    client: "GitHubClient", query: str, variables: dict, size: int
+) -> tuple[dict, int]:
+    """Fetch one GraphQL ``search`` page of up to ``size`` nodes.
+
+    When the page still times out after ``graphql``'s retries, it is retried at
+    half the size, down to ``MIN_SEARCH_PAGE_SIZE``. Returns the ``search``
+    object and the size that succeeded, so callers can keep paging at it.
+    """
+    size = min(size, SEARCH_PAGE_SIZE)
+    while True:
+        try:
+            data = client.graphql(query, {**variables, "limit": size})
+            return data["search"], size
+        except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
+            if not _is_gateway_timeout(e) or size <= MIN_SEARCH_PAGE_SIZE:
+                raise
+            size = max(MIN_SEARCH_PAGE_SIZE, size // 2)
+            logger.warning("Search page timed out (%s); retrying with %d items", e, size)
 
 
 def _nulls_a_root(errors: list[dict], data: dict) -> bool:
@@ -612,11 +695,10 @@ class GitHubClient:
         callers have nothing to read from it. Pass ``tolerate_null_roots`` when
         a null root is an expected per-item result (batched aliases, lookups).
         """
-        resp = self._client.post(
-            self.GRAPHQL_URL,
-            json={"query": query, "variables": variables or {}},
+        resp = self._post_graphql(
+            {"query": query, "variables": variables or {}},
+            retry=not _is_mutation(query),
         )
-        resp.raise_for_status()
         body = resp.json()
         errors = body.get("errors")
         data = body.get("data")
@@ -634,6 +716,36 @@ class GitHubClient:
             )
 
         return data
+
+    def _post_graphql(self, payload: dict, *, retry: bool) -> httpx.Response:
+        """POST to GraphQL, retrying 502/503/504, timeouts and rate limits with backoff.
+
+        Mutations are not retried: a 502 does not tell us whether the write landed.
+        """
+        attempts = GRAPHQL_MAX_ATTEMPTS if retry else 1
+        attempt = 0
+        while True:
+            try:
+                resp = self._client.post(self.GRAPHQL_URL, json=payload)
+            except httpx.TimeoutException as e:
+                if attempt + 1 >= attempts:
+                    raise
+                delay, reason = _backoff(attempt), str(e) or type(e).__name__
+            else:
+                delay = _retry_delay(resp, attempt)
+                if delay is None or attempt + 1 >= attempts:
+                    resp.raise_for_status()
+                    return resp
+                reason = f"HTTP {resp.status_code}"
+            attempt += 1
+            logger.warning(
+                "GraphQL request failed (%s); retry %d/%d in %.1fs",
+                reason,
+                attempt,
+                attempts - 1,
+                delay,
+            )
+            _sleep(delay)
 
     def get_user_project(self, username: str, project_number: int) -> ProjectInfo | None:
         """Get a user's project by number."""

@@ -2,7 +2,13 @@
 
 import logging
 
-from src.board.github_api import GitHubClient, get_github_token, get_github_username
+from src.board.github_api import (
+    SEARCH_PAGE_SIZE,
+    GitHubClient,
+    fetch_search_page,
+    get_github_token,
+    get_github_username,
+)
 from src.issue.models import IssueInfo, IssueListResult
 
 logger = logging.getLogger(__name__)
@@ -215,14 +221,15 @@ class IssueClient:
 
         # If we have OR groups, we may need to fetch more and filter
         fetch_multiplier = 2 if or_groups else 1
+        page_size = SEARCH_PAGE_SIZE
 
         while len(all_issues) < limit:
-            batch_limit = min(100, (limit - len(all_issues)) * fetch_multiplier)
-            data = self._client.graphql(
+            search_result, page_size = fetch_search_page(
+                self._client,
                 query,
-                {"query": search_query, "limit": batch_limit, "cursor": cursor},
+                {"query": search_query, "cursor": cursor},
+                min(page_size, (limit - len(all_issues)) * fetch_multiplier),
             )
-            search_result = data["search"]
             total_count = search_result["issueCount"]
 
             for node in search_result["nodes"]:
