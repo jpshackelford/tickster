@@ -121,3 +121,25 @@ Implementing [issue #25](https://github.com/jpshackelford/tickster/issues/25): p
 - CI green at head `b5b0b2e`; moved from draft to ready. Manual test, docs, and review handling are left to a separate conversation.
 
 ---
+### 2026-11-05 09:08 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor fix (issue #25)
+- CI green at head `b5b0b2e`; bug fix with no user-facing docs impact (docs gate not required); no manual test results yet.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/8771662832a34b2793b4c64cf01c5a02
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `8771662` | testing | PR #57 | **NEW** |
+
+**Current State:**
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): `ready green` — testing in flight (head `b5b0b2e`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
