@@ -237,6 +237,73 @@ Notes:
   checks access, reported as `Resource not accessible by integration`), the
   command exits 1 with that error rather than showing a partial list.
 
+### `tkt pr changes`
+
+Answer "has the code changed in a way that matters since commit X?", for example
+to decide whether a manual test report posted against X still holds.
+
+```bash
+tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
+    [--ignore-path GLOB ...] [--min-changed-lines N]
+```
+
+| Option | Description |
+| --- | --- |
+| `--since SHA` | Required. The commit to compare from |
+| `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
+| `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments) |
+| `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
+
+It makes one REST compare call (`SHA...head`, plus further pages for very large
+ranges). When that range holds a merge commit it makes one more (`base...head`, the
+commits the PR itself carries) to tell which commits a merge brought in from the
+base branch. It prints a summary line, a verdict, then one tab-separated line per
+commit (`commit<TAB>sha<TAB>merge|base|--<TAB>author<TAB>headline`; `merge` is a
+merge commit, `base` a commit reachable from the base branch that a merge brought
+in) and per file
+(`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
+
+```text
+$ tkt pr changes jpshackelford/tickster#60 --since 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
+jpshackelford/tickster#60 75d1faa..742dbea 1 commits 4 files +104 -4
+significant: yes (4 files, 108 changed lines)
+commit  742dbea --      openhands-agent fix(issue): default 'issue list' to open issues
+file    modified        +0      -1      --      src/__main__.py
+file    modified        +2      -1      --      src/issue/cli/list_cmd.py
+file    modified        +7      -2      --      src/snapshot/models.py
+file    added   +95     -0      --      tests/snapshot/test_issue_default_state.py
+```
+
+The example uses a merged PR, whose head is fixed, and `75d1faa`, the `main`
+commit it branched from, so it reproduces. No file matched `--ignore-path` here.
+
+Verdict rules, in order:
+
+- `significant: yes (history rewritten)`: `SHA` is gone from the history
+  (force-push) or the range is diverged or behind.
+- `significant: yes (too large to inspect)`: the range needs more than 10 pages.
+- `significant: no`: nothing changed, or every commit is a merge commit (two or
+  more parents) or a `base` commit, or no files remain after `--ignore-path`, or
+  the remaining lines are below `--min-changed-lines`. A merge-from-base commit
+  alone is `no`, however much the base brought in.
+- Otherwise `significant: yes`. Without `--ignore-path` and `--min-changed-lines`
+  every change the PR itself authored is significant.
+
+Notes:
+
+- The file list is the net diff of the range. When a range holds a merge-from-base
+  commit and a real commit, files the merge brought in are counted too, so the
+  verdict can only over-report. Use `--ignore-path` or `--min-changed-lines` to
+  discount them.
+- The `base` marker comes from the PR's current base branch. If the base branch
+  was rewound, a commit it no longer holds counts as the PR's own.
+- If `base...head` is too large to read (more than 10 pages), the verdict is
+  `yes (too large to inspect)`.
+- A pipe closed by the reader (`tkt pr changes ... | head -1`) ends quietly with
+  exit code 141, without a traceback.
+- The exit code is 0 whether or not the change is significant; errors exit 1.
+- The command is also a library function, `src.pr.changes.pr_changes`.
+
 ## `tkt review`
 
 Show PRs from a reviewer's perspective. By default shows only PRs that need
