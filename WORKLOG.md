@@ -242,3 +242,12 @@ _None._
 - Ready, next up: #75 (`medium`), #72, #73 (`low`). Needs split: #71. Needs expansion (queued): #78-#82
 
 ---
+### 2026-11-07 21:59 UTC - Worker (#70)
+
+✅ **PR merged:** [PR #84](https://github.com/jpshackelford/tickster/pull/84) `docs: add Upgrading to 1.0 section`, squash `08b93f7`. [#70](https://github.com/jpshackelford/tickster/issues/70) closed.
+
+- Docs only: new `## Upgrading to 1.0` in `doc/usage.md`, linked from `README.md` and `doc/board.md`. Head `6b27077`, CI green, manual test posted, review approved.
+- Manual test note, not a blocker: `tkt board config set agent-username-pattern` raises a traceback when no board exists. This matches the error-path issue already expanded above.
+- Release PR #44 untouched.
+
+---
