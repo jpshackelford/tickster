@@ -363,3 +363,15 @@ _None._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+---
+
+### 2026-11-07 22:20 UTC - Merge Worker
+
+✅ **Merged [PR #85](https://github.com/jpshackelford/tickster/pull/85)** and closed [#74](https://github.com/jpshackelford/tickster/issues/74): fix(cli): correct review example in --help epilog
+
+- Squash-merged at head `e58c18b` (CI green, approved, manual test posted) as [`f249fe9`](https://github.com/jpshackelford/tickster/commit/f249fe98c76fbb26a17395cc35d740ea10449f50); #74 closed as completed.
+- Epilog now says `tkt review`; new `tests/test_help_examples.py` parses every epilog example with the real parser.
+- PR body rewritten to final state. The default `GITHUB_TOKEN` could not edit or merge PRs (403), so the PR edit and merge used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
