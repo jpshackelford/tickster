@@ -85,6 +85,9 @@ tkt issue list                     # list open issues
 tkt pr list                        # list open pull requests
 tkt pr list --repo owner/name --all-authors   # everyone's PRs, not only yours
 tkt pr steps owner/repo#7          # which of review, CI, findings and re-review are pending
+tkt pr show owner/repo#7           # one PR's timeline with comment and review text
+tkt pr show owner/repo#7 --since 2026-11-05T10:00:00Z   # only events after a time
+tkt issue show owner/repo#42       # one issue's timeline with comment text
 tkt pr checks owner/repo#7 --short # failing checks: name, failing step, log URL
 tkt pr checks owner/repo#7 --full  # same, plus each failing step's log
 tkt review                         # list PRs awaiting your review
