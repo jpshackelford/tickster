@@ -12,6 +12,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
+from src.list_table import add_shrinkable_column, print_fitted_table
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo
 from src.review.github_api import ReviewClient
@@ -227,10 +228,11 @@ def _print_review_table(
     """Print reviews in a formatted table."""
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("PR", justify="right", no_wrap=True)
     if show_title:
-        table.add_column("Title", no_wrap=True, overflow="ellipsis", max_width=35)
+        add_shrinkable_column(table, "Title", max_width=35)
+    history_col = len(table.columns)
     table.add_column("History", no_wrap=True)
     table.add_column("Status", no_wrap=True)
     table.add_column("Wait", no_wrap=True)
@@ -239,6 +241,7 @@ def _print_review_table(
     table.add_column("Author", no_wrap=True)
     table.add_column("Last", no_wrap=True)
 
+    rows = []
     for review in reviews:
         row = [
             review.repo,
@@ -257,9 +260,9 @@ def _print_review_table(
                 _format_relative_time(review.last_activity),
             ]
         )
-        table.add_row(*row)
+        rows.append(row)
 
-    console.print(table)
+    print_fitted_table(console, table, rows, history_col=history_col)
     console.print(f"\n[dim]History: lowercase={reviewer}, UPPERCASE=others[/]")
 
 

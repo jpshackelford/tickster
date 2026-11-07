@@ -186,6 +186,40 @@ def test_80_columns_keeps_glyph_number_history_tail_and_note(kind, is_terminal):
         assert "OpenHands/OpenHands" in rows["*"]  # piped output is never truncated
 
 
+@pytest.mark.parametrize("kind", ["pr", "issue", "review"])
+def test_80_columns_crops_a_long_history_with_the_crop_mark_not_rich_ellipsis(kind):
+    status = "review" if kind == "review" else None
+    long_history = "o" + "cC" * 40
+    prev = make_snapshot(
+        kind=kind, items=[make_item(key="o/r#1", history=long_history, review_status=status)]
+    )
+    curr = make_snapshot(
+        kind=kind, items=[make_item(key="o/r#1", history=long_history + "f", review_status=status)]
+    )
+    buf = io.StringIO()
+    console = Console(file=buf, width=80, color_system=None, force_terminal=True)
+    render_diff(diff_snapshots(prev, curr), console=console)
+    out = buf.getvalue()
+    row = next(line for line in out.splitlines() if "#1" in line)
+
+    cell = next(token for token in row.split() if token.startswith("oc"))
+    assert "#1" in row
+    assert cell.endswith(">") and "…" not in cell
+    assert "History cropped to fit the terminal" in out
+    assert console.width == 80
+
+
+def test_wide_terminal_diff_has_no_crop_and_no_legend():
+    long_history = "o" + "cC" * 40
+    prev = make_snapshot(items=[make_item(key="o/r#1", history=long_history)])
+    curr = make_snapshot(items=[make_item(key="o/r#1", history=long_history + "f")])
+    buf = io.StringIO()
+    console = Console(file=buf, width=200, color_system=None, force_terminal=True)
+    render_diff(diff_snapshots(prev, curr), console=console)
+    assert long_history + "[f]" in buf.getvalue()
+    assert "History cropped" not in buf.getvalue()
+
+
 def _windowed(window: WindowScope | None, **kw):
     return make_snapshot(scope=SnapshotScope(board="oh", window=window), **kw)
 

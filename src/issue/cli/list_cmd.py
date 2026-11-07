@@ -17,6 +17,7 @@ from src.date_window import (
 )
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
+from src.list_table import add_shrinkable_column, print_fitted_table
 from src.snapshot.convert import snapshot_from_issues
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_ISSUE, SnapshotScope
@@ -206,17 +207,19 @@ def _print_issue_table(
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("Issue", justify="right", no_wrap=True)
     if show_title:
-        table.add_column("Title", no_wrap=True, overflow="ellipsis", max_width=35)
+        add_shrinkable_column(table, "Title", max_width=35)
+    history_col = len(table.columns)
     table.add_column("History", no_wrap=True)
     table.add_column("PR", no_wrap=True)
-    table.add_column("Labels", no_wrap=True, overflow="ellipsis", max_width=25)
+    add_shrinkable_column(table, "Labels", max_width=25)
     table.add_column("State", no_wrap=True)
     table.add_column("Age", no_wrap=True)
     table.add_column("Last", no_wrap=True)
 
+    rows = []
     for issue in issues:
         row = [
             issue.repo,
@@ -234,9 +237,9 @@ def _print_issue_table(
                 _format_relative_time(issue.last_activity_seconds),
             ]
         )
-        table.add_row(*row)
+        rows.append(row)
 
-    console.print(table)
+    print_fitted_table(console, table, rows, history_col=history_col)
 
 
 def _format_linked_pr(linked_pr: str | None) -> str:

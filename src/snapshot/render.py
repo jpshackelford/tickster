@@ -21,8 +21,12 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.list_table import add_shrinkable_column, print_fitted_table
 from src.pr.detail import merge_label, review_label, short_sha
 from src.snapshot.models import ChangeKind, DiffResult, ItemDelta, Snapshot
+
+# Diff tables have up to five shrinkable columns, so each gets a lower floor than in lists.
+SHRINK_FLOOR = 4
 
 _KIND_GLYPH = {
     ChangeKind.ADDED: "[green]+[/]",
@@ -125,26 +129,20 @@ def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
     return f"window: {before} → {after}"
 
 
-def _add_shrinkable_column(table: Table, header: str, **kwargs) -> None:
-    """Add a column Rich may ellipsize when the table is too wide.
-
-    Rich only narrows wrap-able columns before falling back to shrinking every
-    column evenly, which erases the 1-char Δ column and the history tail. The
-    values here are single words, so allowing wrap never splits them across
-    lines; they just ellipsize.
-    """
-    table.add_column(header, no_wrap=False, overflow="ellipsis", **kwargs)
-
-
-def _print_table(table: Table, *, console: Console) -> None:
+def _print_table(
+    table: Table, rows: list[list[str]], *, console: Console, history_col: int
+) -> None:
     """Print `table`, never truncating it when output isn't a terminal.
 
     Piped output (an agent's cron loop, a log) has no line width to fit, and
     Rich's 80-column default would cut exactly the cells the diff exists for.
+    On a terminal, a History cell too long for the width is cropped with `>`.
     """
     if console.is_terminal:
-        console.print(table)
+        print_fitted_table(console, table, rows, history_col=history_col, floor=SHRINK_FLOOR)
         return
+    for row in rows:
+        table.add_row(*row)
     natural = console.measure(table, options=console.options.update_width(10_000)).maximum
     saved = console.width
     console.width = max(saved, natural)
@@ -160,21 +158,22 @@ def _print_pr_like_table(
     show_detail = detail and kind == "pr"
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
-    _add_shrinkable_column(table, "Repo", style="cyan")
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("PR", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
-    _add_shrinkable_column(table, "CI")
+    add_shrinkable_column(table, "CI")
     if show_detail:
-        _add_shrinkable_column(table, "Head")
-        _add_shrinkable_column(table, "Review")
-        _add_shrinkable_column(table, "Merge")
+        add_shrinkable_column(table, "Head")
+        add_shrinkable_column(table, "Review")
+        add_shrinkable_column(table, "Merge")
     if kind == "review":
-        _add_shrinkable_column(table, "Status")
-    _add_shrinkable_column(table, "State")
+        add_shrinkable_column(table, "Status")
+    add_shrinkable_column(table, "State")
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Last", no_wrap=True)
     table.add_column("Note", no_wrap=True)
 
+    rows = []
     for d in deltas:
         item = d.display_item
         row = [
@@ -208,38 +207,41 @@ def _print_pr_like_table(
                 _render_note(d, show_pr_detail=not show_detail),
             ]
         )
-        table.add_row(*row)
+        rows.append(row)
 
-    _print_table(table, console=console)
+    _print_table(table, rows, console=console, history_col=3)
 
 
 def _print_issue_table(deltas: list[ItemDelta], *, console: Console) -> None:
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Δ", no_wrap=True)
-    _add_shrinkable_column(table, "Repo", style="cyan")
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("Issue", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     table.add_column("PR", no_wrap=True)
-    table.add_column("Labels", no_wrap=True, overflow="ellipsis", max_width=25)
-    _add_shrinkable_column(table, "State")
+    add_shrinkable_column(table, "Labels", max_width=25)
+    add_shrinkable_column(table, "State")
     table.add_column("Last", no_wrap=True)
     table.add_column("Note", no_wrap=True)
 
+    rows = []
     for d in deltas:
         item = d.display_item
-        table.add_row(
-            _KIND_GLYPH[d.kind],
-            item.repo,
-            f"#{item.number}",
-            _render_history(item.history, d),
-            _render_linked_pr(item.linked_pr),
-            _render_labels(item.labels, "labels" in d.changed_fields),
-            _render_field(item.state, "state" in d.changed_fields),
-            _render_last_activity(item.last_activity, d),
-            _render_note(d),
+        rows.append(
+            [
+                _KIND_GLYPH[d.kind],
+                item.repo,
+                f"#{item.number}",
+                _render_history(item.history, d),
+                _render_linked_pr(item.linked_pr),
+                _render_labels(item.labels, "labels" in d.changed_fields),
+                _render_field(item.state, "state" in d.changed_fields),
+                _render_last_activity(item.last_activity, d),
+                _render_note(d),
+            ]
         )
 
-    _print_table(table, console=console)
+    _print_table(table, rows, console=console, history_col=3)
 
 
 def _render_history(history: str, d: ItemDelta) -> str:

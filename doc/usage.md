@@ -196,7 +196,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
-| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -1147,6 +1147,16 @@ Two conventions apply to every history string:
   more than 100). If an item has more, the oldest 500 are shown and the string
   ends in `…`; later events, including a final `M` or `x`, are not shown. Review
   threads are counted up to 1000 and labels are read up to 100 per issue.
+- **A trailing `>` means the history was cropped to fit the terminal.** When the
+  History cell of `tkt pr list`, `tkt issue list`, `tkt review` or a `--diff` /
+  `--watch` table is wider than the room left, `tkt` keeps its head and ends it
+  in `>`, and prints one line under the table to say so. Repo, Title and Labels
+  give up width first (down to a floor); the PR / issue number and the Steps cell
+  are never shortened. A `>` is only about width: widen the terminal to see
+  the whole string. `…` stays the 500-event cap and is never added by the crop.
+  If the columns cannot fit even then (for example `--detail --steps --title` at
+  80 columns), the table prints at the width it needs instead of squeezing every
+  column.
 
 ### PR history characters
 
