@@ -393,3 +393,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Labelled `ready`. Complexity medium. Overlaps #15 (hold); the helper is built so #15 can absorb it.
 
 ---
+
+### 2026-11-07 22:30 UTC - Merge Worker
+
+✅ **Merged [PR #86](https://github.com/jpshackelford/tickster/pull/86)** and closed [#75](https://github.com/jpshackelford/tickster/issues/75): fix(cli): print one-line errors for four error paths
+
+- Squash-merged at head `30b8dbd` (CI green, approved, manual test 19/19 posted after the last commit) as [`a7df4e7`](https://github.com/jpshackelford/tickster/commit/a7df4e744ba007e907c04f25158962013e143afd); #75 closed as completed.
+- `board config set`, `board init`, `norms init --from github: --ref`, and `norms check` regex errors now print one `error:` line and exit 1; shared `GraphQLError` and `describe_http_error()`.
+- PR body rewritten to final state with the manual test result. The default `GITHUB_TOKEN` was not used for edit or merge; `JPSHACKELFORD_GITHUB_TOKEN` was.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
