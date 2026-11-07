@@ -2,11 +2,14 @@
 
 from datetime import datetime
 
+from src.actors import ActorClass, HistoryEvent, classify_actor, iso_utc
 from src.connection_paging import TRUNCATION_MARKER, is_truncated
-from src.issue.config import is_bot_user
 from src.issue.models import IssueActionType, IssueInfo, IssueState, TimelineEvent
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
+
+# An AI actor's comment gets its own letter.
+AI_CHARS = {IssueActionType.COMMENT: "n"}
 
 
 def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
@@ -34,10 +37,11 @@ def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
     labels = sorted([lbl["name"] for lbl in labels_data if lbl])
 
     # Process timeline into history string and find linked PR
-    events, linked_pr = _extract_timeline_events(issue_data, author, get_repo_norms(repo))
-    history = _build_history_string(
-        events, reference_user, truncated=is_truncated(issue_data, "timelineItems")
+    events, linked_pr = _extract_timeline_events(
+        issue_data, author, reference_user, get_repo_norms(repo)
     )
+    history_events = _history_events(events, reference_user)
+    history = _history_text(history_events, truncated=is_truncated(issue_data, "timelineItems"))
 
     # Find last activity time
     last_activity = _find_last_activity(events, created_at)
@@ -54,6 +58,7 @@ def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
         closed_at=closed_at,
         last_activity=last_activity,
         author=author,
+        events=history_events,
     )
 
 
@@ -64,7 +69,7 @@ def _parse_datetime(dt_str: str) -> datetime:
 
 
 def _extract_timeline_events(
-    issue_data: dict, issue_author: str, norms: Norms | None = None
+    issue_data: dict, issue_author: str, reference_user: str, norms: Norms | None
 ) -> tuple[list[TimelineEvent], str | None]:
     """Extract timeline events and find linked PR.
 
@@ -81,6 +86,7 @@ def _extract_timeline_events(
             action=IssueActionType.OPENED,
             actor=issue_author,
             timestamp=created_at,
+            actor_class=classify_actor(issue_author, reference_user, norms),
         )
     )
 
@@ -91,7 +97,7 @@ def _extract_timeline_events(
             continue
 
         typename = item.get("__typename")
-        event = _parse_timeline_item(typename, item, norms)
+        event = _parse_timeline_item(typename, item, reference_user, norms)
         if event:
             events.append(event)
 
@@ -113,16 +119,24 @@ def _extract_timeline_events(
 def _parse_timeline_item(
     typename: str,
     item: dict,
-    norms: Norms | None = None,
+    reference_user: str,
+    norms: Norms | None,
 ) -> TimelineEvent | None:
     """Parse a single timeline item into an event."""
+    event = _parse_event(typename, item)
+    if event is None:
+        return None
+    event.actor_class = classify_actor(event.actor, reference_user, norms, item.get("body"))
+    if event.action == IssueActionType.COMMENT and event.actor_class == ActorClass.BOT:
+        event.action = IssueActionType.BOT_COMMENT
+    return event
+
+
+def _parse_event(typename: str, item: dict) -> TimelineEvent | None:
     if typename == "IssueComment":
         actor = item.get("author", {}).get("login", "ghost") if item.get("author") else "ghost"
         timestamp = _parse_datetime(item["createdAt"])
-        action = (
-            IssueActionType.BOT_COMMENT if is_bot_user(actor, norms) else IssueActionType.COMMENT
-        )
-        return TimelineEvent(action=action, actor=actor, timestamp=timestamp)
+        return TimelineEvent(action=IssueActionType.COMMENT, actor=actor, timestamp=timestamp)
 
     elif typename == "LabeledEvent":
         actor = item.get("actor", {}).get("login", "ghost") if item.get("actor") else "ghost"
@@ -194,25 +208,33 @@ def _select_linked_pr(prs: list[tuple[str, str]]) -> str | None:
     return prs[0][0]
 
 
+def _is_ai(event: TimelineEvent) -> bool:
+    return event.actor_class.is_ai and event.action in AI_CHARS
+
+
 def _deduplicate_consecutive(events: list[TimelineEvent]) -> list[TimelineEvent]:
-    """Remove consecutive duplicate action types."""
+    """Remove consecutive duplicates: the same action, by an AI actor or not."""
     if not events:
         return []
 
     result: list[TimelineEvent] = [events[0]]
     for event in events[1:]:
-        if event.action != result[-1].action:
+        last = result[-1]
+        if event.action != last.action or _is_ai(event) != _is_ai(last):
             result.append(event)
     return result
 
 
-def _format_action(action: IssueActionType, actor: str, reference_user: str) -> str:
+def _format_action(
+    action: IssueActionType, actor: str, reference_user: str, *, ai: bool = False
+) -> str:
     """Convert action to case-appropriate character.
 
     - BOT_COMMENT is always uppercase "B"
     - Other actions: lowercase = reference_user, uppercase = others
+    - ``ai`` swaps in the AI actor's letter for a comment
     """
-    char = action.value
+    char = AI_CHARS[action] if ai and action in AI_CHARS else action.value
 
     # BOT_COMMENT is always uppercase
     if action == IssueActionType.BOT_COMMENT:
@@ -222,6 +244,25 @@ def _format_action(action: IssueActionType, actor: str, reference_user: str) -> 
     if not is_reference_user:
         char = char.upper()
     return char
+
+
+def _history_events(events: list[TimelineEvent], reference_user: str) -> list[HistoryEvent]:
+    """The events a history string shows, one per character."""
+    return [
+        HistoryEvent(
+            char=_format_action(e.action, e.actor, reference_user, ai=e.actor_class.is_ai),
+            action=e.action.name.lower(),
+            actor=e.actor,
+            actor_class=e.actor_class,
+            at=iso_utc(e.timestamp),
+        )
+        for e in _deduplicate_consecutive(events)
+    ]
+
+
+def _history_text(history_events: list[HistoryEvent], truncated: bool) -> str:
+    history = "".join(e.char for e in history_events)
+    return history + TRUNCATION_MARKER if truncated else history
 
 
 def _build_history_string(
@@ -234,13 +275,11 @@ def _build_history_string(
     Rules:
     - Lowercase = action by reference_user
     - Uppercase = action by someone else
-    - BOT_COMMENT is always "B"
+    - BOT_COMMENT is always "B"; a comment by an AI actor is "n" (you) or "N" (others)
     - Consecutive duplicates are collapsed
     - ``truncated`` appends a marker: events past the fetch cap are missing
     """
-    deduped = _deduplicate_consecutive(events)
-    history = "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
-    return history + TRUNCATION_MARKER if truncated else history
+    return _history_text(_history_events(events, reference_user), truncated)
 
 
 def _find_last_activity(events: list[TimelineEvent], created_at: datetime) -> datetime:

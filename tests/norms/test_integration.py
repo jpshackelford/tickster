@@ -199,13 +199,22 @@ class TestBotDetection:
             'schema = 1\n[actors]\nbots = ["ci-runner"]\nagent_logins = ["ai[bot]"]\n'
         ).norms
         comment = {"author": {"login": "ci-runner"}, "createdAt": "2024-01-15T11:00:00Z"}
-        assert _parse_timeline_item("IssueComment", comment, norms).action == (
+        assert _parse_timeline_item("IssueComment", comment, "me", norms).action == (
             IssueActionType.BOT_COMMENT
         )
-        assert _parse_timeline_item("IssueComment", comment).action == IssueActionType.COMMENT
+        assert (
+            _parse_timeline_item("IssueComment", comment, "me", None).action
+            == IssueActionType.COMMENT
+        )
         agent = {"author": {"login": "ai[bot]"}, "createdAt": "2024-01-15T11:00:00Z"}
-        assert _parse_timeline_item("IssueComment", agent, norms).action == IssueActionType.COMMENT
-        assert _parse_timeline_item("IssueComment", agent).action == IssueActionType.BOT_COMMENT
+        assert (
+            _parse_timeline_item("IssueComment", agent, "me", norms).action
+            == IssueActionType.COMMENT
+        )
+        assert (
+            _parse_timeline_item("IssueComment", agent, "me", None).action
+            == IssueActionType.BOT_COMMENT
+        )
 
 
 def issue_data(commenter: str) -> dict:

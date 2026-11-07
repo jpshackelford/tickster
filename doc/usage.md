@@ -827,12 +827,20 @@ Used by `tkt pr list` and `tkt review`.
 | `r` | Changes requested (a review) |
 | `a` | Approved |
 | `c` | Comment |
+| `e` / `E` | Changes requested by an AI actor |
+| `v` / `V` | Approved by an AI actor |
+| `n` / `N` | Comment by an AI actor |
 | `f` | Fix — commits pushed after a review (commits before the first review are ignored) |
 | `m` | Merged |
 | `k` | Killed — closed without merging (not shown if merged) |
 
 Example: `oRfAM` = *you* opened the PR, someone requested changes (`R`), *you*
 pushed fixes (`f`), someone approved (`A`), someone merged (`M`).
+
+`e`, `v` and `n` replace `r`, `a` and `c` when an [AI actor](#ai-actors) did it: lowercase
+when it acted with your own login (an AI disclosure in the text), uppercase when it
+acted under its own login. `oEVM` = an agent requested changes, an agent approved, and
+someone merged.
 
 ### Issue history characters
 
@@ -842,6 +850,7 @@ Used by `tkt issue list`.
 | --- | --- |
 | `o` | Opened |
 | `c` / `C` | Comment (lowercase = you, uppercase = other human) |
+| `n` / `N` | Comment by an AI actor (lowercase = it acted with your login, uppercase = its own login) |
 | `B` | Bot comment (always uppercase) |
 | `l` / `L` | Label added (lowercase = you, uppercase = other human or bot) |
 | `a` | Assigned |
@@ -855,6 +864,24 @@ Examples:
 - `oclBLx` — opened, you commented and labelled, a bot commented (`B`) and
   labelled (`L`), then closed.
 - `oCpx` — opened, got a comment, linked to a PR, closed.
+
+### AI actors
+
+Every event also carries an **actor class**, shown in JSON (the `events` list of each
+`tkt snapshot` item, one entry per history character, as `actor_class`):
+
+| Class | Who |
+| --- | --- |
+| `me` | the reference user |
+| `human` | anyone else |
+| `bot` | non-AI automation: a `[bot]` login, `[issue] bot_usernames`, `[actors] bots` |
+| `agent` | a login in the repo's `[actors] agent_logins`, even if it ends in `[bot]` |
+| `me_agent` | the reference user, when their login is in `agent_logins` or their text matches `[actors] agent_disclosure` |
+
+Logins and the disclosure pattern come only from the repo's `.agents/tickster.toml`
+([norms file](#tkt-norms)). With no file, no AI actor is recognised and `[bot]`
+accounts are still `bot`. The disclosure pattern is matched against the whole body of
+a comment or review. Histories with no AI actors render exactly as before.
 
 ### Bot detection
 

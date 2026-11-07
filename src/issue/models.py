@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from src.actors import ActorClass, HistoryEvent
+
 
 class IssueActionType(Enum):
     """Issue timeline action types."""
@@ -32,6 +34,7 @@ class TimelineEvent:
     action: IssueActionType
     actor: str
     timestamp: datetime
+    actor_class: ActorClass = ActorClass.HUMAN
 
 
 @dataclass
@@ -49,6 +52,7 @@ class IssueInfo:
     closed_at: datetime | None
     last_activity: datetime
     author: str
+    events: list[HistoryEvent] = field(default_factory=list)  # one per history character
 
     @property
     def age_seconds(self) -> float:

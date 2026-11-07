@@ -1,9 +1,10 @@
 """Data models for reviewer-centric PR queue."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from src.actors import HistoryEvent
 from src.pr.models import CIStatus
 
 
@@ -33,6 +34,7 @@ class ReviewInfo:
     author: str
     last_activity: datetime
     mergeable: str | None = None
+    events: list[HistoryEvent] = field(default_factory=list)  # one per history character
 
     @property
     def needs_action(self) -> bool:
