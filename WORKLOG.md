@@ -216,3 +216,11 @@ Testing [PR #68](https://github.com/jpshackelford/tickster/pull/68): `tkt pr ste
 - Ready issues: #40 (in flight), #54 `hold`. Needs expansion: none in scope
 
 ---
+### 2026-11-07 13:35 UTC - Worker (#40)
+
+✅ **PR ready for review:** [PR #69](https://github.com/jpshackelford/tickster/pull/69) `tkt pr show` / `tkt issue show`. Fixes [#40](https://github.com/jpshackelford/tickster/issues/40).
+
+- CI is green. All acceptance criteria are covered by tests (`tests/show/`), and the real queries were also run against live GitHub.
+- Left for a separate conversation: docs (`doc/usage.md`), the manual test, and review handling.
+
+---
