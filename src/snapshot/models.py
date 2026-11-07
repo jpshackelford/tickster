@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from enum import Enum
 
+from src.actors import HistoryEvent
 from src.date_window import DateWindow
 
 SCHEMA_VERSION = 1
@@ -265,10 +266,12 @@ class ItemSnapshot:
     review_decision: str | None = None  # pr: GitHub reviewDecision; None = no decision
     merge_state: str | None = None  # pr: GitHub mergeStateStatus
     mergeable: str | None = None  # pr: GitHub mergeable
+    events: tuple[HistoryEvent, ...] = ()  # one per history character; () = not recorded
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["labels"] = list(self.labels)
+        d["events"] = [e.to_dict() for e in self.events]
         return d
 
     @classmethod
@@ -293,6 +296,7 @@ class ItemSnapshot:
             review_decision=data.get("review_decision"),
             merge_state=data.get("merge_state"),
             mergeable=data.get("mergeable"),
+            events=tuple(HistoryEvent.from_dict(e) for e in data.get("events", [])),
         )
 
 

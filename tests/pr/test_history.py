@@ -261,7 +261,7 @@ class TestNullActor:
 
     @pytest.mark.parametrize(("item", "action", "actor"), NULL_ACTOR_CASES)
     def test_parse_timeline_item(self, item, action, actor):
-        event = _parse_timeline_item(item["__typename"], item, PR_AUTHOR)
+        event = _parse_timeline_item(item["__typename"], item, PR_AUTHOR, "me", None)
 
         assert event is not None
         assert event.action == action

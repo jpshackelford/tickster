@@ -52,6 +52,7 @@ def item_from_pr(pr: PRInfo) -> ItemSnapshot:
         review_decision=pr.review_decision,
         merge_state=pr.merge_state,
         mergeable=pr.mergeable,
+        events=tuple(pr.events),
     )
 
 
@@ -67,6 +68,7 @@ def item_from_issue(issue: IssueInfo) -> ItemSnapshot:
         last_activity=_iso_utc(issue.last_activity),
         labels=tuple(issue.labels),
         linked_pr=issue.linked_pr,
+        events=tuple(issue.events),
     )
 
 
@@ -86,6 +88,7 @@ def item_from_review(review: ReviewInfo) -> ItemSnapshot:
         mergeable=review.mergeable,
         review_status=_review_status_value(review.status),
         wait_seconds=review.wait_seconds,
+        events=tuple(review.events),
     )
 
 

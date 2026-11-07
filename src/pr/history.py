@@ -2,8 +2,14 @@
 
 from datetime import datetime
 
+from src.actors import HistoryEvent, classify_actor, iso_utc
 from src.connection_paging import TRUNCATION_MARKER, is_truncated
+from src.norms.model import Norms
+from src.norms.store import get_repo_norms
 from src.pr.models import ActionType, CIStatus, PRInfo, PRState, TimelineEvent
+
+# An AI actor's version of these events gets its own letter.
+AI_CHARS = {ActionType.REVIEW: "e", ActionType.APPROVED: "v", ActionType.COMMENT: "n"}
 
 
 def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
@@ -35,10 +41,9 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
     ci_status = _determine_ci_status(pr_data)
 
     # Process timeline into history string
-    events = _extract_timeline_events(pr_data, author)
-    history = _build_history_string(
-        events, reference_user, truncated=is_truncated(pr_data, "timelineItems")
-    )
+    events = _extract_timeline_events(pr_data, author, reference_user, get_repo_norms(repo))
+    history_events = _history_events(events, reference_user)
+    history = _history_text(history_events, truncated=is_truncated(pr_data, "timelineItems"))
 
     # Find last activity time
     last_activity = _find_last_activity(events, created_at)
@@ -60,6 +65,7 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
         review_decision=pr_data.get("reviewDecision"),
         merge_state=pr_data.get("mergeStateStatus"),
         mergeable=pr_data.get("mergeable"),
+        events=history_events,
     )
 
 
@@ -111,7 +117,9 @@ def _determine_ci_status(pr_data: dict) -> CIStatus:
     return CIStatus.NONE
 
 
-def _extract_timeline_events(pr_data: dict, pr_author: str) -> list[TimelineEvent]:
+def _extract_timeline_events(
+    pr_data: dict, pr_author: str, reference_user: str, norms: Norms | None
+) -> list[TimelineEvent]:
     """Extract and sort timeline events from PR data."""
     events: list[TimelineEvent] = []
 
@@ -122,6 +130,7 @@ def _extract_timeline_events(pr_data: dict, pr_author: str) -> list[TimelineEven
             action=ActionType.OPENED,
             actor=pr_author,
             timestamp=created_at,
+            actor_class=classify_actor(pr_author, reference_user, norms),
         )
     )
 
@@ -133,7 +142,7 @@ def _extract_timeline_events(pr_data: dict, pr_author: str) -> list[TimelineEven
             continue
 
         typename = item.get("__typename")
-        event = _parse_timeline_item(typename, item, pr_author)
+        event = _parse_timeline_item(typename, item, pr_author, reference_user, norms)
         if event:
             events.append(event)
 
@@ -152,8 +161,18 @@ def _parse_timeline_item(
     typename: str,
     item: dict,
     pr_author: str,
+    reference_user: str,
+    norms: Norms | None,
 ) -> TimelineEvent | None:
     """Parse a single timeline item into an event."""
+    event = _parse_event(typename, item, pr_author)
+    if event is None:
+        return None
+    event.actor_class = classify_actor(event.actor, reference_user, norms, item.get("body"))
+    return event
+
+
+def _parse_event(typename: str, item: dict, pr_author: str) -> TimelineEvent | None:
     if typename == "PullRequestReview":
         actor = _login(item.get("author"))
         timestamp = _parse_datetime(item["createdAt"])
@@ -239,29 +258,55 @@ def _filter_timeline_events(events: list[TimelineEvent]) -> list[TimelineEvent]:
     return filtered
 
 
+def _is_ai(event: TimelineEvent) -> bool:
+    return event.actor_class.is_ai and event.action in AI_CHARS
+
+
 def _deduplicate_consecutive(events: list[TimelineEvent]) -> list[TimelineEvent]:
-    """Remove consecutive duplicate action types."""
+    """Remove consecutive duplicates: the same action, by an AI actor or not."""
     if not events:
         return []
 
     result: list[TimelineEvent] = [events[0]]
     for event in events[1:]:
-        if event.action != result[-1].action:
+        last = result[-1]
+        if event.action != last.action or _is_ai(event) != _is_ai(last):
             result.append(event)
     return result
 
 
-def _format_action(action: ActionType, actor: str, reference_user: str) -> str:
+def _format_action(action: ActionType, actor: str, reference_user: str, *, ai: bool = False) -> str:
     """Convert action to case-appropriate character.
 
     Lowercase = action by reference_user
     Uppercase = action by someone else
+    ``ai`` swaps in the AI actor's letter for review, approval and comment.
     """
-    char = action.value
+    char = AI_CHARS[action] if ai and action in AI_CHARS else action.value
     is_reference_user = actor.lower() == reference_user.lower()
     if not is_reference_user:
         char = char.upper()
     return char
+
+
+def _history_events(events: list[TimelineEvent], reference_user: str) -> list[HistoryEvent]:
+    """The events a history string shows, one per character."""
+    deduped = _deduplicate_consecutive(_filter_timeline_events(events))
+    return [
+        HistoryEvent(
+            char=_format_action(e.action, e.actor, reference_user, ai=e.actor_class.is_ai),
+            action=e.action.name.lower(),
+            actor=e.actor,
+            actor_class=e.actor_class,
+            at=iso_utc(e.timestamp),
+        )
+        for e in deduped
+    ]
+
+
+def _history_text(history_events: list[HistoryEvent], truncated: bool) -> str:
+    history = "".join(e.char for e in history_events)
+    return history + TRUNCATION_MARKER if truncated else history
 
 
 def _build_history_string(
@@ -274,15 +319,13 @@ def _build_history_string(
     Rules:
     - Lowercase = action by reference_user
     - Uppercase = action by someone else
+    - Reviews, approvals and comments by an AI actor use their own letters
     - Consecutive duplicates are collapsed
     - ``truncated`` appends a marker: events past the fetch cap are missing
     - Commits before any review are ignored (not "fixes")
     - If merged, don't also show killed
     """
-    filtered = _filter_timeline_events(events)
-    deduped = _deduplicate_consecutive(filtered)
-    history = "".join(_format_action(e.action, e.actor, reference_user) for e in deduped)
-    return history + TRUNCATION_MARKER if truncated else history
+    return _history_text(_history_events(events, reference_user), truncated)
 
 
 def _find_last_activity(events: list[TimelineEvent], created_at: datetime) -> datetime:

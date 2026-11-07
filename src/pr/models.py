@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from src.actors import ActorClass, HistoryEvent
+
 
 class ActionType(Enum):
     """PR timeline action types."""
@@ -43,6 +45,7 @@ class TimelineEvent:
     action: ActionType
     actor: str
     timestamp: datetime
+    actor_class: ActorClass = ActorClass.HUMAN
 
 
 @dataclass
@@ -65,6 +68,7 @@ class PRInfo:
     review_decision: str | None = None
     merge_state: str | None = None
     mergeable: str | None = None
+    events: list[HistoryEvent] = field(default_factory=list)  # one per history character
 
     @property
     def age_seconds(self) -> float:

@@ -30,12 +30,14 @@ PR_TIMELINE = ConnectionSpec(
     selection="""            __typename
             ... on PullRequestReview {
                 author { login }
+                body
                 state
                 createdAt
                 comments { totalCount }
             }
             ... on IssueComment {
                 author { login }
+                body
                 createdAt
             }
             ... on PullRequestCommit {

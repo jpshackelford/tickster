@@ -12,13 +12,15 @@ from src.board.github_api import (
     get_github_username,
 )
 from src.connection_paging import is_truncated
+from src.norms.store import get_repo_norms
 from src.pr.github_api import PR_FIELDS_FRAGMENT, complete_pr_connections
 from src.pr.history import (
-    _build_history_string,
     _count_unresolved_threads,
     _determine_ci_status,
     _extract_timeline_events,
     _find_last_activity,
+    _history_events,
+    _history_text,
     _parse_datetime,
 )
 from src.review.models import ReviewInfo, ReviewStatus
@@ -320,12 +322,11 @@ class ReviewClient:
         ci_status = _determine_ci_status(pr_data)
 
         # Process timeline into events
-        events = _extract_timeline_events(pr_data, author)
+        events = _extract_timeline_events(pr_data, author, reviewer, get_repo_norms(repo))
 
         # Build history string from reviewer's perspective
-        history = _build_history_string(
-            events, reviewer, truncated=is_truncated(pr_data, "timelineItems")
-        )
+        history_events = _history_events(events, reviewer)
+        history = _history_text(history_events, truncated=is_truncated(pr_data, "timelineItems"))
 
         # Find last activity time
         last_activity = _find_last_activity(events, created_at)
@@ -358,4 +359,5 @@ class ReviewClient:
             author=author,
             last_activity=last_activity,
             mergeable=pr_data.get("mergeable"),
+            events=history_events,
         )

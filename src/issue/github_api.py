@@ -29,6 +29,7 @@ ISSUE_TIMELINE = ConnectionSpec(
     selection="""            __typename
             ... on IssueComment {
                 author { login }
+                body
                 createdAt
             }
             ... on LabeledEvent {
