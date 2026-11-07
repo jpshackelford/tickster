@@ -289,3 +289,12 @@ _None._
 - Ready issues: #54 (`priority:low`, in flight). Needs expansion: #72, #73 (queued)
 
 ---
+### 2026-11-07 21:29 UTC - Worker (#54)
+
+✅ **PR ready for review:** [PR #83](https://github.com/jpshackelford/tickster/pull/83) `tkt pr steps`, Phase B. Fixes [#54](https://github.com/jpshackelford/tickster/issues/54).
+
+- CI is green. All acceptance criteria are covered by tests on recorded public timelines, and `doc/usage.md` is updated.
+- Validation over the private PR-shepherd fixtures: counts are in the PR body (52 of 58 mappable expectations agree; no private data in this repo). A human should confirm the mapping.
+- Left for a separate conversation: the manual test against live PRs, and review handling.
+
+---
