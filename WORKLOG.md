@@ -384,3 +384,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Labelled `ready`. Complexity low. Risk: one-time `history-rewritten` tag on old snapshots.
 
 ---
+### 2026-11-07 23:30 UTC - Expansion Worker
+
+✅ **Expanded Issue #80:** [Narrow terminals: Rich's crop looks like the history cap marker, and --steps is cut off at 80 columns](https://github.com/jpshackelford/tickster/issues/80)
+
+- Type: enhancement. Reproduced on `main`: at 80 columns Steps shows `Rc..M…` (it is 7 characters, not 4), and one long History cell makes Rich drop the PR, CI, Steps and State columns even at 160 columns.
+- Approach: keep the cap `…`; a shared helper crops History itself with `>`, Repo/Title/Labels shrink first, Steps gets a min width; used by `pr list`, `issue list` and `review`.
+- Labelled `ready`. Complexity medium. Overlaps #15 (hold); the helper is built so #15 can absorb it.
+
+---
