@@ -344,3 +344,10 @@ _None._
 - Approach: fix the "Bot detection" text and `pr show` example in `doc/usage.md`; add `github-actions` to `[actors] agent_logins` (not `bots`, so its AI reviews still count in `tkt pr steps`). Classifying by account type is out of scope and needs a separate code issue.
 
 ---
+
+### 2026-11-07 21:50 UTC - Worker (#70)
+
+- PR [#84](https://github.com/jpshackelford/tickster/pull/84) ready for [#70](https://github.com/jpshackelford/tickster/issues/70): new `## Upgrading to 1.0` section in `doc/usage.md`, linked from the README and the `doc/board.md` "No default" row.
+- Docs only; CI green; commands verified on a scratch tree. `CHANGELOG.md` and release PR #44 untouched. Testing and review are separate.
+
+---
