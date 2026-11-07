@@ -337,3 +337,13 @@ _None._
 - Ready issues: none unstarted (#40 is PR #69, #54 `hold`). Needs expansion: none in scope
 
 ---
+### 2026-11-07 14:16 UTC - Merge Worker
+
+✅ **Merged [PR #69](https://github.com/jpshackelford/tickster/pull/69) (`tkt pr show` / `tkt issue show`)**
+
+- Squash-merged as `fa2def1` on head `f892e26` (head and green CI re-verified first). [#40](https://github.com/jpshackelford/tickster/issues/40) closed via `Fixes #40`.
+- PR description updated with review and rebase decisions and test coverage: 1419 tests pass, 76 of them new, and 16/16 manual scenarios pass.
+- Non-blocking follow-ups noted in the manual test: `--max-body N` output exceeds N by the suffix, and an "a issue" typo in a snapshot-kind error.
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44) release-please, `hold`, untouched.
+
+---
