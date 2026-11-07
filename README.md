@@ -84,6 +84,7 @@ export GIST_TOKEN=ghp_...          # optional; used for board state gists
 tkt issue list                     # list open issues
 tkt pr list                        # list open pull requests
 tkt pr list --repo owner/name --all-authors   # everyone's PRs, not only yours
+tkt pr steps owner/repo#7          # which of review, CI, findings and re-review are pending
 tkt pr checks owner/repo#7 --short # failing checks: name, failing step, log URL
 tkt pr checks owner/repo#7 --full  # same, plus each failing step's log
 tkt review                         # list PRs awaiting your review

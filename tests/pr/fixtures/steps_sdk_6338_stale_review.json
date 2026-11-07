@@ -1,0 +1,56 @@
+{
+  "id": "PR_6338",
+  "number": 6338,
+  "title": "Recorded shape of software-agent-sdk#6338",
+  "state": "OPEN",
+  "isDraft": false,
+  "createdAt": "2026-11-05T01:00:00Z",
+  "closedAt": null,
+  "mergeable": "MERGEABLE",
+  "mergeStateStatus": "CLEAN",
+  "reviewDecision": null,
+  "headRefOid": "e66822d4c0b1f6d1f0f5c1a4a3b2c9d8e7f60514",
+  "labels": {
+    "nodes": []
+  },
+  "author": {
+    "login": "jpshackelford"
+  },
+  "repository": {
+    "nameWithOwner": "OpenHands/software-agent-sdk"
+  },
+  "reviewThreads": {
+    "nodes": []
+  },
+  "reviewRequests": {
+    "nodes": []
+  },
+  "latestReviews": {
+    "nodes": [
+      {
+        "author": {
+          "login": "enyst"
+        },
+        "state": "COMMENTED",
+        "submittedAt": "2026-11-05T02:33:00Z",
+        "commit": {
+          "oid": "0945b15a1d2c3b4a59687766554433221100ffee"
+        }
+      }
+    ]
+  },
+  "commits": {
+    "nodes": [
+      {
+        "commit": {
+          "statusCheckRollup": {
+            "state": "SUCCESS"
+          }
+        }
+      }
+    ]
+  },
+  "timelineItems": {
+    "nodes": []
+  }
+}

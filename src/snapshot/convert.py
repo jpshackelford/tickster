@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from src.issue.models import IssueInfo, IssueState
 from src.pr.models import CIStatus, PRInfo, PRState
+from src.pr.steps import StepResult, step_statuses
 from src.review.models import ReviewInfo, ReviewStatus
 from src.snapshot.models import (
     KIND_ISSUE,
@@ -34,7 +35,7 @@ def _iso_utc(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def item_from_pr(pr: PRInfo) -> ItemSnapshot:
+def item_from_pr(pr: PRInfo, steps: tuple[StepResult, ...] | None = None) -> ItemSnapshot:
     return ItemSnapshot(
         key=f"{pr.repo}#{pr.number}",
         repo=pr.repo,
@@ -54,6 +55,7 @@ def item_from_pr(pr: PRInfo) -> ItemSnapshot:
         mergeable=pr.mergeable,
         events=tuple(pr.events),
         reviewers=pr.reviewers,
+        steps=step_statuses(steps) if steps is not None else None,
     )
 
 
@@ -94,13 +96,21 @@ def item_from_review(review: ReviewInfo) -> ItemSnapshot:
 
 
 def snapshot_from_prs(
-    prs: list[PRInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
+    prs: list[PRInfo],
+    *,
+    scope: SnapshotScope,
+    name: str,
+    has_more: bool = False,
+    steps: dict[str, tuple[StepResult, ...]] | None = None,
 ) -> Snapshot:
     return Snapshot.make(
         kind=KIND_PR,
         name=name,
         scope=scope,
-        items=[item_from_pr(p) for p in prs],
+        items=[
+            item_from_pr(p, steps[f"{p.repo}#{p.number}"] if steps is not None else None)
+            for p in prs
+        ],
         has_more=has_more,
     )
 

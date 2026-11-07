@@ -18,10 +18,12 @@ from src.date_window import (
     window_suffix,
 )
 from src.pr.cli.graph import render_merged_graph
+from src.pr.cli.steps_cmd import collect_steps
 from src.pr.detail import merge_label, review_label, short_sha
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
 from src.pr.reviewers import REVIEWER_LEGEND, compact_reviewers, named_reviewers
+from src.pr.steps import STEPS_LEGEND, StepResult, steps_mark
 from src.snapshot.convert import snapshot_from_prs
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_PR, SnapshotScope
@@ -45,6 +47,7 @@ def cmd_list(
     show_detail: bool = False,
     show_reviewers: bool = False,
     reviewer_names: bool = False,
+    show_steps: bool = False,
     snapshot_name: str | None = None,
     diff_name: str | None = None,
     watch_name: str | None = None,
@@ -73,6 +76,7 @@ def cmd_list(
         show_detail: Add head commit, review decision and merge state columns
         show_reviewers: Add a Reviewers column with a count per reviewer state
         reviewer_names: Like show_reviewers, but naming each reviewer
+        show_steps: Add a Steps column: one character per pending-step (see STEPS_LEGEND)
         since_days: Only include PRs within the last N days
         after: Only include PRs on/after this date (YYYY-MM-DD)
         before: Only include PRs on/before this date (YYYY-MM-DD)
@@ -151,6 +155,8 @@ def cmd_list(
                     date_qualifier=date_qualifier,
                 )
 
+            steps = collect_steps(result.prs) if show_steps else None
+
             plan = SnapshotPlan.from_args(
                 kind=KIND_PR,
                 snapshot_name=snapshot_name,
@@ -177,7 +183,11 @@ def cmd_list(
                 )
                 save_name = plan.save_name or plan.diff_name or "snapshot"
                 curr_snapshot = snapshot_from_prs(
-                    result.prs, scope=scope, name=save_name, has_more=result.has_more
+                    result.prs,
+                    scope=scope,
+                    name=save_name,
+                    has_more=result.has_more,
+                    steps=steps,
                 )
                 return plan.execute(
                     curr_snapshot,
@@ -187,6 +197,7 @@ def cmd_list(
                         show_title=show_title,
                         show_detail=show_detail,
                         reviewers=reviewers_mode,
+                        steps=steps,
                         window=window,
                     ),
                     fetch_by_ref=lambda refs: client.get_prs_by_ref(refs).prs,
@@ -204,6 +215,7 @@ def cmd_list(
                 show_title=show_title,
                 show_detail=show_detail,
                 reviewers=reviewers_mode,
+                steps=steps,
                 window=window,
             )
 
@@ -249,6 +261,7 @@ def _print_pr_table(
     show_title: bool = False,
     show_detail: bool = False,
     reviewers: str | None = None,
+    steps: dict[str, tuple[StepResult, ...]] | None = None,
     window: DateWindow | None = None,
 ) -> None:
     """Print PRs in a formatted table."""
@@ -269,6 +282,8 @@ def _print_pr_table(
         table.add_column("Merge", no_wrap=True)
     if reviewers:
         table.add_column("Reviewers", no_wrap=True)
+    if steps is not None:
+        table.add_column("Steps", no_wrap=True)
     table.add_column("State", no_wrap=True)
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Age", no_wrap=True)
@@ -295,6 +310,7 @@ def _print_pr_table(
                     else []
                 ),
                 *([_format_reviewers(pr, reviewers)] if reviewers else []),
+                *([steps_mark(steps[f"{pr.repo}#{pr.number}"])] if steps is not None else []),
                 _format_state(pr.state, pr.is_draft),
                 _format_unresolved_threads(pr.unresolved_thread_count),
                 _format_duration(pr.age_seconds),
@@ -306,6 +322,8 @@ def _print_pr_table(
     console.print(table)
     if reviewers:
         console.print(f"[dim]{escape(REVIEWER_LEGEND)}[/]")
+    if steps is not None:
+        console.print(f"[dim]{escape(STEPS_LEGEND)}[/]")
 
 
 def _format_reviewers(pr: PRInfo, mode: str) -> str:

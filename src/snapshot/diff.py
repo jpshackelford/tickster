@@ -8,8 +8,9 @@ both snapshots we compare the fields that drive the display and produce an
   unresolved_thread_count, is_draft, linked_pr, review_status) differ,
   plus `"activity"` when `last_activity` moved. PR rows also compare
   `head_sha`, `review_decision`, `merge_state` and `mergeable` (see
-  `_compare_pr_detail`) and `reviewers` when a reviewer's request or review
-  moved (the transitions are in `ItemDelta.reviewer_changes`). History collapses
+  `_compare_pr_detail`), `reviewers` when a reviewer's request or review
+  moved (the transitions are in `ItemDelta.reviewer_changes`) and `steps` when a
+  `--steps` status moved (the transitions are in `ItemDelta.step_changes`). History collapses
   consecutive same-type events, so new comments or reviews can leave the
   string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
@@ -29,6 +30,7 @@ A `ci_status` move to or from `conflict` is not flagged while either side's
 from __future__ import annotations
 
 from src.pr.reviewers import reviewer_changes
+from src.pr.steps import step_changes
 from src.snapshot.models import (
     KIND_REVIEW,
     ChangeKind,
@@ -111,6 +113,9 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
         reviewers = _reviewer_changes(p, c)
         if reviewers:
             changed += ("reviewers",)
+        steps = _step_changes(p, c)
+        if steps:
+            changed += ("steps",)
         tail = _new_history_tail(p.history, c.history)
         if changed:
             deltas.append(
@@ -122,6 +127,7 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
                     new_history_tail=tail,
                     changed_fields=changed,
                     reviewer_changes=reviewers,
+                    step_changes=steps,
                 )
             )
         else:
@@ -182,6 +188,13 @@ def _reviewer_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]
     if prev.reviewers is None or curr.reviewers is None:
         return ()
     return reviewer_changes(prev.reviewers, curr.reviewers)
+
+
+def _step_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
+    """Step status transitions; none when either snapshot was taken without `--steps`."""
+    if prev.steps is None or curr.steps is None:
+        return ()
+    return step_changes(prev.steps, curr.steps)
 
 
 def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:

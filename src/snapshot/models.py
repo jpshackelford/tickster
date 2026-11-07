@@ -271,6 +271,7 @@ class ItemSnapshot:
     reviewers: tuple[ReviewerState, ...] | None = (
         None  # pr: per-reviewer state; None = not recorded
     )
+    steps: dict[str, str] | None = None  # pr: step name to status; None = not recorded
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -281,6 +282,8 @@ class ItemSnapshot:
             del d["reviewers"]
         else:
             d["reviewers"] = [r.to_dict() for r in self.reviewers]
+        if self.steps is None:
+            del d["steps"]
         return d
 
     @classmethod
@@ -311,6 +314,7 @@ class ItemSnapshot:
                 if data.get("reviewers") is not None
                 else None
             ),
+            steps=dict(data["steps"]) if data.get("steps") is not None else None,
         )
 
 
@@ -416,6 +420,7 @@ class ItemDelta:
     changed_fields: tuple[str, ...] = ()
     disappearance_reason: str | None = None  # for REMOVED
     reviewer_changes: tuple[str, ...] = ()  # per-reviewer transitions, e.g. "bob ↻ re-requested"
+    step_changes: tuple[str, ...] = ()  # e.g. "request re-review: done → needed"
 
     @property
     def display_item(self) -> ItemSnapshot:
@@ -485,4 +490,6 @@ def _delta_to_dict(d: ItemDelta) -> dict:
     }
     if d.reviewer_changes:
         data["reviewer_changes"] = list(d.reviewer_changes)
+    if d.step_changes:
+        data["step_changes"] = list(d.step_changes)
     return data

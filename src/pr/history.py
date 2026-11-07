@@ -71,6 +71,8 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
         reviewers=build_reviewers(pr_data, reference_user, norms),
         reviewers_truncated=is_truncated(pr_data, "reviewRequests")
         or is_truncated(pr_data, "latestReviews"),
+        labels=tuple(n["name"] for n in (pr_data.get("labels") or {}).get("nodes", []) if n),
+        checks_state=_rollup_state(pr_data),
     )
 
 
@@ -96,6 +98,12 @@ def _determine_state(pr_data: dict) -> PRState:
         return PRState.CLOSED
     else:
         return PRState.OPEN
+
+
+def _rollup_state(pr_data: dict) -> str | None:
+    commits = pr_data.get("commits", {}).get("nodes", [])
+    rollup = commits[-1].get("commit", {}).get("statusCheckRollup") if commits else None
+    return rollup.get("state") if rollup else None
 
 
 def _determine_ci_status(pr_data: dict) -> CIStatus:

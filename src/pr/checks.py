@@ -10,6 +10,10 @@ from src.pr.models import CIStatus
 
 FAILING_CONCLUSIONS = frozenset({"FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "CANCELLED"})
 FAILING_STATUS_STATES = frozenset({"FAILURE", "ERROR"})
+PENDING_STATUS_STATES = frozenset({"PENDING", "EXPECTED"})
+OUTCOME_FAILED = "failed"
+OUTCOME_PENDING = "pending"
+OUTCOME_PASSED = "passed"
 
 _PR_REF_RE = re.compile(r"^(?P<repo>[^/\s#]+/[^/\s#]+)#(?P<number>\d+)$")
 _PR_URL_RE = re.compile(r"^https://github\.com/(?P<repo>[^/]+/[^/]+)/pull/(?P<number>\d+)")
@@ -33,6 +37,7 @@ query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
                                     __typename
                                     ... on CheckRun {
                                         name
+                                        status
                                         conclusion
                                         detailsUrl
                                         startedAt
@@ -77,6 +82,14 @@ class FailedCheck:
     step_completed_at: datetime | None = None
 
 
+@dataclass(frozen=True)
+class CheckContext:
+    """One check on the head commit and where it stands: failed, pending or passed."""
+
+    name: str
+    outcome: str
+
+
 @dataclass
 class PRChecks:
     """Failing checks for the head commit of a PR."""
@@ -85,6 +98,7 @@ class PRChecks:
     number: int
     ci_status: CIStatus
     failures: list[FailedCheck] = field(default_factory=list)
+    contexts: list[CheckContext] = field(default_factory=list)
 
 
 def parse_pr_ref(ref: str) -> tuple[str, int]:
@@ -147,6 +161,25 @@ def _failed_check_from_context(node: dict) -> FailedCheck | None:
     if kind == "StatusContext" and node.get("state") in FAILING_STATUS_STATES:
         return FailedCheck(name=node["context"], url=node.get("targetUrl"))
     return None
+
+
+def _check_context(node: dict) -> CheckContext:
+    if node.get("__typename") == "CheckRun":
+        if node.get("conclusion") in FAILING_CONCLUSIONS:
+            outcome = OUTCOME_FAILED
+        elif node.get("status") != "COMPLETED":
+            outcome = OUTCOME_PENDING
+        else:
+            outcome = OUTCOME_PASSED
+        return CheckContext(node["name"], outcome)
+    state = node.get("state")
+    if state in FAILING_STATUS_STATES:
+        outcome = OUTCOME_FAILED
+    elif state in PENDING_STATUS_STATES:
+        outcome = OUTCOME_PENDING
+    else:
+        outcome = OUTCOME_PASSED
+    return CheckContext(node["context"], outcome)
 
 
 def _strip_log_line(line: str) -> str:
@@ -244,12 +277,14 @@ class ChecksClient:
                 break
             cursor = contexts["pageInfo"]["endCursor"]
 
-        failures = [f for n in _latest_contexts(nodes) if (f := _failed_check_from_context(n))]
+        latest = _latest_contexts(nodes)
+        failures = [f for n in latest if (f := _failed_check_from_context(n))]
         return PRChecks(
             repo=repo,
             number=number,
             ci_status=_determine_ci_status(ci_input),
             failures=failures,
+            contexts=[_check_context(n) for n in latest],
         )
 
     def get_step_log(

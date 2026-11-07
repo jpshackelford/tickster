@@ -526,6 +526,13 @@ Examples:
         action="store_true",
         help="Like --reviewers, but name each reviewer",
     )
+    pr_list_parser.add_argument(
+        "--steps",
+        dest="show_steps",
+        action="store_true",
+        help="Add a Steps column, one character per step (review, CI, findings, re-review): "
+        "UPPER needed, lower waiting, . done or n/a, ? unknown. Snapshots record the statuses",
+    )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
@@ -563,6 +570,32 @@ Examples:
         default=None,
         metavar="N",
         help="With --full, keep only the last N log lines per check (default: 100, 0 = all)",
+    )
+
+    # pr steps
+    pr_steps_parser = pr_subparsers.add_parser(
+        "steps",
+        help="Show which follow-up steps a PR still needs, and why",
+        description="For each PR, say whether review, CI, review findings and re-review "
+        "are needed, waiting, done, n/a or unknown, with the evidence for each.",
+    )
+    pr_steps_parser.add_argument(
+        "refs",
+        nargs="+",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    pr_steps_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    pr_steps_parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Add why each rule fired: the settings used and the facts compared",
     )
 
     # pr changes
@@ -1101,6 +1134,7 @@ Examples:
         from src.pr.cli import cmd_changes as pr_cmd_changes
         from src.pr.cli import cmd_checks as pr_cmd_checks
         from src.pr.cli import cmd_list as pr_cmd_list
+        from src.pr.cli import cmd_steps as pr_cmd_steps
         from src.pr.cli.checks_cmd import DEFAULT_TAIL
 
         if args.pr_command == "changes":
@@ -1115,6 +1149,11 @@ Examples:
         if args.pr_command == "checks":
             tail = DEFAULT_TAIL if args.tail is None else args.tail
             return pr_cmd_checks(ref=args.ref, mode=args.checks_mode, tail=tail)
+
+        if args.pr_command == "steps":
+            return pr_cmd_steps(
+                refs=args.refs, output_format=args.output_format, explain=args.explain
+            )
 
         if args.pr_command == "list":
             # Build states list based on flags
@@ -1155,6 +1194,7 @@ Examples:
                 show_detail=args.show_detail,
                 show_reviewers=args.show_reviewers,
                 reviewer_names=args.reviewer_names,
+                show_steps=args.show_steps,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
