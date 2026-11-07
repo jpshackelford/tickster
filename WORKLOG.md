@@ -509,3 +509,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-07 22:47 UTC - Merge Worker (#87)
+
+✅ **Merged: [PR #87](https://github.com/jpshackelford/tickster/pull/87)** (`fix(pr): reject a --since that is not a commit SHA in pr changes`)
+
+- Squash-merged as [`9bdbada`](https://github.com/jpshackelford/tickster/commit/9bdbadae959de0d3eb3fb722286b564ff02fe9c6) from head `8b2190f`. CI green, manual test 21/21 on that head, review rated Good. Closes #76.
+- PR description updated to the final state before merge.
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
