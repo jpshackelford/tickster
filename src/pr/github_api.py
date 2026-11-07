@@ -14,6 +14,14 @@ from src.pr.models import PRInfo, PRListResult
 
 logger = logging.getLogger(__name__)
 
+REQUESTED_REVIEWER = """requestedReviewer {
+                    __typename
+                    ... on User { login }
+                    ... on Bot { login }
+                    ... on Mannequin { login }
+                    ... on Team { slug }
+                }"""
+
 # Only the oldest PR_TIMELINE.cap events are kept per PR; see complete_pr_connections.
 PR_TIMELINE = ConnectionSpec(
     type_name="PullRequest",
@@ -48,12 +56,10 @@ PR_TIMELINE = ConnectionSpec(
             }
             ... on ReviewRequestedEvent {
                 createdAt
-                # Intentionally does NOT select requestedReviewer: the Team
-                # branch of that union requires team-read, which GitHub App
-                # installation tokens lack. GitHubClient.graphql() currently
-                # treats the resulting partial-data FORBIDDEN error as fatal.
-                # See tests/pr/test_pr_fields_fragment.py.
+                # A Team the token can't read comes back null with a partial-data
+                # FORBIDDEN, which GitHubClient.graphql() logs rather than raises.
                 actor { login }
+                REQUESTED_REVIEWER_FIELDS
             }
             ... on ClosedEvent {
                 actor { login }
@@ -62,7 +68,25 @@ PR_TIMELINE = ConnectionSpec(
             ... on MergedEvent {
                 actor { login }
                 createdAt
-            }""",
+            }""".replace("REQUESTED_REVIEWER_FIELDS", REQUESTED_REVIEWER),
+)
+PR_REVIEWER_REQUESTS = ConnectionSpec(
+    type_name="PullRequest",
+    field="reviewRequests",
+    selection=f"""        asCodeOwner
+        {REQUESTED_REVIEWER}""",
+    cap=200,
+    first=20,
+)
+PR_LATEST_REVIEWS = ConnectionSpec(
+    type_name="PullRequest",
+    field="latestReviews",
+    selection="""        author { login }
+        state
+        submittedAt
+        commit { oid }""",
+    cap=200,
+    first=20,
 )
 PR_REVIEW_THREADS = ConnectionSpec(
     type_name="PullRequest",
@@ -88,6 +112,8 @@ fragment PRFields on PullRequest {{
     author {{ login }}
     repository {{ nameWithOwner }}
     {PR_REVIEW_THREADS.fragment_field()}
+    {PR_REVIEWER_REQUESTS.fragment_field()}
+    {PR_LATEST_REVIEWS.fragment_field()}
     commits(last: 1) {{
         nodes {{
             commit {{
@@ -103,9 +129,11 @@ fragment PRFields on PullRequest {{
 
 
 def complete_pr_connections(client: GitHubClient, pr_node: dict) -> None:
-    """Page through timeline events and review threads past the first 100."""
+    """Page through timeline events, review threads and reviewer connections past the first page."""
     complete_connection(client, pr_node, PR_TIMELINE)
     complete_connection(client, pr_node, PR_REVIEW_THREADS)
+    complete_connection(client, pr_node, PR_REVIEWER_REQUESTS)
+    complete_connection(client, pr_node, PR_LATEST_REVIEWS)
 
 
 class PRClient:

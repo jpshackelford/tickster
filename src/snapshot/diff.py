@@ -8,7 +8,8 @@ both snapshots we compare the fields that drive the display and produce an
   unresolved_thread_count, is_draft, linked_pr, review_status) differ,
   plus `"activity"` when `last_activity` moved. PR rows also compare
   `head_sha`, `review_decision`, `merge_state` and `mergeable` (see
-  `_compare_pr_detail`). History collapses
+  `_compare_pr_detail`) and `reviewers` when a reviewer's request or review
+  moved (the transitions are in `ItemDelta.reviewer_changes`). History collapses
   consecutive same-type events, so new comments or reviews can leave the
   string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
@@ -27,6 +28,7 @@ A `ci_status` move to or from `conflict` is not flagged while either side's
 
 from __future__ import annotations
 
+from src.pr.reviewers import reviewer_changes
 from src.snapshot.models import (
     KIND_REVIEW,
     ChangeKind,
@@ -106,6 +108,9 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
         p = prev_items[key]
         c = curr_items[key]
         changed = _compare_fields(p, c)
+        reviewers = _reviewer_changes(p, c)
+        if reviewers:
+            changed += ("reviewers",)
         tail = _new_history_tail(p.history, c.history)
         if changed:
             deltas.append(
@@ -116,6 +121,7 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
                     curr=c,
                     new_history_tail=tail,
                     changed_fields=changed,
+                    reviewer_changes=reviewers,
                 )
             )
         else:
@@ -169,6 +175,13 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
     if "history" in changed and not curr.history.startswith(prev.history):
         changed.append("history-rewritten")
     return tuple(changed)
+
+
+def _reviewer_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
+    """Per-reviewer transitions; none when either snapshot predates reviewer state."""
+    if prev.reviewers is None or curr.reviewers is None:
+        return ()
+    return reviewer_changes(prev.reviewers, curr.reviewers)
 
 
 def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:

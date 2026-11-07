@@ -155,6 +155,8 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--title, -t` | Show PR titles |
 | `--graph, -g` | Weekly merge/age graph (use with `--merged`) |
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
+| `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
+| `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -619,6 +621,38 @@ instead of a Note.
   does not flag every row.
 - `tkt issue list` snapshots do not record these fields. `tkt review` snapshots
   record `mergeable` only, for the CI rule above.
+
+### Reviewer state
+
+PR snapshots also record one record per reviewer, built from GitHub's pending
+review requests, each reviewer's latest review and the commit it covered. They
+are in the JSON outputs (`tkt snapshot show --format json`, `--diff-format json`)
+as `reviewers`:
+
+| Field | Meaning |
+| --- | --- |
+| `login` | The reviewer, or `team:SLUG` for a team. A team the token can't read is `team:unknown` (and logged), not a failed query |
+| `actor_class` | `me`, `human`, `bot` or `agent`; null for a team. `agent` comes from the repo's `[actors] agent_logins`, never from GitHub's account type |
+| `requested`, `requested_by`, `requested_at`, `as_code_owner` | A review request is pending now, who made it and when |
+| `latest_state`, `reviewed_commit`, `submitted_at` | The latest review (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`) and the commit it was on |
+| `on_head` | That review is on the PR's current head |
+| `waiting` | Requested, and no review has answered the request yet |
+| `rereview_requested` | Requested again after an earlier review |
+| `rereview_needed` | The latest review is on an older head and nothing asks for another: the sidebar's re-request case |
+
+`--reviewers` shows one mark per reviewer, counted per mark: `✓` approved on
+head, `✗` changes requested on head, `~` commented on head, `⊘` dismissed, `•`
+waiting, `↻` re-review requested, `!` review on an old head with no request.
+
+With `--diff` / `--watch`, a reviewer transition marks the row `*` and the Note
+(and `reviewer_changes` in the JSON) says what happened: `alice requested`, `all-hands-bot
+approved on head`, `bob ↻ re-requested`, `bob review now on old head` (a push
+after the review), `bob request removed`, `alice review dismissed`. A baseline
+saved before reviewer state existed is not compared until it is replaced.
+
+- Up to 200 reviewers are read per PR; beyond that the `--reviewers` cell ends in `…`.
+- Removal and dismissal come from comparing snapshots, not from the PR timeline,
+  so a request made and removed between two runs is not reported.
 
 ### Why a row is gone
 

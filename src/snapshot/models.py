@@ -17,6 +17,7 @@ from enum import Enum
 
 from src.actors import HistoryEvent
 from src.date_window import DateWindow
+from src.pr.reviewers import ReviewerState
 
 SCHEMA_VERSION = 1
 
@@ -267,11 +268,19 @@ class ItemSnapshot:
     merge_state: str | None = None  # pr: GitHub mergeStateStatus
     mergeable: str | None = None  # pr: GitHub mergeable
     events: tuple[HistoryEvent, ...] = ()  # one per history character; () = not recorded
+    reviewers: tuple[ReviewerState, ...] | None = (
+        None  # pr: per-reviewer state; None = not recorded
+    )
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["labels"] = list(self.labels)
         d["events"] = [e.to_dict() for e in self.events]
+        # Omitted when not recorded so older snapshots keep their bytes.
+        if self.reviewers is None:
+            del d["reviewers"]
+        else:
+            d["reviewers"] = [r.to_dict() for r in self.reviewers]
         return d
 
     @classmethod
@@ -297,6 +306,11 @@ class ItemSnapshot:
             merge_state=data.get("merge_state"),
             mergeable=data.get("mergeable"),
             events=tuple(HistoryEvent.from_dict(e) for e in data.get("events", [])),
+            reviewers=(
+                tuple(ReviewerState.from_dict(r) for r in data["reviewers"])
+                if data.get("reviewers") is not None
+                else None
+            ),
         )
 
 
@@ -401,6 +415,7 @@ class ItemDelta:
     new_history_tail: str = ""
     changed_fields: tuple[str, ...] = ()
     disappearance_reason: str | None = None  # for REMOVED
+    reviewer_changes: tuple[str, ...] = ()  # per-reviewer transitions, e.g. "bob ↻ re-requested"
 
     @property
     def display_item(self) -> ItemSnapshot:
@@ -459,7 +474,7 @@ def _delta_to_dict(d: ItemDelta) -> dict:
     the untouched rows.
     """
     include_bodies = d.kind is not ChangeKind.UNCHANGED
-    return {
+    data = {
         "key": d.key,
         "kind": d.kind.value,
         "new_history_tail": d.new_history_tail,
@@ -468,3 +483,6 @@ def _delta_to_dict(d: ItemDelta) -> dict:
         "prev": d.prev.to_dict() if (include_bodies and d.prev) else None,
         "curr": d.curr.to_dict() if (include_bodies and d.curr) else None,
     }
+    if d.reviewer_changes:
+        data["reviewer_changes"] = list(d.reviewer_changes)
+    return data

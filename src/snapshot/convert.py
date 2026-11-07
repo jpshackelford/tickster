@@ -53,6 +53,7 @@ def item_from_pr(pr: PRInfo) -> ItemSnapshot:
         merge_state=pr.merge_state,
         mergeable=pr.mergeable,
         events=tuple(pr.events),
+        reviewers=pr.reviewers,
     )
 
 

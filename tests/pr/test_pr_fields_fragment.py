@@ -1,9 +1,8 @@
-"""Regression tests for the GraphQL PR_FIELDS_FRAGMENT.
+"""Shape of the GraphQL PR_FIELDS_FRAGMENT around reviewer selection.
 
-Full context is in the PR / commit that dropped ``requestedReviewer`` from the
-fragment. Short version: the field was unused in Python but caused GitHub to
-return a FORBIDDEN partial-data response when a Team was the requested
-reviewer, which ``GitHubClient.graphql()`` currently treats as fatal.
+``requestedReviewer`` is selected so a Team request can be attributed. A Team the
+token can't read yields a partial-data FORBIDDEN, which ``GitHubClient.graphql()``
+logs rather than raises (#11), so selecting the Team branch is safe.
 """
 
 import re
@@ -18,32 +17,35 @@ def _strip_graphql_comments(fragment: str) -> str:
     return re.sub(r"#[^\n]*", "", fragment)
 
 
-def _extract_review_requested_block(fragment: str) -> str:
-    """Return the body of the ``... on ReviewRequestedEvent { ... }`` block.
-
-    Handles one level of nested braces so sub-selections like ``actor { login }``
-    don't trip up the match.
-    """
-    match = re.search(
-        r"ReviewRequestedEvent\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
-        fragment,
-    )
-    assert match is not None, (
-        "ReviewRequestedEvent block not found in fragment (or nested >1 level deep)"
-    )
-    return match.group(1)
+def _block(fragment: str, opener: str) -> str:
+    """Body of the first ``opener { ... }`` block, matching nested braces."""
+    start = fragment.index(opener)
+    open_at = fragment.index("{", start)
+    depth = 0
+    for i in range(open_at, len(fragment)):
+        depth += {"{": 1, "}": -1}.get(fragment[i], 0)
+        if depth == 0:
+            return fragment[open_at + 1 : i]
+    raise AssertionError(f"unbalanced braces after {opener!r}")
 
 
-def test_fragment_does_not_request_requested_reviewer():
-    assert "requestedReviewer" not in _strip_graphql_comments(PR_FIELDS_FRAGMENT)
-
-
-def test_review_requested_block_keeps_fields_history_processing_needs():
-    """Guard against over-pruning: _parse_timeline_item reads createdAt and
-    actor.login from the ReviewRequestedEvent node."""
-    block = _extract_review_requested_block(_strip_graphql_comments(PR_FIELDS_FRAGMENT))
+def test_review_requested_event_selects_the_reviewer_union_including_team():
+    block = _block(_strip_graphql_comments(PR_FIELDS_FRAGMENT), "... on ReviewRequestedEvent")
     assert "createdAt" in block
     assert "actor" in block
+    for branch in ("... on User", "... on Bot", "... on Mannequin", "... on Team { slug }"):
+        assert branch in block
+
+
+def test_fragment_selects_per_reviewer_state():
+    fragment = _strip_graphql_comments(PR_FIELDS_FRAGMENT)
+    requests = _block(fragment, "reviewRequests(")
+    assert "asCodeOwner" in requests
+    assert "... on Team { slug }" in requests
+    reviews = _block(fragment, "latestReviews(")
+    for field in ("author { login }", "state", "submittedAt", "commit { oid }"):
+        assert field in reviews
+    assert "headRefOid" in fragment
 
 
 def test_process_pr_data_handles_review_requested_without_requested_reviewer():
@@ -60,6 +62,8 @@ def test_process_pr_data_handles_review_requested_without_requested_reviewer():
         "mergeable": "MERGEABLE",
         "author": {"login": "jpshackelford"},
         "reviewThreads": {"nodes": []},
+        "reviewRequests": {"nodes": []},
+        "latestReviews": {"nodes": []},
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]},
         "timelineItems": {
             "nodes": [

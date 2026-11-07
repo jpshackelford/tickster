@@ -77,6 +77,8 @@ def pr_node(
         "author": {"login": "alice"},
         "repository": {"nameWithOwner": "owner/repo"},
         "reviewThreads": {"nodes": threads or []},
+        "reviewRequests": {"nodes": []},
+        "latestReviews": {"nodes": []},
         "commits": {"nodes": []},
         "timelineItems": {"nodes": timeline},
     }
@@ -233,6 +235,46 @@ class TestPrHistory:
         assert pr.unresolved_thread_count == 125
         assert {f["field"] for f in fake.follow_ups} == {"reviewThreads"}
 
+    def test_reviewers_past_the_first_20_are_fetched(self, monkeypatch):
+        node = pr_node(pr_chatter(1))
+        node["latestReviews"] = {
+            "nodes": [
+                {
+                    "author": {"login": f"user{i}"},
+                    "state": "APPROVED",
+                    "submittedAt": stamp(i),
+                    "commit": {"oid": "a" * 40},
+                }
+                for i in range(130)
+            ]
+        }
+        fake = FakeGitHub(node, first={"latestReviews": 20})
+        client = pr_client(monkeypatch, fake)
+
+        [pr] = client._search_prs("is:pr", "alice", limit=10).prs
+
+        assert pr.reviewers is not None and len(pr.reviewers) == 130
+        assert not pr.reviewers_truncated
+        assert {f["field"] for f in fake.follow_ups} == {"latestReviews"}
+
+    def test_reviewers_past_the_cap_are_marked_truncated(self, monkeypatch):
+        node = pr_node(pr_chatter(1))
+        node["reviewRequests"] = {
+            "nodes": [
+                {
+                    "asCodeOwner": False,
+                    "requestedReviewer": {"__typename": "User", "login": f"u{i}"},
+                }
+                for i in range(260)
+            ]
+        }
+        fake = FakeGitHub(node, first={"reviewRequests": 20})
+        client = pr_client(monkeypatch, fake)
+
+        [pr] = client._search_prs("is:pr", "alice", limit=10).prs
+
+        assert pr.reviewers_truncated
+
 
 class TestSnapshotDiff:
     def snapshot_at(self, monkeypatch, n_comments: int, name: str):
@@ -342,10 +384,14 @@ class TestCompleteConnection:
 
 
 class TestFragments:
-    @pytest.mark.parametrize("fragment", [PR_FIELDS_FRAGMENT, ISSUE_FIELDS_FRAGMENT])
-    def test_fragment_requests_id_and_page_info(self, fragment):
+    @pytest.mark.parametrize(
+        ("fragment", "connections"),
+        [(PR_FIELDS_FRAGMENT, 4), (ISSUE_FIELDS_FRAGMENT, 2)],
+        ids=["pr", "issue"],
+    )
+    def test_fragment_requests_id_and_page_info(self, fragment, connections):
         assert "\n    id\n" in fragment
-        assert fragment.count("pageInfo { hasNextPage endCursor }") == 2
+        assert fragment.count("pageInfo { hasNextPage endCursor }") == connections
 
     def test_follow_up_query_repeats_the_fragment_selection(self):
         from src.pr.github_api import PR_TIMELINE
