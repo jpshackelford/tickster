@@ -326,3 +326,12 @@ _None._
 - Labelled `ready`. Complexity low to medium. Release PR #44 also appears as a closing ref for #54 and #70; noted as a risk.
 
 ---
+### 2026-11-07 23:00 UTC - Implementation Worker
+
+✅ **Implemented Issue #75:** [Some error paths print a traceback or raw HTTP text instead of a one-line message](https://github.com/jpshackelford/tickster/issues/75) in [PR #86](https://github.com/jpshackelford/tickster/pull/86)
+
+- Fix: `_handle_set` guard; `cmd_init` catches `httpx.HTTPError` and new `GraphQLError`; shared `describe_http_error()`; `fetch_source` maps 422 to "ref not found"; `_require_keys` skips keys that already failed validation.
+- Tests: 10 new cases, all fail on `main`. pytest (1510), ruff check, ruff format and basedpyright clean; CI green.
+- PR marked ready. Docs/testing/review left to separate conversations.
+
+---
