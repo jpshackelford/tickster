@@ -1,5 +1,6 @@
 """Issue timeline processing and history string generation."""
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from src.actors import ActorClass, HistoryEvent, classify_actor, iso_utc
@@ -7,6 +8,20 @@ from src.connection_paging import TRUNCATION_MARKER, is_truncated
 from src.issue.models import IssueActionType, IssueInfo, IssueState, TimelineEvent
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
+
+# Preference when several PRs are linked: the one that landed, then the one in flight.
+_PR_STATE_RANK = {"MERGED": 0, "OPEN": 1}
+
+
+@dataclass(frozen=True)
+class ClosingPr:
+    """A PR whose closing keyword names the issue."""
+
+    ref: str
+    state: str
+    created_at: datetime
+    author: str
+
 
 # An AI actor's comment gets its own letter.
 AI_CHARS = {IssueActionType.COMMENT: "n"}
@@ -68,6 +83,21 @@ def _parse_datetime(dt_str: str) -> datetime:
     return datetime.fromisoformat(dt_str)
 
 
+def closing_prs(issue_data: dict) -> list[ClosingPr]:
+    """The PRs GitHub lists in ``closedByPullRequestsReferences``, in its order."""
+    nodes = (issue_data.get("closedByPullRequestsReferences") or {}).get("nodes") or []
+    return [
+        ClosingPr(
+            ref=f"{pr['repository']['nameWithOwner']}#{pr['number']}",
+            state=pr["state"],
+            created_at=_parse_datetime(pr["createdAt"]),
+            author=pr["author"]["login"] if pr.get("author") else "ghost",
+        )
+        for pr in nodes
+        if pr
+    ]
+
+
 def _extract_timeline_events(
     issue_data: dict, issue_author: str, reference_user: str, norms: Norms | None
 ) -> tuple[list[TimelineEvent], str | None]:
@@ -107,10 +137,25 @@ def _extract_timeline_events(
             if pr_ref:
                 linked_prs.append(pr_ref)
 
+    # A closing keyword leaves no timeline item; a PR also found by cross-reference counts once.
+    seen = {ref for ref, _ in linked_prs}
+    for pr in closing_prs(issue_data):
+        if pr.ref in seen:
+            continue
+        seen.add(pr.ref)
+        linked_prs.append((pr.ref, pr.state))
+        events.append(
+            TimelineEvent(
+                action=IssueActionType.PR_LINKED,
+                actor=pr.author,
+                timestamp=pr.created_at,
+                actor_class=classify_actor(pr.author, reference_user, norms),
+            )
+        )
+
     # Sort by timestamp
     events.sort(key=lambda e: e.timestamp)
 
-    # Find best linked PR (prefer non-closed)
     linked_pr = _select_linked_pr(linked_prs)
 
     return events, linked_pr
@@ -194,18 +239,11 @@ def _extract_pr_reference(item: dict) -> tuple[str, str] | None:
 def _select_linked_pr(prs: list[tuple[str, str]]) -> str | None:
     """Select the best linked PR from candidates.
 
-    Prefers open/merged PRs over closed ones.
+    Prefers merged, then open, then closed; the first of its rank wins.
     """
     if not prs:
         return None
-
-    # Prefer non-CLOSED PRs
-    for pr_ref, state in prs:
-        if state != "CLOSED":
-            return pr_ref
-
-    # Fall back to first PR
-    return prs[0][0]
+    return min(prs, key=lambda pr: _PR_STATE_RANK.get(pr[1], 2))[0]
 
 
 def _is_ai(event: TimelineEvent) -> bool:

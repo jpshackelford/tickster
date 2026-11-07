@@ -1184,7 +1184,7 @@ Used by `tkt issue list`.
 | `a` | Assigned |
 | `x` | Closed |
 | `r` | Reopened |
-| `p` | Linked to an implementing PR |
+| `p` | Linked to a PR (see [Linked PRs](#linked-prs)) |
 
 Examples:
 
@@ -1192,6 +1192,21 @@ Examples:
 - `oclBLx` — opened, you commented and labelled, a bot commented (`B`) and
   labelled (`L`), then closed.
 - `oCpx` — opened, got a comment, linked to a PR, closed.
+
+#### Linked PRs
+
+An issue counts as linked to a PR, in `p`, in `linked PRs` of `tkt issue show`,
+and in `linked_pr` of `tkt issue list` and `tkt snapshot`, when either holds:
+
+- the PR has a closing keyword for the issue (`Fixes #N`, `Closes #N`, `Resolves #N`)
+  in its body, whether the PR is open, merged or closed; or
+- the PR mentions the issue in any other way.
+
+A mention of the issue in another issue does not count. A PR is listed once even
+if both rules match; the `p` event is dated when the PR was opened. A closing PR
+from another repository shows as `owner/repo#N`. When several PRs are linked,
+`linked_pr` is the first merged one, else the first open one, else the first
+closed one. A release PR whose changelog says "closes #N" is linked too.
 
 ### AI actors
 

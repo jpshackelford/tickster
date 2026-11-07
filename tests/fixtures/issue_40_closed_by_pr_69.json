@@ -1,0 +1,142 @@
+{
+ "id": "I_kwDOTI-9as8AAAABWWndEw",
+ "number": 40,
+ "title": "feat(cli): tkt pr show / tkt issue show \u2014 item timeline with comment and review text",
+ "body": "_This issue was created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\n> **Scope (2026-11-05):** build this on the current GitHub-only code. The multi-provider refactor (#32, #33, tracked i",
+ "url": "https://github.com/jpshackelford/tickster/issues/40",
+ "state": "CLOSED",
+ "createdAt": "2026-10-10T20:38:20Z",
+ "closedAt": "2026-11-07T14:16:07Z",
+ "author": {
+  "login": "jpshackelford"
+ },
+ "repository": {
+  "nameWithOwner": "jpshackelford/tickster"
+ },
+ "assignees": {
+  "nodes": []
+ },
+ "labels": {
+  "nodes": [
+   {
+    "name": "enhancement"
+   },
+   {
+    "name": "ready"
+   },
+   {
+    "name": "priority:low"
+   }
+  ]
+ },
+ "timelineItems": {
+  "pageInfo": {
+   "hasNextPage": false,
+   "endCursor": "Y3Vyc29yOnYyOpPPAAABobZd4EABqzM1NDM3MTQ2MTM3"
+  },
+  "nodes": [
+   {
+    "__typename": "LabeledEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "label": {
+     "name": "enhancement"
+    },
+    "createdAt": "2026-10-10T20:38:21Z"
+   },
+   {
+    "__typename": "CrossReferencedEvent",
+    "source": {
+     "__typename": "Issue"
+    },
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "createdAt": "2026-10-10T21:46:25Z"
+   },
+   {
+    "__typename": "CrossReferencedEvent",
+    "source": {
+     "__typename": "Issue"
+    },
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "createdAt": "2026-10-10T21:46:29Z"
+   },
+   {
+    "__typename": "CrossReferencedEvent",
+    "source": {
+     "__typename": "Issue"
+    },
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "createdAt": "2026-10-10T21:46:38Z"
+   },
+   {
+    "__typename": "LabeledEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "label": {
+     "name": "ready"
+    },
+    "createdAt": "2026-11-05T05:43:35Z"
+   },
+   {
+    "__typename": "LabeledEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "label": {
+     "name": "priority:low"
+    },
+    "createdAt": "2026-11-05T05:43:35Z"
+   },
+   {
+    "__typename": "LabeledEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "label": {
+     "name": "hold"
+    },
+    "createdAt": "2026-11-05T05:43:35Z"
+   },
+   {
+    "__typename": "UnlabeledEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "label": {
+     "name": "hold"
+    },
+    "createdAt": "2026-11-07T13:09:37Z"
+   },
+   {
+    "__typename": "ClosedEvent",
+    "actor": {
+     "login": "jpshackelford"
+    },
+    "createdAt": "2026-11-07T14:16:08Z"
+   }
+  ]
+ },
+ "closedByPullRequestsReferences": {
+  "nodes": [
+   {
+    "number": 69,
+    "state": "MERGED",
+    "createdAt": "2026-11-07T13:24:45Z",
+    "author": {
+     "login": "jpshackelford"
+    },
+    "repository": {
+     "nameWithOwner": "jpshackelford/tickster"
+    }
+   }
+  ]
+ }
+}

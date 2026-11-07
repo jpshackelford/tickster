@@ -8,12 +8,14 @@ from datetime import datetime
 from src.actors import classify_actor, iso_utc
 from src.board.github_api import GitHubClient
 from src.connection_paging import complete_connection, is_truncated
-from src.issue.github_api import ISSUE_LABELS, ISSUE_TIMELINE
+from src.issue.github_api import CLOSING_PRS_FIELD, ISSUE_LABELS, ISSUE_TIMELINE
 from src.issue.history import (
+    ClosingPr,
     _extract_pr_reference,
     _format_action,
     _parse_datetime,
     _parse_timeline_item,
+    closing_prs,
     process_issue_data,
 )
 from src.issue.models import IssueActionType, TimelineEvent
@@ -72,6 +74,7 @@ query($owner: String!, $name: String!, $number: Int!) {{
             assignees(first: 20) {{ nodes {{ login }} }}
             {ISSUE_LABELS.fragment_field()}
             {ISSUE_SHOW_TIMELINE.fragment_field()}
+            {CLOSING_PRS_FIELD}
         }}
     }}
 }}
@@ -90,6 +93,14 @@ def fetch_issue_node(client: GitHubClient, repo: str, number: int) -> dict:
     return node
 
 
+def _pr_linked_fields(ref: str | None, state: str | None) -> tuple[str, str, dict]:
+    return (
+        "pr_linked",
+        f"linked PR {ref} ({(state or '').lower()})",
+        {"pr": ref, "pr_state": state},
+    )
+
+
 def _describe(event: TimelineEvent, raw: dict) -> tuple[str, str, dict]:
     """(kind, text, fields) for one issue timeline event."""
     action = event.action
@@ -104,11 +115,7 @@ def _describe(event: TimelineEvent, raw: dict) -> tuple[str, str, dict]:
     if action == IssueActionType.PR_LINKED:
         pr_ref = _extract_pr_reference(raw)
         ref, state = pr_ref if pr_ref else (None, None)
-        return (
-            "pr_linked",
-            f"linked PR {ref} ({(state or '').lower()})",
-            {"pr": ref, "pr_state": state},
-        )
+        return _pr_linked_fields(ref, state)
     return action.name.lower(), action.name.lower(), {}
 
 
@@ -148,6 +155,23 @@ def _entry(
     return at, entry
 
 
+def _closing_pr_entry(
+    pr: ClosingPr, reference_user: str, norms: Norms | None
+) -> tuple[datetime, Entry]:
+    actor_class = classify_actor(pr.author, reference_user, norms)
+    kind, text, fields = _pr_linked_fields(pr.ref, pr.state)
+    entry = Entry(
+        at=iso_utc(pr.created_at),
+        kind=kind,
+        char=_format_action(IssueActionType.PR_LINKED, pr.author, reference_user),
+        actor=pr.author,
+        actor_class=actor_class,
+        text=text,
+        fields=fields,
+    )
+    return pr.created_at, entry
+
+
 def build_issue_show(node: dict, reference_user: str, max_body: int) -> Show:
     info = process_issue_data(node, reference_user)
     norms = get_repo_norms(info.repo)
@@ -177,6 +201,10 @@ def build_issue_show(node: dict, reference_user: str, max_body: int) -> Show:
         pr_ref = _extract_pr_reference(raw) if raw["__typename"] == "CrossReferencedEvent" else None
         if pr_ref:
             linked_prs[pr_ref[0]] = pr_ref[1]
+    for pr in closing_prs(node):
+        if pr.ref not in linked_prs:
+            linked_prs[pr.ref] = pr.state
+            timed.append(_closing_pr_entry(pr, reference_user, norms))
     timed.sort(key=lambda t: t[0])
     entries.extend(entry for _, entry in timed)
 
