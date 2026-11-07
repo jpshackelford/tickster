@@ -13,6 +13,8 @@ import sys
 from dotenv import find_dotenv, load_dotenv
 from rich.console import Console
 
+from src.show.models import DEFAULT_MAX_BODY
+
 # Search from the working directory; the default searches from this file's
 # install location, which ignores the user's cwd.
 load_dotenv(find_dotenv(usecwd=True))
@@ -536,6 +538,21 @@ Examples:
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
+    # pr show
+    pr_show_parser = pr_subparsers.add_parser(
+        "show",
+        help="Show one PR's timeline with comment and review text",
+        description="Show one PR: a header (state, CI, head, mergeability, reviewers, "
+        "linked issues, reports) and its timeline, oldest first, with the text of "
+        "comments, reviews and review threads.",
+    )
+    pr_show_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="PR reference (owner/repo#number or GitHub PR URL)",
+    )
+    _add_show_args(pr_show_parser)
+
     # pr checks
     pr_checks_parser = pr_subparsers.add_parser(
         "checks",
@@ -819,6 +836,20 @@ Examples:
     )
     _add_date_window_args(issue_list_parser)
     _add_snapshot_flags(issue_list_parser)
+
+    # issue show
+    issue_show_parser = issue_subparsers.add_parser(
+        "show",
+        help="Show one issue's timeline with comment text",
+        description="Show one issue: a header (state, labels, assignees, linked PRs) and "
+        "its timeline, oldest first, with the text of comments.",
+    )
+    issue_show_parser.add_argument(
+        "ref",
+        metavar="OWNER/REPO#NUM",
+        help="Issue reference (owner/repo#number or GitHub issue URL)",
+    )
+    _add_show_args(issue_show_parser)
 
     # snapshot command - manage saved query snapshots and diff them
     snapshot_parser = subparsers.add_parser(
@@ -1137,6 +1168,11 @@ Examples:
         from src.pr.cli import cmd_steps as pr_cmd_steps
         from src.pr.cli.checks_cmd import DEFAULT_TAIL
 
+        if args.pr_command == "show":
+            from src.show.cli import cmd_show
+
+            return cmd_show(kind="pr", **_show_kwargs(args))
+
         if args.pr_command == "changes":
             return pr_cmd_changes(
                 ref=args.ref,
@@ -1254,6 +1290,11 @@ Examples:
     # Handle issue command
     if args.command == "issue":
         from src.issue.cli import cmd_list as issue_cmd_list
+
+        if args.issue_command == "show":
+            from src.show.cli import cmd_show
+
+            return cmd_show(kind="issue", **_show_kwargs(args))
 
         if args.issue_command == "list":
             # Build states list based on flags
@@ -1441,6 +1482,48 @@ def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Name
         getattr(args, "diff_name", None) is not None
     ):
         parser.error("--watch cannot be combined with --snapshot or --diff")
+
+
+def _add_show_args(parser: argparse.ArgumentParser) -> None:
+    """Attach the options `pr show` and `issue show` share."""
+    since_group = parser.add_mutually_exclusive_group()
+    since_group.add_argument(
+        "--since",
+        metavar="TS",
+        help="Only events after this ISO-8601 time (a time with no zone is UTC)",
+    )
+    since_group.add_argument(
+        "--since-snapshot",
+        dest="since_snapshot",
+        metavar="KIND/NAME",
+        help="Only events after the last_activity this snapshot stored for the item",
+    )
+    parser.add_argument(
+        "--max-body",
+        dest="max_body",
+        type=_non_negative_int,
+        default=DEFAULT_MAX_BODY,
+        metavar="N",
+        help=f"Trim each comment or review body to N characters (default: {DEFAULT_MAX_BODY}, "
+        "0 = no trimming)",
+    )
+    parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+
+
+def _show_kwargs(args: argparse.Namespace) -> dict:
+    return {
+        "ref": args.ref,
+        "since": args.since,
+        "since_snapshot": args.since_snapshot,
+        "max_body": args.max_body,
+        "output_format": args.output_format,
+    }
 
 
 def _non_negative_int(value: str) -> int:
