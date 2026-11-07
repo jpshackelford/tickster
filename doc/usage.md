@@ -194,7 +194,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
-| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review), and a legend under the table. Off by default so the table stays narrow. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -348,7 +348,9 @@ Notes:
 
 For each PR, say which follow-up steps still need to happen, and why. It states
 what is pending, not which step comes first: order is policy, and it belongs to
-the consumer.
+the consumer. Four steps (review, CI, findings, re-review) come from GitHub's own
+data. Three more per `[reports.<name>]` come from the repo's [norms](#tkt-norms):
+write the report, address what it found, and redo it after a significant change.
 
 ```bash
 tkt pr steps REF... [--format text|json] [--explain]
@@ -368,6 +370,9 @@ OpenHands/software-agent-sdk#6338
   fix CI: done — checks passed on head e66822d
   address review findings: done — no unresolved threads, no changes requested
   request re-review: needed — enyst COMMENTED on 0945b15, head is e66822d, no pending request
+  manually test: not configured — no .agents/tickster.toml on the default branch
+  address test findings: not configured — no .agents/tickster.toml on the default branch
+  retest after a fix: not configured — no .agents/tickster.toml on the default branch
 ```
 
 JSON is a list with one object per PR: `{"pr": "owner/repo#N", "steps": [...]}`. Each
@@ -381,7 +386,7 @@ a `ref` (the login, commit or check it is about) when there is one. `--explain` 
 | `waiting` | Someone else has to act: a requested reviewer, or running CI |
 | `done` | The step is satisfied |
 | `n/a` | The step does not apply. Every step is `n/a` on a merged or closed PR |
-| `not configured` | The step depends on a [norms](#tkt-norms) setting the repo does not have. No Phase A step uses it |
+| `not configured` | The step depends on a [norms](#tkt-norms) setting the repo does not have: no norms file, or no `[reports.manual_test]`. The four GitHub-only steps never use it |
 | `unknown` | Facts are missing or uncertain, for example no checks yet while mergeability is still `UNKNOWN` |
 
 | Step | `needed` | `waiting` | `done` | `n/a` |
@@ -391,6 +396,50 @@ a `ref` (the login, commit or check it is about) when there is one. `--explain` 
 | `address review findings` | An unresolved review thread, or a counted reviewer's latest review is `CHANGES_REQUESTED` | | Neither | No reviews |
 | `request re-review` | A counted reviewer's latest review is on an older head and no request is pending | A re-request is pending, or a `[review] rerequest_labels` label is on the PR | Every counted reviewer's latest review is on the head | No reviews |
 
+#### Report steps
+
+A report is a comment whose first 200 characters match `[reports.<name>].marker`.
+The latest one is "the report"; the head when it was posted is "the tested commit".
+`manual_test` always gets its three steps; any other `[reports.<name>]` adds three
+more after them, in file order. `tkt` never hard-codes a report's wording or when it
+is required: the norms say so, and without them the `manual_test` steps are `not
+configured`.
+
+| Step | `needed` | `done` | `n/a` |
+| --- | --- | --- | --- |
+| `manually test` | `required = true`, no report, and `only_paths` is empty or matches a file the PR changes | A report exists | No report and `required = false`, or no report and `only_paths` matches nothing the PR changes |
+| `address test findings` | The latest report matches `fail` | The latest report does not match `fail` (a report with no `fail` pattern never fails) | No report |
+| `retest after a fix` | The report is older than the head, a [significant change](#tkt-pr-changes) happened since the tested commit, and nothing waives it | The report is on the head, or no significant change since the tested commit, or it is waived | No report |
+
+A significant change is judged as in `tkt pr changes --since <tested commit>`, with the
+repo's `[commits] ignore_paths` and `min_changed_lines`. So a docs-only push leaves
+`retest after a fix` at `done`, and a push that touches code makes it `needed`.
+
+**Waiver.** An `impact_line` comment waives the change when all of these hold:
+
+- it matches `[reports.<name>.impact_line].pattern`, and what the pattern captures (its
+  first group, or the whole match when it has none) says `none`;
+- it was posted after the change: its head is the PR's current head, or a commit at or
+  after the last commit of the PR's own in the range;
+- its author is in `from`: `agents`, `humans`, `bots` (by [actor class](#ai-actors)) or
+  `author` (the PR's author).
+
+The latest such comment decides. One that says `rerun` keeps the step `needed`. A line
+from someone not in `from`, or posted before the change, is ignored. When no line covers
+the change, `unassessed` decides: `rerun` makes the step `needed`, `ignore` makes it
+`done`. With no `impact_line` configured nothing waives a change.
+
+Three situations give `unknown` instead of a guess: the timeline is longer than the fetch
+cap (a newer report may be missing), the commit a report was posted on can't be found in
+the timeline, and facts that could not be read.
+
+The report steps cost extra requests only when they must: one `compare` for each
+distinct tested commit that is older than the head (plus a second when that range holds a
+merge commit), and the PR's file list only when a required report with `only_paths` has
+not been written yet.
+
+#### Notes
+
 - A reviewer is counted when their [actor class](#ai-actors) is in `[review]
   count_reviews_from` (`humans`, `agents`, `bots`; a team counts as `humans`). Without
   a norms file that is `humans` and `agents`, and no agents are known, so only humans count.
@@ -399,13 +448,23 @@ a `ref` (the login, commit or check it is about) when there is one. `--explain` 
   sets them, and the rollup is failing or pending, does `tkt` read the PR's individual
   checks (one extra request per such PR).
 - Not detected: findings left in a review summary or a plain comment instead of a thread.
+- `fail` and `impact_line` patterns, like `marker`, read only the first 200 characters of a
+  comment ([`tkt norms`](#tkt-norms)). Put a report's verdict near the top.
 - With `--diff` / `--watch` on `tkt pr list --steps`, a step that moved marks the row `*`
   and the Note (and `step_changes` in the JSON) says how: `request re-review: done →
-  needed`. A baseline saved without `--steps` is not compared.
+  needed`. Every step is recorded, including other reports' steps. A baseline saved without
+  `--steps` is not compared, and a step missing from the baseline is skipped.
 - `tkt pr list --steps` shows one character per step, in this order: `r` review, `c` CI,
-  `f` findings, `a` re-review. Uppercase is `needed`, lowercase `waiting`, `.` done or
-  `n/a`, `?` unknown, `-` not configured. `R.F.` = review needed and findings to address.
+  `f` findings, `a` re-review, `m` manual test, `t` test findings, `x` retest. Uppercase is
+  `needed`, lowercase `waiting`, `.` done or `n/a`, `?` unknown, `-` not configured.
+  `R.F....` = review needed and findings to address; `....M--` = the manual test report is
+  missing. A report other than `manual_test` has no column; see it with `tkt pr steps`.
 - The exit code is 0 whatever the statuses are; errors (a PR that is not found) exit 1.
+- `--explain` adds, for each report step, the marker and how many comments it matched, the
+  latest match (author, time, tested commit), `fail` and `impact_line` settings and what
+  each impact line did, and the commits and files that made the change significant (first
+  10 files; `and N more`) or the ignored ones.
+- On a merged or closed PR every step, report steps included, is `n/a`.
 - The command is also a library function, `src.pr.steps.evaluate_steps`.
 
 ### `tkt pr show`
@@ -712,8 +771,9 @@ new optional keys do not bump it.
   false, and a rule that needs it prints a one-time warning pointing to
   `tkt norms init --from github:jpshackelford/tickster`.
 - `$closed_by_bot` also matches the `[labels] stale` labels.
-- `tkt pr steps` reads `[review] count_reviews_from`, `[review] rerequest_labels` and
-  `[ci] ignore_checks`; with no file it counts humans and agents.
+- `tkt pr steps` reads `[review] count_reviews_from`, `[review] rerequest_labels`,
+  `[ci] ignore_checks`, `[commits]` and every `[reports.<name>]`; with no file it counts
+  humans and agents, and the report steps are `not configured`.
 - Bot detection for issue history is the union of the `[bot]` suffix, `[issue]
   bot_usernames` and the repo's `[actors] bots`.
 

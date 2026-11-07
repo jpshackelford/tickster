@@ -1,0 +1,193 @@
+{
+  "status": "ahead",
+  "commits": [
+    {
+      "sha": "ef47f416b3c31cf9261d129cccf23de8cf2e8abb",
+      "parents": [
+        {
+          "sha": "f41cd838ab430067f143e547283090565f2c4b89"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "feat(pr): add `tkt pr changes --since SHA` with commit facts and a significance verdict",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:58:05Z"
+        }
+      }
+    },
+    {
+      "sha": "bff03b37c2a44624c2cac02403b80cccff502cf8",
+      "parents": [
+        {
+          "sha": "ef47f416b3c31cf9261d129cccf23de8cf2e8abb"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "docs(pr): show real tkt pr changes output in usage",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T10:58:22Z"
+        }
+      }
+    },
+    {
+      "sha": "af8cdb1d949ff100b040ebfe7a3ccc899b058cf1",
+      "parents": [
+        {
+          "sha": "bff03b37c2a44624c2cac02403b80cccff502cf8"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "docs(pr): fix reproducible example and note merge-from-base over-reporting",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:16:20Z"
+        }
+      }
+    },
+    {
+      "sha": "e8c7298eb49dc3a19a3bee43b3e9eb30983ac497",
+      "parents": [
+        {
+          "sha": "af8cdb1d949ff100b040ebfe7a3ccc899b058cf1"
+        },
+        {
+          "sha": "b80e9111a7299a7b856c01892e3c94b50a7b297f"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "Merge main into feat/pr-changes-since",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:25:33Z"
+        }
+      }
+    },
+    {
+      "sha": "c77f38b02084009d2ea4776562f8d97e273de78f",
+      "parents": [
+        {
+          "sha": "e8c7298eb49dc3a19a3bee43b3e9eb30983ac497"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "fix(pr): don't count commits a merge-from-base brought in toward significance",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:30:19Z"
+        }
+      }
+    },
+    {
+      "sha": "7ada92a0064056de4d47468a1252044f32e835d4",
+      "parents": [
+        {
+          "sha": "c77f38b02084009d2ea4776562f8d97e273de78f"
+        },
+        {
+          "sha": "df89f14d2afc1c412700b6889b28929f0952a160"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "Merge main into feat/pr-changes-since",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:30:20Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "doc/usage.md",
+      "status": "modified",
+      "additions": 67,
+      "deletions": 0
+    },
+    {
+      "filename": "src/__main__.py",
+      "status": "modified",
+      "additions": 76,
+      "deletions": 1
+    },
+    {
+      "filename": "src/board/github_api.py",
+      "status": "modified",
+      "additions": 4,
+      "deletions": 0
+    },
+    {
+      "filename": "src/pr/changes.py",
+      "status": "added",
+      "additions": 293,
+      "deletions": 0
+    },
+    {
+      "filename": "src/pr/cli/__init__.py",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 1
+    },
+    {
+      "filename": "src/pr/cli/changes_cmd.py",
+      "status": "added",
+      "additions": 108,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/pr/fixtures/compare_sdk_6471_4c8680e_043e0fd.json",
+      "status": "added",
+      "additions": 61,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/pr/fixtures/compare_sdk_6471_base_f987cb4_043e0fd.json",
+      "status": "added",
+      "additions": 151,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/pr/fixtures/compare_sdk_6471_e0f52ea_043e0fd.json",
+      "status": "added",
+      "additions": 103,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/pr/fixtures/compare_tickster_2b09310_f41cd83.json",
+      "status": "added",
+      "additions": 135,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/pr/test_changes.py",
+      "status": "added",
+      "additions": 556,
+      "deletions": 0
+    },
+    {
+      "filename": "tests/test_broken_pipe.py",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0
+    }
+  ]
+}

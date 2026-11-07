@@ -4,9 +4,9 @@ from datetime import datetime
 
 from src.actors import HistoryEvent, classify_actor, iso_utc
 from src.connection_paging import TRUNCATION_MARKER, is_truncated
-from src.norms.model import Norms
+from src.norms.model import COMMENT_MATCH_CHARS, Norms
 from src.norms.store import get_repo_norms
-from src.pr.models import ActionType, CIStatus, PRInfo, PRState, TimelineEvent
+from src.pr.models import ActionType, CIStatus, PRComment, PRInfo, PRState, TimelineEvent
 from src.pr.reviewers import build_reviewers
 
 # An AI actor's version of these events gets its own letter.
@@ -73,6 +73,8 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
         or is_truncated(pr_data, "latestReviews"),
         labels=tuple(n["name"] for n in (pr_data.get("labels") or {}).get("nodes", []) if n),
         checks_state=_rollup_state(pr_data),
+        comments=_comment_records(pr_data, reference_user, norms),
+        timeline_truncated=is_truncated(pr_data, "timelineItems"),
     )
 
 
@@ -339,6 +341,54 @@ def _build_history_string(
     - If merged, don't also show killed
     """
     return _history_text(_history_events(events, reference_user), truncated)
+
+
+def _comment_records(
+    pr_data: dict, reference_user: str, norms: Norms | None
+) -> tuple[PRComment, ...]:
+    """The plain comments a ``[reports]`` marker could match, each with the head it was posted on.
+
+    Empty when the repo defines no reports. The head is the last commit or
+    force-push before the comment, in the order ``tkt pr show`` reads them.
+    """
+    if norms is None or not norms.reports:
+        return ()
+    stamped = []
+    for item in pr_data.get("timelineItems", {}).get("nodes", []):
+        if not item:
+            continue
+        typename = item.get("__typename")
+        if typename == "PullRequestCommit":
+            at = (item.get("commit") or {}).get("committedDate")
+        elif typename in ("IssueComment", "HeadRefForcePushedEvent"):
+            at = item.get("createdAt")
+        else:
+            continue
+        if at:
+            stamped.append((_parse_datetime(at), item))
+    stamped.sort(key=lambda pair: pair[0])
+
+    head: str | None = None
+    comments: list[PRComment] = []
+    for at, item in stamped:
+        typename = item["__typename"]
+        if typename == "PullRequestCommit":
+            head = item["commit"].get("oid") or head
+        elif typename == "HeadRefForcePushedEvent":
+            head = (item.get("afterCommit") or {}).get("oid") or head
+        else:
+            body = item.get("body") or ""
+            actor = _login(item.get("author"))
+            comments.append(
+                PRComment(
+                    actor=actor,
+                    actor_class=classify_actor(actor, reference_user, norms, body),
+                    at=iso_utc(at),
+                    text=body[:COMMENT_MATCH_CHARS],
+                    head=head,
+                )
+            )
+    return tuple(comments)
 
 
 def _find_last_activity(events: list[TimelineEvent], created_at: datetime) -> datetime:

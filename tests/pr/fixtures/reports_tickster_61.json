@@ -1,0 +1,151 @@
+{
+  "id": "PR_kwDOTI-9as8AAAABNCu-Og",
+  "number": 61,
+  "title": "feat(norms)!: per-repo .agents/tickster.toml with a versioned schema, plus tkt norms",
+  "state": "MERGED",
+  "isDraft": false,
+  "createdAt": "2026-11-05T10:47:16Z",
+  "closedAt": "2026-11-05T11:26:16Z",
+  "mergeable": "UNKNOWN",
+  "mergeStateStatus": "UNKNOWN",
+  "reviewDecision": null,
+  "headRefOid": "1ba6a83bdc5ab47d9143718b62c256c73ada32f5",
+  "labels": {
+    "nodes": []
+  },
+  "author": {
+    "login": "jpshackelford"
+  },
+  "repository": {
+    "nameWithOwner": "jpshackelford/tickster"
+  },
+  "reviewThreads": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    },
+    "nodes": [],
+    "truncated": false
+  },
+  "reviewRequests": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    },
+    "nodes": [],
+    "truncated": false
+  },
+  "latestReviews": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "MQ"
+    },
+    "nodes": [
+      {
+        "author": {
+          "login": "github-actions"
+        },
+        "state": "COMMENTED",
+        "submittedAt": "2026-11-05T10:52:05Z",
+        "commit": {
+          "oid": "ceee52df66c16c70caead1a2648b1066fb22e7a3"
+        }
+      }
+    ],
+    "truncated": false
+  },
+  "commits": {
+    "nodes": [
+      {
+        "commit": {
+          "statusCheckRollup": {
+            "state": "SUCCESS"
+          }
+        }
+      }
+    ]
+  },
+  "timelineItems": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpPPAAABoat1o8ABqzM1MjM0MjA1NTky"
+    },
+    "nodes": [
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "ceee52df66c16c70caead1a2648b1066fb22e7a3",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T10:46:56Z"
+        }
+      },
+      {
+        "__typename": "PullRequestReview",
+        "author": {
+          "login": "github-actions"
+        },
+        "body": "## Review Summary\n\n**Taste: Good** \u2014 This is a well-engineered feature with excellent security practices and comprehensive testing.\n\n### Repository Policy Gate\n\n\ud83d\udfe0 **Important:** This PR requires a structured manual test report before code review per `.openhands/skills/manual-test/SKILL.md`. The PR d",
+        "state": "COMMENTED",
+        "createdAt": "2026-11-05T10:52:05Z",
+        "comments": {
+          "totalCount": 0
+        }
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Manual Test Results for PR #61\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\n### Setup\n\n- Branch: `feat/norms-50` @ `ceee52d` (head SHA `ceee52df66c16c70caead1a2648b1066fb22e7a3`)\n- Python: `3.13.15`\n- `tkt --version`: `tkt 0.3.0 (ceee52d)`\n- Install: `uv sy",
+        "createdAt": "2026-11-05T10:58:13Z"
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "1ba6a83bdc5ab47d9143718b62c256c73ada32f5",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T11:05:55Z"
+        }
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "Doc fix for manual-test item #32: `doc/board.md` examples now use the real hyphenated CLI keys (`tkt board config set scan-lookback-days 60`, `tkt board config set agent-username-pattern openhands`), and the one-time `$has_agent_assigned` warning in `src/board/macros.py` now tells users to run `tkt ",
+        "createdAt": "2026-11-05T11:06:58Z"
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Manual Test Results for PR #61 (re-test)\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\n**Re-test after docs fix 1ba6a83** (`docs: use hyphenated board config keys in examples`).\n\n### Setup\n\n- Branch: `feat/norms-50` @ `1ba6a83` (head SHA `1ba6a83bdc5ab47d914",
+        "createdAt": "2026-11-05T11:17:16Z"
+      },
+      {
+        "__typename": "MergedEvent",
+        "actor": {
+          "login": "jpshackelford"
+        },
+        "createdAt": "2026-11-05T11:26:16Z"
+      },
+      {
+        "__typename": "ClosedEvent",
+        "actor": {
+          "login": "jpshackelford"
+        },
+        "createdAt": "2026-11-05T11:26:16Z"
+      }
+    ],
+    "truncated": false
+  }
+}

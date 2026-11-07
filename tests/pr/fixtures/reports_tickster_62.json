@@ -1,0 +1,223 @@
+{
+  "id": "PR_kwDOTI-9as8AAAABNC3w7A",
+  "number": 62,
+  "title": "feat(pr): tkt pr changes --since SHA: what changed since a commit, and does it matter",
+  "state": "MERGED",
+  "isDraft": false,
+  "createdAt": "2026-11-05T10:58:46Z",
+  "closedAt": "2026-11-05T11:56:17Z",
+  "mergeable": "UNKNOWN",
+  "mergeStateStatus": "UNKNOWN",
+  "reviewDecision": "APPROVED",
+  "headRefOid": "7ada92a0064056de4d47468a1252044f32e835d4",
+  "labels": {
+    "nodes": [
+      {
+        "name": "review-this"
+      }
+    ]
+  },
+  "author": {
+    "login": "jpshackelford"
+  },
+  "repository": {
+    "nameWithOwner": "jpshackelford/tickster"
+  },
+  "reviewThreads": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    },
+    "nodes": [],
+    "truncated": false
+  },
+  "reviewRequests": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    },
+    "nodes": [],
+    "truncated": false
+  },
+  "latestReviews": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "MQ"
+    },
+    "nodes": [
+      {
+        "author": {
+          "login": "github-actions"
+        },
+        "state": "APPROVED",
+        "submittedAt": "2026-11-05T11:49:39Z",
+        "commit": {
+          "oid": "7ada92a0064056de4d47468a1252044f32e835d4"
+        }
+      }
+    ],
+    "truncated": false
+  },
+  "commits": {
+    "nodes": [
+      {
+        "commit": {
+          "statusCheckRollup": {
+            "state": "SUCCESS"
+          }
+        }
+      }
+    ]
+  },
+  "timelineItems": {
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpPPAAABoauRItABqzM1MjM2Nzc5NTA2"
+    },
+    "nodes": [
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "ef47f416b3c31cf9261d129cccf23de8cf2e8abb",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T10:58:05Z"
+        }
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "bff03b37c2a44624c2cac02403b80cccff502cf8",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T10:58:22Z"
+        }
+      },
+      {
+        "__typename": "PullRequestReview",
+        "author": {
+          "login": "github-actions"
+        },
+        "body": "Strong implementation of the `tkt pr changes` command. The code is well-structured, comprehensively tested, and ready to merge.\n\n**Strengths:**\n- Clean separation between data layer (`src/pr/changes.py`), CLI (`src/pr/cli/changes_cmd.py`), and tests\n- Excellent test coverage (847 tests pass, 39 new ",
+        "state": "APPROVED",
+        "createdAt": "2026-11-05T11:04:50Z",
+        "comments": {
+          "totalCount": 0
+        }
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Manual Test Results for PR #62\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\n### Setup\n\n- Branch: `feat/pr-changes-since` @ `bff03b3` (full: `bff03b37c2a44624c2cac02403b80cccff502cf8`)\n- Python: `Python 3.13.15`\n- `tkt --version`: `tkt 0.3.0 (bff03b3)`\n- Ins",
+        "createdAt": "2026-11-05T11:09:51Z"
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "af8cdb1d949ff100b040ebfe7a3ccc899b058cf1",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T11:16:20Z"
+        }
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Documentation updated for: manual test report on bff03b3 (Test 18 FAIL, Test 19 GAP)\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford \u2014 created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\nCommit `af8cdb1` \u2014 `docs(pr): fix reproducible example and not",
+        "createdAt": "2026-11-05T11:17:28Z"
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "e8c7298eb49dc3a19a3bee43b3e9eb30983ac497",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T11:25:33Z"
+        }
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "c77f38b02084009d2ea4776562f8d97e273de78f",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T11:30:19Z"
+        }
+      },
+      {
+        "__typename": "PullRequestCommit",
+        "commit": {
+          "oid": "7ada92a0064056de4d47468a1252044f32e835d4",
+          "author": {
+            "user": {
+              "login": "openhands-agent"
+            }
+          },
+          "committedDate": "2026-11-05T11:30:20Z"
+        }
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Fix for manual test items 19 and BrokenPipe \u2014 head `7ada92a`\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford \u2014 created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\nCI is green on `7ada92a` (Lint, Test (Python 3.12), Type Check). Local: `pytest` 1071 ",
+        "createdAt": "2026-11-05T11:31:49Z"
+      },
+      {
+        "__typename": "IssueComment",
+        "author": {
+          "login": "jpshackelford"
+        },
+        "body": "## Manual Test Results for PR #62\n\n_This comment was created by an AI agent (OpenHands) on behalf of @jpshackelford \u2014 created by an AI agent (OpenHands) on behalf of @jpshackelford._\n\n**This is a re-test at head `7ada92a`.** The previous report was at `bff03b3`. Since then: `c77f38b` (merge-from-bas",
+        "createdAt": "2026-11-05T11:39:10Z"
+      },
+      {
+        "__typename": "PullRequestReview",
+        "author": {
+          "login": "github-actions"
+        },
+        "body": "**Excellent implementation** \u2014 clean design, comprehensive tests, and thorough manual validation. Ready to merge.\n\n### Strengths\n\n- **Clean separation of concerns**: Data layer (`changes.py`), CLI (`changes_cmd.py`), and tests are well-organized\n- **Comprehensive testing**: 49 new tests with 99-100%",
+        "state": "APPROVED",
+        "createdAt": "2026-11-05T11:49:39Z",
+        "comments": {
+          "totalCount": 0
+        }
+      },
+      {
+        "__typename": "MergedEvent",
+        "actor": {
+          "login": "jpshackelford"
+        },
+        "createdAt": "2026-11-05T11:56:17Z"
+      },
+      {
+        "__typename": "ClosedEvent",
+        "actor": {
+          "login": "jpshackelford"
+        },
+        "createdAt": "2026-11-05T11:56:18Z"
+      }
+    ],
+    "truncated": false
+  }
+}

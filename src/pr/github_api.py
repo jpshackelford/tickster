@@ -30,6 +30,7 @@ PR_TIMELINE = ConnectionSpec(
         PULL_REQUEST_REVIEW,
         ISSUE_COMMENT,
         PULL_REQUEST_COMMIT,
+        HEAD_REF_FORCE_PUSHED_EVENT,
         REVIEW_REQUESTED_EVENT,
         CLOSED_EVENT,
         MERGED_EVENT
@@ -50,9 +51,14 @@ PR_TIMELINE = ConnectionSpec(
             }
             ... on PullRequestCommit {
                 commit {
+                    oid
                     author { user { login } }
                     committedDate
                 }
+            }
+            ... on HeadRefForcePushedEvent {
+                createdAt
+                afterCommit { oid }
             }
             ... on ReviewRequestedEvent {
                 createdAt

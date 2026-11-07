@@ -49,6 +49,21 @@ class TimelineEvent:
     actor_class: ActorClass = ActorClass.HUMAN
 
 
+@dataclass(frozen=True)
+class PRComment:
+    """A plain PR comment, as much of it as a ``[reports]`` pattern reads.
+
+    ``head`` is the PR's head commit when the comment was posted, or None when
+    the timeline shows no commit before it.
+    """
+
+    actor: str
+    actor_class: ActorClass
+    at: str  # ISO-8601 UTC
+    text: str
+    head: str | None = None
+
+
 @dataclass
 class PRInfo:
     """Processed PR information for display."""
@@ -74,6 +89,8 @@ class PRInfo:
     reviewers_truncated: bool = False
     labels: tuple[str, ...] = ()
     checks_state: str | None = None  # raw check-rollup state of the head commit, if any
+    comments: tuple[PRComment, ...] | None = None  # oldest first; None = not collected
+    timeline_truncated: bool = False  # events past the fetch cap are missing
 
     @property
     def age_seconds(self) -> float:

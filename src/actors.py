@@ -22,6 +22,16 @@ class ActorClass(StrEnum):
         return self in (ActorClass.AGENT, ActorClass.ME_AGENT)
 
 
+# The ``[review] count_reviews_from`` / ``[reports.*.impact_line] from`` group of each class.
+ACTOR_GROUP = {
+    ActorClass.ME: "humans",
+    ActorClass.HUMAN: "humans",
+    ActorClass.AGENT: "agents",
+    ActorClass.ME_AGENT: "agents",
+    ActorClass.BOT: "bots",
+}
+
+
 def classify_actor(
     login: str,
     reference_user: str,

@@ -1,0 +1,33 @@
+# This repo's conventions for tickster, read from the default branch.
+# Validate with `tkt norms check --strict`. See doc/usage.md#tkt-norms.
+schema = 1
+
+[actors]
+agent_logins = ["all-hands-bot", "openhands-agent"]
+agent_disclosure = 'created by an AI agent \(OpenHands\)'
+bots = []
+
+[labels]
+stale = ["stale"]
+
+[review]
+count_reviews_from = ["humans", "agents"]
+rerequest_labels = ["review-this"]
+
+[ci]
+ignore_checks = ["codecov/*"]
+
+[commits]
+ignore_paths = ["doc/**", "**/*.md"]
+min_changed_lines = 0
+
+[reports.manual_test]
+required = true
+only_paths = []
+marker = '^#+ *Manual Test Results'
+fail = '❌ *FAIL'
+
+[reports.manual_test.impact_line]
+pattern = 'manual[- ]test impact:\s*(none|re-?run)'
+from = ["agents", "author"]
+unassessed = "rerun"

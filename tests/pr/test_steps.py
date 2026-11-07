@@ -20,6 +20,7 @@ from src.pr.cli import list_cmd as pr_list
 from src.pr.cli import steps_cmd
 from src.pr.history import process_pr_data
 from src.pr.models import CIStatus, PRInfo, PRListResult, PRState
+from src.pr.reports import MANUAL_TEST_STEPS
 from src.pr.reviewers import ReviewerState
 from src.pr.steps import (
     STEP_CI,
@@ -359,7 +360,7 @@ class TestClosedPRs:
     @pytest.mark.parametrize("state", [PRState.MERGED, PRState.CLOSED])
     def test_every_step_is_not_applicable(self, state):
         results = evaluate_steps(pr_info((reviewed(commit=OLD),), state=state), None)
-        assert [r.status for r in results] == [NA] * 4
+        assert [r.status for r in results] == [NA] * len(STEP_NAMES)
         assert results[0].evidence[0].text == f"PR is {state.value}"
 
 
@@ -413,12 +414,18 @@ class TestMarks:
         return tuple(StepResult(n, s) for n, s in zip(STEP_NAMES, statuses, strict=True))
 
     def test_upper_needed_lower_waiting_dot_otherwise(self):
-        marks = steps_mark(self.results(NEEDED, WAITING, DONE, NA))
-        assert marks == "Rc.."
+        marks = steps_mark(self.results(NEEDED, WAITING, DONE, NA, NEEDED, WAITING, DONE))
+        assert marks == "Rc..Mt."
 
     def test_unknown_and_not_configured(self):
-        marks = steps_mark(self.results(UNKNOWN, StepStatus.NOT_CONFIGURED, NEEDED, WAITING))
-        assert marks == "?-Fa"
+        marks = steps_mark(
+            self.results(UNKNOWN, StepStatus.NOT_CONFIGURED, NEEDED, WAITING, NEEDED, NA, NEEDED)
+        )
+        assert marks == "?-FaM.X"
+
+    def test_a_report_beyond_manual_test_has_no_column(self):
+        extra = (*self.results(*[DONE] * len(STEP_NAMES)), StepResult("docs review", NEEDED))
+        assert steps_mark(extra) == "......."
 
     def test_step_changes_name_old_and_new(self):
         prev = {STEP_REREVIEW: "done", STEP_CI: "needed", STEP_REVIEW: "done"}
@@ -667,7 +674,8 @@ class TestListColumn:
         out = capsys.readouterr().out
         assert "Steps" in out
         assert "...A" in out
-        assert "Steps: r review, c fix CI, f review findings, a re-review." in out
+        assert "Steps: r review, c fix CI, f review findings, a re-review, " in out
+        assert "m manual test, t test findings, x retest." in out
 
     def test_a_pr_that_needs_everything_it_can(self, fake_client, capsys):
         fake_client.prs = [
@@ -707,6 +715,7 @@ class TestSnapshots:
             STEP_CI: "done",
             STEP_FINDINGS: "done",
             STEP_REREVIEW: "needed",
+            **dict.fromkeys(MANUAL_TEST_STEPS, "not configured"),
         }
         again = Snapshot.from_dict(json.loads(json.dumps(snap.to_dict())))
         assert again.items[0].steps == snap.items[0].steps
