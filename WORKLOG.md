@@ -269,3 +269,12 @@ Testing [PR #68](https://github.com/jpshackelford/tickster/pull/68): `tkt pr ste
 - Ready issues: none unstarted (#54 `hold`). Needs expansion: none in scope
 
 ---
+### 2026-11-07 13:50 UTC - Merge Worker
+
+✅ **Merged PR #68** (`tkt pr steps`, Phase A), squash commit `281a8cd`
+
+- Head was still `8eb0503`, CI green, bot-approved, manual test 20/20. PR description updated to the final state.
+- Issue #53 closed by the merge. PR #44 (release-please) untouched.
+- Known non-blocking limits are in the PR body: `--steps` cell is truncated at 80 columns, and `--diff` joins several step changes with a space.
+
+---
