@@ -375,3 +375,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - PR body rewritten to final state. The default `GITHUB_TOKEN` could not edit or merge PRs (403), so the PR edit and merge used `JPSHACKELFORD_GITHUB_TOKEN`.
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+### 2026-11-07 22:17 UTC - Expansion Worker
+
+✅ **Expanded Issue #81:** [History: "opened" has no AI-actor marker, although comments, reviews and approvals do](https://github.com/jpshackelford/tickster/issues/81)
+
+- Type: enhancement. Decision: add `s`/`S` ("started by an AI actor"); free in both tables and not confusable with `l`/`L`.
+- Approach: add `OPENED` to both `AI_CHARS`; classify the opened event with the item body (add `body` to the list fragments) so `tkt show` and lists agree; update legends and `doc/usage.md`.
+- Labelled `ready`. Complexity low. Risk: one-time `history-rewritten` tag on old snapshots.
+
+---
