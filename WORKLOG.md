@@ -433,3 +433,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-07 23:45 UTC - Expansion Worker
+
+✅ **Expanded Issue #82:** [docs: list the JSON fields of pr show / issue show that the guide does not mention](https://github.com/jpshackelford/tickster/issues/82)
+
+- Type: docs enhancement. Undocumented top-level keys on `main`: `repo`, `number` (both), `reviewers_truncated` (pr), `linked_pr` (issue); the doc also misdescribes the issue key set.
+- Approach: `Key | Meaning` tables in both `show` sections of `doc/usage.md`, plus `tests/show/test_json_doc.py` comparing `Show.to_dict()` keys with the doc tables in both directions. No `src/` change.
+- Labelled `ready`. Complexity low. Note: `GITHUB_TOKEN` could not edit the issue; `JPSHACKELFORD_GITHUB_TOKEN` was used.
+
+---
