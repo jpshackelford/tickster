@@ -307,3 +307,13 @@ _None._
 - Ready, next up: #76, #77 (no priority yet), #72, #73 (`low`). Needs split: #71. Needs expansion (queued): #80-#82
 
 ---
+
+### 2026-11-07 22:40 UTC - Expansion Worker
+
+✅ **Expanded Issue #79:** [Output polish: step-change separator, --max-body length, "a issue" typo, two-line retry warning](https://github.com/jpshackelford/tickster/issues/79)
+
+- Type: enhancement (four small output fixes). Reproduced the `--max-body` overshoot and the two-line retry warning on `main`.
+- Approach: join Note parts with `; ` (shared join in `_render_note`); `--max-body N` counts the body only, documented in help and `doc/usage.md`; "an issue" article; log status code or exception name in the retry warning.
+- Labelled `ready`. Complexity low. Priority label left for the orchestrator.
+
+---
