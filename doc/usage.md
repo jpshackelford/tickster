@@ -291,7 +291,7 @@ tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
 
 | Option | Description |
 | --- | --- |
-| `--since SHA` | Required. The commit to compare from |
+| `--since SHA` | Required. The commit to compare from: a commit SHA of 7 to 40 hex characters, in either case. A branch name or tag is rejected, because a branch tip moves and the verdict could not be repeated; resolve it to a SHA first |
 | `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
 | `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments) |
 | `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
@@ -321,8 +321,9 @@ commit it branched from, so it reproduces. No file matched `--ignore-path` here.
 
 Verdict rules, in order:
 
-- `significant: yes (history rewritten)`: `SHA` is gone from the history
-  (force-push) or the range is diverged or behind.
+- `significant: yes (history rewritten)`: a well-formed `SHA` that GitHub does
+  not know (it is gone from the history after a force-push) or the range is
+  diverged or behind.
 - `significant: yes (too large to inspect)`: the range needs more than 10 pages.
 - `significant: no`: nothing changed, or every commit is a merge commit (two or
   more parents) or a `base` commit, or no files remain after `--ignore-path`, or
@@ -344,6 +345,9 @@ Notes:
 - A pipe closed by the reader (`tkt pr changes ... | head -1`) ends quietly with
   exit code 141, without a traceback.
 - The exit code is 0 whether or not the change is significant; errors exit 1.
+  A malformed `--since` (not 7 to 40 hex characters, so also any branch or tag)
+  exits 2 with `Error: --since needs a commit SHA` on stderr, empty stdout, and
+  no GitHub call.
 - The command is also a library function, `src.pr.changes.pr_changes`.
 
 ### `tkt pr steps`

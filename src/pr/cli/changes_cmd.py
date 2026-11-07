@@ -8,7 +8,14 @@ from typing import Literal
 
 from rich.console import Console
 
-from src.pr.changes import ChangedCommit, ChangesClient, PRChanges, pr_changes
+from src.pr.changes import (
+    ChangedCommit,
+    ChangesClient,
+    InvalidSince,
+    PRChanges,
+    parse_since,
+    pr_changes,
+)
 from src.pr.checks import parse_pr_ref
 
 console = Console(stderr=True)
@@ -29,10 +36,12 @@ def cmd_changes(
     """Show the commits and files between ``since`` and the PR head.
 
     Exit code is 0 whether or not the change is significant; the verdict is in
-    the output.
+    the output. A ``since`` that is not a 7 to 40 character hex SHA exits 2 before
+    any GitHub call; other errors exit 1.
     """
     try:
         repo, number = parse_pr_ref(ref)
+        parse_since(since)
         with ChangesClient() as client:
             changes = pr_changes(
                 client,
@@ -42,6 +51,9 @@ def cmd_changes(
                 ignore_paths=ignore_paths,
                 min_changed_lines=min_changed_lines,
             )
+    except InvalidSince as e:
+        console.print(f"[red]Error:[/] {e}")
+        return 2
     except Exception as e:
         logger.debug("Full traceback:\n%s", traceback.format_exc())
         console.print(f"[red]Error:[/] {e}")

@@ -15,6 +15,7 @@ from functools import lru_cache
 
 from src.board.github_api import GitHubClient, get_github_token
 
+SHA_RE = re.compile(r"[0-9a-fA-F]{7,40}")
 PER_PAGE = 100
 MAX_PAGES = 10
 
@@ -23,6 +24,10 @@ REASON_TOO_LARGE = "too large to inspect"
 REASON_UNCHANGED = "no changes since commit"
 REASON_ONLY_MERGES = "only merge commits"
 REASON_ONLY_MERGES_AND_BASE = "only merge commits and commits brought in from the base"
+
+
+class InvalidSince(ValueError):
+    """``--since`` is not a commit SHA."""
 
 
 @dataclass(frozen=True)
@@ -266,6 +271,16 @@ def _mark_base_commits(client: ChangesClient, repo: str, pull: PullRef, compare:
     compare.commits = [replace(c, from_base=c.sha not in own_shas) for c in compare.commits]
 
 
+def parse_since(since: str) -> str:
+    """Return ``since`` lower-cased; raise :class:`InvalidSince` unless it is 7 to 40 hex characters.
+
+    Branches and tags are rejected on purpose: a moving ref makes the verdict unrepeatable.
+    """
+    if not SHA_RE.fullmatch(since):
+        raise InvalidSince("--since needs a commit SHA")
+    return since.lower()
+
+
 def pr_changes(
     client: ChangesClient,
     repo: str,
@@ -276,9 +291,10 @@ def pr_changes(
     min_changed_lines: int = 0,
 ) -> PRChanges:
     """Library entry point: commits and files since ``since``, and whether they matter."""
+    since = parse_since(since)
     pull = client.get_pull(repo, number)
     head = pull.head
-    if len(since) >= 7 and head.startswith(since.lower()):
+    if head.startswith(since):
         return PRChanges(repo, number, since, head, False, [REASON_UNCHANGED])
 
     compare = client.compare(repo, since, head)
