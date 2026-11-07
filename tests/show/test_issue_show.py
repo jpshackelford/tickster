@@ -53,6 +53,7 @@ def busy_issue(**overrides) -> dict:
 
 @pytest.fixture(autouse=True)
 def env(monkeypatch, tmp_path):
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
     monkeypatch.setenv("GITHUB_USERNAME", "alice")
     monkeypatch.setattr(board_config, "TKT_HOME", tmp_path)
     norms_store.set_loader(lambda _repo: NORMS)
