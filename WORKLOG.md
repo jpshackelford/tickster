@@ -442,3 +442,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Labelled `ready`. Complexity low. Note: `GITHUB_TOKEN` could not edit the issue; `JPSHACKELFORD_GITHUB_TOKEN` was used.
 
 ---
+### 2026-11-07 23:55 UTC - Implementation Worker
+
+✅ **Implemented Issue #76:** [fix(pr): reject a --since that is not a commit SHA in pr changes](https://github.com/jpshackelford/tickster/pull/87) (ready for review, CI green)
+
+- `--since` must be 7 to 40 hex characters; anything else (branch, tag, typo) exits 2 with `Error: --since needs a commit SHA`, empty stdout, no GitHub call. A well-formed unknown SHA still reports `history rewritten`.
+- All acceptance criteria met. Follow-up: the manual-test skill report is still to run in the review conversation.
+- Note: `GITHUB_TOKEN` could not push or open PRs; `JPSHACKELFORD_GITHUB_TOKEN` was used.
+
+---
