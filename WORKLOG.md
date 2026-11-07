@@ -261,3 +261,14 @@ _None._
 - Labelled `ready`. Complexity low. Priority label left for the orchestrator.
 
 ---
+
+### 2026-11-07 22:10 UTC - Expansion Worker
+
+✅ **Expanded Issue #77**
+
+- Issue: [pr changes: read `[commits]` from the repo's norms file instead of only flags](https://github.com/jpshackelford/tickster/issues/77)
+- Type: Enhancement
+- Status: Ready for implementation
+- Approach: `cmd_changes` calls `get_repo_norms` and merges `[commits]` per setting (flag > file > default), via a small helper that `pr steps` can share. Adds `--explain` and a JSON `settings` key to show the source; default text output is unchanged.
+
+---
