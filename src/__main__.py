@@ -634,7 +634,8 @@ Examples:
         "--since",
         required=True,
         metavar="SHA",
-        help="Commit to compare from (for example the commit a test report was posted against)",
+        help="Commit SHA (7-40 hex characters) to compare from, for example the commit a "
+        "test report was posted against; branches and tags are rejected",
     )
     pr_changes_parser.add_argument(
         "--format",

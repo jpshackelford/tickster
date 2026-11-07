@@ -19,7 +19,9 @@ from src.pr.changes import (
     ChangedFile,
     ChangesClient,
     Compare,
+    InvalidSince,
     assess,
+    parse_since,
     pr_changes,
 )
 
@@ -131,6 +133,48 @@ def _sdk_fake(pages: dict) -> FakeGitHub:
 
 def _page(commits: list[dict], files: list[dict], status: str = "ahead") -> dict:
     return {"status": status, "commits": commits, "files": files}
+
+
+VALID_SINCE = ["abcdef0", "ABCDEF0", "a" * 40, "aBcDeF0" * 5, "0a1b2c3" * 5 + "d4e5f"]
+INVALID_SINCE = [
+    "notasha",
+    "main",
+    "v1.0.0",
+    "abcdef",
+    "a" * 41,
+    "",
+    "abc123g",
+    f"{'a' * 7}\n",
+    " abcdef0",
+]
+
+
+class TestParseSince:
+    @pytest.mark.parametrize("since", VALID_SINCE)
+    def test_accepts_7_to_40_hex_characters(self, since):
+        assert parse_since(since) == since.lower()
+
+    @pytest.mark.parametrize("since", INVALID_SINCE)
+    def test_rejects_anything_else(self, since):
+        with pytest.raises(InvalidSince, match="--since needs a commit SHA"):
+            parse_since(since)
+
+    @pytest.mark.parametrize("since", INVALID_SINCE)
+    def test_pr_changes_makes_no_github_call_for_an_invalid_since(self, since):
+        fake = FakeGitHub()
+
+        with pytest.raises(InvalidSince):
+            pr_changes(fake.client(), "o/r", 7, since)
+
+        assert fake.requests == []
+
+    def test_uppercase_since_is_lowercased_in_the_result(self):
+        fake = FakeGitHub()
+
+        result = pr_changes(fake.client(), "o/r", 7, SINCE.upper())
+
+        assert result.since == SINCE
+        assert fake.compare_calls[0].url.path == f"/repos/o/r/compare/{SINCE}...{HEAD}"
 
 
 class TestAssess:
@@ -530,6 +574,27 @@ class TestCli:
         _, out, _ = run(FakeGitHub(compare_status=404))
 
         assert "significant: yes (history rewritten)" in out
+
+    @pytest.mark.parametrize("since", ["notasha", "main"])
+    @pytest.mark.parametrize("fmt", ["text", "json"])
+    def test_malformed_since_exits_2_with_empty_stdout(self, run, since, fmt):
+        fake = FakeGitHub()
+
+        code, out, err = run(fake, "--format", fmt, since=since)
+
+        assert code == 2
+        assert out == ""
+        assert err.strip() == "Error: --since needs a commit SHA"
+        assert fake.requests == []
+
+    def test_well_formed_unknown_sha_still_reports_history_rewritten(self, run):
+        fake = FakeGitHub(compare_status=422)
+
+        code, out, _ = run(fake, since="deadbeefdeadbeef")
+
+        assert code == 0
+        assert "significant: yes (history rewritten)" in out
+        assert len(fake.compare_calls) == 1
 
     def test_min_changed_lines_flag(self, run):
         page = _page([_api_commit("a")], [_api_file("src/a.py", 2, 1)])
