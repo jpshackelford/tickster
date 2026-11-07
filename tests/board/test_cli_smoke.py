@@ -57,6 +57,17 @@ class TestBoardCommandsSmoke:
         captured = capsys.readouterr()
         assert "Configuration" in captured.out
 
+    def test_config_set_without_board_is_one_error_line(self, mock_config_dir, capsys):
+        from src.board.cli import cmd_config
+
+        result = cmd_config(action="set", key="username", value="bob")
+
+        assert result == 1
+        out = capsys.readouterr().out
+        assert "Error: No board configured. Run 'tkt board init' first." in out
+        assert "Traceback" not in out
+        assert not (mock_config_dir / "config.toml").exists()
+
     def test_cmd_templates_runs(self, mock_config_dir, capsys):  # noqa: ARG002
         """Test that cmd_templates runs without crashing."""
         from src.board.cli import cmd_templates

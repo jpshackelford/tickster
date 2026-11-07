@@ -39,6 +39,22 @@ MIN_SEARCH_PAGE_SIZE = 5
 _sleep = time.sleep
 
 
+class GraphQLError(RuntimeError):
+    """GitHub answered a GraphQL request with errors, or a looked-up object does not exist."""
+
+
+def describe_http_error(e: Exception) -> str:
+    """One line for an HTTP failure, without httpx's URL and MDN link."""
+    if isinstance(e, httpx.HTTPStatusError):
+        request = e.request
+        return (
+            f"GitHub returned HTTP {e.response.status_code} for {request.method} {request.url.path}"
+        )
+    if isinstance(e, httpx.TransportError):
+        return f"request to GitHub failed: {type(e).__name__}"
+    return str(e)
+
+
 def _backoff(attempt: int) -> float:
     return RETRY_BASE_DELAY * 2**attempt + random.uniform(0, RETRY_BASE_DELAY)
 
@@ -709,7 +725,7 @@ class GitHubClient:
 
         if errors and (data is None or (not tolerate_null_roots and _nulls_a_root(errors, data))):
             error_msgs = [e.get("message", str(e)) for e in errors]
-            raise RuntimeError(f"GraphQL errors: {error_msgs}")
+            raise GraphQLError(f"GraphQL errors: {error_msgs}")
 
         for error in errors or []:
             logger.warning(
@@ -895,7 +911,7 @@ class GitHubClient:
         """
         data = self.graphql(query, {"username": username}, tolerate_null_roots=True)
         if not data["user"]:
-            raise RuntimeError(f"GitHub user not found: {username}")
+            raise GraphQLError(f"GitHub user not found: {username}")
         return data["user"]["id"]
 
     def create_status_field(self, project_id: str) -> tuple[str, dict[str, str]]:

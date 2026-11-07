@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+import httpx
 from rich.console import Console
 
 from src.board.cache import BoardCache
@@ -20,7 +21,12 @@ from src.board.config import (
     save_board_config,
     slugify,
 )
-from src.board.github_api import GitHubClient, get_github_username
+from src.board.github_api import (
+    GitHubClient,
+    GraphQLError,
+    describe_http_error,
+    get_github_username,
+)
 from src.board.models import get_default_columns
 
 console = Console()
@@ -93,37 +99,46 @@ def cmd_init(
 
     print_info(f"GitHub user: {username}", dim=True)
 
-    with GitHubClient() as client:
-        # Case 1: Create new project
-        if create_name:
-            return _create_new_project(client, cache, config, create_name, username, options)
+    try:
+        with GitHubClient() as client:
+            # Case 1: Create new project
+            if create_name:
+                return _create_new_project(client, cache, config, create_name, username, options)
 
-        # Case 2: Configure existing project by ID
-        if project_id:
-            return _configure_by_id(client, cache, config, project_id, username, options)
+            # Case 2: Configure existing project by ID
+            if project_id:
+                return _configure_by_id(client, cache, config, project_id, username, options)
 
-        # Case 3: Configure existing project by number
-        if project_number:
-            return _configure_by_number(client, cache, config, project_number, username, options)
+            # Case 3: Configure existing project by number
+            if project_number:
+                return _configure_by_number(
+                    client, cache, config, project_number, username, options
+                )
 
-        # Case 4: Use configured project
-        if config.project_id:
-            return _configure_existing(client, cache, config, username, options)
+            # Case 4: Use configured project
+            if config.project_id:
+                return _configure_existing(client, cache, config, username, options)
 
-        if config.project_number:
-            return _configure_by_number(
-                client, cache, config, config.project_number, username, options
+            if config.project_number:
+                return _configure_by_number(
+                    client, cache, config, config.project_number, username, options
+                )
+
+            # No project specified
+            print_error("No project specified")
+            console.print("\nUsage:")
+            console.print("  tkt board init --create 'Project Name'  # Create new")
+            console.print(
+                "  tkt board init --create 'Name' --scope project --overview <url>  # Project-scoped"
             )
-
-        # No project specified
-        print_error("No project specified")
-        console.print("\nUsage:")
-        console.print("  tkt board init --create 'Project Name'  # Create new")
-        console.print(
-            "  tkt board init --create 'Name' --scope project --overview <url>  # Project-scoped"
-        )
-        console.print("  tkt board init --project-number 5       # Configure existing")
-        console.print("  tkt board init --project-id PVT_xxx     # Configure by ID")
+            console.print("  tkt board init --project-number 5       # Configure existing")
+            console.print("  tkt board init --project-id PVT_xxx     # Configure by ID")
+            return 1
+    except httpx.HTTPError as e:
+        print_error(describe_http_error(e))
+        return 1
+    except GraphQLError as e:
+        print_error(str(e))
         return 1
 
 

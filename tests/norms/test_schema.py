@@ -199,3 +199,26 @@ def test_read_raw_and_dump_round_trip():
     data, schema, errors = read_raw('schema = 1\n[labels]\nstale = ["x"]\n')
     assert (schema, errors) == (1, [])
     assert read_raw(dump_raw(data))[0] == data
+
+
+@pytest.mark.parametrize(
+    ("text", "key"),
+    [
+        ("schema = 1\n[reports.m]\nmarker = '('\n", "reports.m.marker"),
+        (
+            "schema = 1\n[reports.m]\nmarker = 'a'\n[reports.m.impact_line]\npattern = '('\n",
+            "reports.m.impact_line.pattern",
+        ),
+    ],
+)
+def test_invalid_required_key_is_not_also_reported_missing(text, key):
+    result = parse_norms(text)
+    assert [(i.key, i.message.split(":")[0]) for i in result.errors] == [(key, "invalid regex '('")]
+
+
+def test_absent_required_keys_are_still_reported_missing():
+    result = parse_norms("schema = 1\n[reports.m]\nrequired = true\n[reports.m.impact_line]\n")
+    assert {(i.key, i.message) for i in result.errors} == {
+        ("reports.m.marker", "missing required key"),
+        ("reports.m.impact_line.pattern", "missing required key"),
+    }

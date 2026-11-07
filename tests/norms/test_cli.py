@@ -167,6 +167,27 @@ class TestInitFrom:
         )
         assert text.endswith(V1)
 
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [(422, "ref 'NOSUCHREF' not found in the source"), (404, "GitHub returned HTTP 404")],
+    )
+    def test_github_http_errors_are_one_line(
+        self, work_tree, monkeypatch, capsys, status, expected
+    ):
+        client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(status)))
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        real = norms_source.fetch_source
+        monkeypatch.setattr(
+            "src.norms.cli.commands.norms_source.fetch_source",
+            lambda s, r: real(s, r, client=client),
+        )
+        assert cmd_init(source="github:octo/hello", ref="NOSUCHREF") == 1
+        err = capsys.readouterr().err
+        assert expected in err
+        assert "mozilla" not in err and "developer." not in err
+        assert len(err.strip().splitlines()) == 1
+        assert not norms_file(work_tree).exists()
+
     @pytest.mark.parametrize("source", ["ext::sh -c id", "ftp://h/r.git", "http://h/r.git"])
     def test_rejected_transports_write_nothing(self, work_tree, source, capsys):
         assert cmd_init(source=source) == 1

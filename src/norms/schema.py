@@ -190,9 +190,11 @@ def _validate(
 
 
 def _require_keys(table: Mapping[str, Any], spec: Spec, path: str, issues: list[Issue]) -> None:
+    """Flag required keys that are absent; a key that failed validation already has its own error."""
+    failed = {i.key for i in issues}
     for name, sub in spec.items():
         key_path = f"{path}.{name}" if path else name
-        if isinstance(sub, Key) and sub.required and name not in table:
+        if isinstance(sub, Key) and sub.required and name not in table and key_path not in failed:
             issues.append(_err(key_path, "missing required key"))
 
 
