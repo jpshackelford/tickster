@@ -1,0 +1,43 @@
+{
+  "status": "ahead",
+  "commits": [
+    {
+      "sha": "1ba6a83bdc5ab47d9143718b62c256c73ada32f5",
+      "parents": [
+        {
+          "sha": "ceee52df66c16c70caead1a2648b1066fb22e7a3"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "docs: use hyphenated board config keys in examples",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:05:55Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "doc/board.md",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2
+    },
+    {
+      "filename": "src/board/macros.py",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1
+    },
+    {
+      "filename": "tests/norms/test_integration.py",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1
+    }
+  ]
+}

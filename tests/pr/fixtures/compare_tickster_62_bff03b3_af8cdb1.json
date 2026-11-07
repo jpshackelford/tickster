@@ -1,0 +1,31 @@
+{
+  "status": "ahead",
+  "commits": [
+    {
+      "sha": "af8cdb1d949ff100b040ebfe7a3ccc899b058cf1",
+      "parents": [
+        {
+          "sha": "bff03b37c2a44624c2cac02403b80cccff502cf8"
+        }
+      ],
+      "author": {
+        "login": "openhands-agent"
+      },
+      "commit": {
+        "message": "docs(pr): fix reproducible example and note merge-from-base over-reporting",
+        "author": {
+          "name": "openhands",
+          "date": "2026-11-05T11:16:20Z"
+        }
+      }
+    }
+  ],
+  "files": [
+    {
+      "filename": "doc/usage.md",
+      "status": "modified",
+      "additions": 15,
+      "deletions": 8
+    }
+  ]
+}

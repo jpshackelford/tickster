@@ -84,7 +84,7 @@ export GIST_TOKEN=ghp_...          # optional; used for board state gists
 tkt issue list                     # list open issues
 tkt pr list                        # list open pull requests
 tkt pr list --repo owner/name --all-authors   # everyone's PRs, not only yours
-tkt pr steps owner/repo#7          # which of review, CI, findings and re-review are pending
+tkt pr steps owner/repo#7          # which of review, CI, findings, re-review and the repo's report steps are pending
 tkt pr show owner/repo#7           # one PR's timeline with comment and review text
 tkt pr show owner/repo#7 --since 2026-11-05T10:00:00Z   # only events after a time
 tkt issue show owner/repo#42       # one issue's timeline with comment text

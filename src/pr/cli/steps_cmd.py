@@ -8,10 +8,13 @@ from typing import Literal
 
 from rich.console import Console
 
+from src.norms.model import Norms
 from src.norms.store import get_repo_norms
+from src.pr.changes import ChangesClient, pr_changes
 from src.pr.checks import ChecksClient, parse_pr_ref
 from src.pr.github_api import PRClient
 from src.pr.models import PRInfo
+from src.pr.reports import ReportFacts, needs_pr_files, tested_commits
 from src.pr.steps import StepResult, evaluate_steps, needs_check_details
 
 console = Console(stderr=True)
@@ -25,10 +28,14 @@ def collect_steps(prs: Sequence[PRInfo]) -> dict[str, tuple[StepResult, ...]]:
     """Steps per PR, keyed ``owner/repo#N``.
 
     The individual checks are fetched only for a PR whose repo ignores some
-    checks and whose rollup is not green; every other verdict needs no extra call.
+    checks and whose rollup is not green. The changes since a report's tested commit
+    are fetched only for a PR whose latest report is older than its head, and the PR's
+    files only when a required report has ``only_paths``; every other verdict needs
+    no extra call.
     """
     out: dict[str, tuple[StepResult, ...]] = {}
     checks_client: ChecksClient | None = None
+    changes_client: ChangesClient | None = None
     try:
         for pr in prs:
             norms = get_repo_norms(pr.repo)
@@ -36,11 +43,33 @@ def collect_steps(prs: Sequence[PRInfo]) -> dict[str, tuple[StepResult, ...]]:
             if needs_check_details(pr, norms):
                 checks_client = checks_client or ChecksClient()
                 contexts = checks_client.get_pr_checks(pr.repo, pr.number).contexts
-            out[f"{pr.repo}#{pr.number}"] = evaluate_steps(pr, norms, contexts)
+            facts = None
+            if norms is not None and (tested_commits(pr, norms) or needs_pr_files(pr, norms)):
+                changes_client = changes_client or ChangesClient()
+                facts = _report_facts(changes_client, pr, norms)
+            out[f"{pr.repo}#{pr.number}"] = evaluate_steps(pr, norms, contexts, facts)
     finally:
         if checks_client:
             checks_client.close()
+        if changes_client:
+            changes_client.close()
     return out
+
+
+def _report_facts(client: ChangesClient, pr: PRInfo, norms: Norms) -> ReportFacts:
+    changes = {
+        sha: pr_changes(
+            client,
+            pr.repo,
+            pr.number,
+            sha,
+            ignore_paths=norms.commits.ignore_paths,
+            min_changed_lines=norms.commits.min_changed_lines,
+        )
+        for sha in tested_commits(pr, norms)
+    }
+    files = client.pr_files(pr.repo, pr.number) if needs_pr_files(pr, norms) else None
+    return ReportFacts(changes=changes, pr_files=files)
 
 
 def cmd_steps(

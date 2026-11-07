@@ -532,8 +532,9 @@ Examples:
         "--steps",
         dest="show_steps",
         action="store_true",
-        help="Add a Steps column, one character per step (review, CI, findings, re-review): "
-        "UPPER needed, lower waiting, . done or n/a, ? unknown. Snapshots record the statuses",
+        help="Add a Steps column, one character per step (review, CI, findings, re-review, "
+        "manual test, test findings, retest): UPPER needed, lower waiting, . done or n/a, "
+        "? unknown, - not configured. Snapshots record the statuses",
     )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
@@ -593,8 +594,10 @@ Examples:
     pr_steps_parser = pr_subparsers.add_parser(
         "steps",
         help="Show which follow-up steps a PR still needs, and why",
-        description="For each PR, say whether review, CI, review findings and re-review "
-        "are needed, waiting, done, n/a or unknown, with the evidence for each.",
+        description="For each PR, say whether review, CI, review findings, re-review and "
+        "the steps of each [reports] entry in the repo's norms (manual test, test findings, "
+        "retest) are needed, waiting, done, n/a, not configured or unknown, with the "
+        "evidence for each.",
     )
     pr_steps_parser.add_argument(
         "refs",

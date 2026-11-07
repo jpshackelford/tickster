@@ -3,8 +3,9 @@
 Phase A covers the four steps GitHub's own data can settle: review, CI, review
 findings and re-review. Each rule is a pure function of a :class:`PRInfo`, the repo's
 norms (``[review]``, ``[ci]``) and, when ``[ci] ignore_checks`` is in play, the
-head commit's individual checks. A step says whether it is pending, not when it
-should happen: order is policy, and it belongs to the consumer.
+head commit's individual checks. Phase B (see :mod:`src.pr.reports`) adds three steps
+per ``[reports.<name>]`` the repo's norms define. A step says whether it is pending,
+not when it should happen: order is policy, and it belongs to the consumer.
 
 Not detected: findings left in a review summary or a plain comment rather than
 in a thread.
@@ -13,32 +14,39 @@ in a thread.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import StrEnum
 
-from src.actors import ActorClass
+from src.actors import ACTOR_GROUP, ActorClass
 from src.norms.model import CI, Norms, Review, any_glob_match
 from src.pr.checks import OUTCOME_FAILED, OUTCOME_PENDING, CheckContext
 from src.pr.models import PRInfo, PRState
+from src.pr.reports import (
+    MANUAL_TEST_STEPS,
+    ReportFacts,
+    all_step_names,
+    closed_steps,
+    evaluate_report_steps,
+)
 from src.pr.reviewers import (
     CHANGES_REQUESTED,
     DISMISSED,
     ReviewerState,
 )
-
-SHORT_SHA = 7
+from src.pr.step_types import Evidence, StepResult, StepStatus, result, short, unknown
 
 STEP_REVIEW = "review the PR"
 STEP_CI = "fix CI"
 STEP_FINDINGS = "address review findings"
 STEP_REREVIEW = "request re-review"
-STEP_NAMES = (STEP_REVIEW, STEP_CI, STEP_FINDINGS, STEP_REREVIEW)
+PHASE_A_STEPS = (STEP_REVIEW, STEP_CI, STEP_FINDINGS, STEP_REREVIEW)
+STEP_NAMES = (*PHASE_A_STEPS, *MANUAL_TEST_STEPS)
 
-# One character per step in `pr list --steps`, in STEP_NAMES order.
-STEP_LETTERS = "rcfa"
+# One character per step in `pr list --steps`, in STEP_NAMES order. A report other than
+# manual_test has steps in `pr steps` and snapshots but no column.
+STEP_LETTERS = "rcfamtx"
 
 STEPS_LEGEND = (
-    "Steps: r review, c fix CI, f review findings, a re-review. "
+    "Steps: r review, c fix CI, f review findings, a re-review, "
+    "m manual test, t test findings, x retest. "
     "UPPER needed, lower waiting, . done or n/a, ? unknown, - not configured."
 )
 
@@ -46,64 +54,6 @@ _ROLLUP_PENDING = frozenset({"PENDING", "EXPECTED"})
 _ROLLUP_FAILED = frozenset({"FAILURE", "ERROR"})
 _ROLLUP_PASSED = frozenset({"SUCCESS"})
 _MERGEABLE_UNKNOWN = "UNKNOWN"
-
-_ACTOR_GROUP = {
-    ActorClass.ME: "humans",
-    ActorClass.HUMAN: "humans",
-    ActorClass.AGENT: "agents",
-    ActorClass.ME_AGENT: "agents",
-    ActorClass.BOT: "bots",
-}
-
-
-class StepStatus(StrEnum):
-    NEEDED = "needed"  # the author's side has to act
-    WAITING = "waiting"  # someone else has to act: a requested reviewer, or running CI
-    DONE = "done"
-    NOT_APPLICABLE = "n/a"
-    NOT_CONFIGURED = "not configured"
-    UNKNOWN = "unknown"
-
-
-@dataclass(frozen=True)
-class Evidence:
-    """One fact a status rests on; ``ref`` is the login, commit or check it is about."""
-
-    kind: str
-    text: str
-    ref: str | None = None
-
-    def to_dict(self) -> dict:
-        data = {"kind": self.kind, "text": self.text}
-        if self.ref is not None:
-            data["ref"] = self.ref
-        return data
-
-
-@dataclass(frozen=True)
-class StepResult:
-    step: str
-    status: StepStatus
-    evidence: tuple[Evidence, ...] = ()
-    explain: tuple[str, ...] = ()
-
-    def to_dict(self, *, explain: bool = False) -> dict:
-        data = {
-            "step": self.step,
-            "status": self.status.value,
-            "evidence": [e.to_dict() for e in self.evidence],
-        }
-        if explain:
-            data["explain"] = list(self.explain)
-        return data
-
-    def line(self) -> str:
-        text = ", ".join(e.text for e in self.evidence)
-        return f"{self.step}: {self.status.value}" + (f" — {text}" if text else "")
-
-
-def short(sha: str | None) -> str:
-    return sha[:SHORT_SHA] if sha else "?"
 
 
 def needs_check_details(pr: PRInfo, norms: Norms | None) -> bool:
@@ -117,18 +67,20 @@ def evaluate_steps(
     pr: PRInfo,
     norms: Norms | None,
     checks: Sequence[CheckContext] | None = None,
+    report_facts: ReportFacts | None = None,
 ) -> tuple[StepResult, ...]:
-    """The four Phase A steps for ``pr``, in :data:`STEP_NAMES` order.
+    """Every step for ``pr``: the four Phase A steps, then the three of each report.
+
+    The order is :data:`STEP_NAMES` (Phase A and ``manual_test``), then the other
+    ``[reports.<name>]`` in file order; :func:`step_names_for` lists them.
 
     ``checks`` are the head commit's individual checks; they are only read when
     ``[ci] ignore_checks`` names something and the rollup is not green.
+    ``report_facts`` are what the report steps need beyond the PR: the changes since
+    each tested commit and, for ``only_paths``, the PR's files.
     """
     if pr.state is not PRState.OPEN:
-        why = f"PR is {pr.state.value}"
-        return tuple(
-            StepResult(name, StepStatus.NOT_APPLICABLE, (Evidence("pr", why),), (why,))
-            for name in STEP_NAMES
-        )
+        return closed_steps(norms, f"PR is {pr.state.value}", PHASE_A_STEPS)
     review = norms.review if norms else Review()
     ci = norms.ci if norms else CI()
     return (
@@ -136,7 +88,13 @@ def evaluate_steps(
         _ci_step(pr, ci, checks, norms),
         _findings_step(pr, review, norms),
         _rereview_step(pr, review, norms),
+        *evaluate_report_steps(pr, norms, report_facts),
     )
+
+
+def step_names_for(norms: Norms | None) -> tuple[str, ...]:
+    """The names of the steps :func:`evaluate_steps` returns for a repo with ``norms``."""
+    return (*PHASE_A_STEPS, *all_step_names(norms))
 
 
 def _settings_line(norms: Norms | None, setting: str, value: Sequence[str]) -> str:
@@ -150,7 +108,7 @@ def _counted(pr: PRInfo, review: Review) -> list[ReviewerState]:
     return [
         r
         for r in pr.reviewers or ()
-        if (_ACTOR_GROUP[ActorClass(r.actor_class)] if r.actor_class else "humans") in wanted
+        if (ACTOR_GROUP[ActorClass(r.actor_class)] if r.actor_class else "humans") in wanted
     ]
 
 
@@ -173,24 +131,16 @@ def _request_evidence(r: ReviewerState) -> Evidence:
     return Evidence("request", f"{r.login} requested{by}{when}", r.login)
 
 
-def _result(step: str, status: StepStatus, evidence: list[Evidence], explain: list[str]):
-    return StepResult(step, status, tuple(evidence), tuple(explain))
-
-
-def _unknown(step: str, why: str) -> StepResult:
-    return StepResult(step, StepStatus.UNKNOWN, (Evidence("pr", why),), (why,))
-
-
 def _review_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResult:
     if pr.is_draft:
-        return _result(
+        return result(
             STEP_REVIEW,
             StepStatus.NOT_APPLICABLE,
             [Evidence("pr", "draft PR")],
             ["PR is a draft, so there is nothing to review yet"],
         )
     if pr.reviewers is None:
-        return _unknown(STEP_REVIEW, "reviewer data was not fetched")
+        return unknown(STEP_REVIEW, "reviewer data was not fetched")
 
     counted = _counted(pr, review)
     explain = [
@@ -201,17 +151,17 @@ def _review_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResult:
     reviewed = _reviewed(counted)
     if reviewed:
         explain.append("a counted reviewer has reviewed (any state): done")
-        return _result(
+        return result(
             STEP_REVIEW, StepStatus.DONE, [_review_evidence(r) for r in reviewed], explain
         )
     waiting = [r for r in counted if r.waiting]
     if waiting:
         explain.append("no counted reviewer has reviewed, and one is requested: waiting")
-        return _result(
+        return result(
             STEP_REVIEW, StepStatus.WAITING, [_request_evidence(r) for r in waiting], explain
         )
     explain.append("no counted reviewer has reviewed and none is requested: needed")
-    return _result(
+    return result(
         STEP_REVIEW,
         StepStatus.NEEDED,
         [
@@ -232,14 +182,14 @@ def _ci_step(
     if state is None:
         if pr.mergeable == _MERGEABLE_UNKNOWN:
             explain.append("no check rollup yet and mergeability is still UNKNOWN")
-            return _result(
+            return result(
                 STEP_CI,
                 StepStatus.UNKNOWN,
                 [Evidence("check", f"no checks reported on {head}, mergeability UNKNOWN")],
                 explain,
             )
         explain.append("the head commit has no check rollup")
-        return _result(
+        return result(
             STEP_CI,
             StepStatus.NOT_APPLICABLE,
             [Evidence("check", f"no checks on {head}")],
@@ -251,21 +201,21 @@ def _ci_step(
         return _ci_from_checks(ci, checks, head, explain)
 
     if state in _ROLLUP_PASSED:
-        return _result(
+        return result(
             STEP_CI, StepStatus.DONE, [Evidence("check", f"checks passed on {head}")], explain
         )
     if state in _ROLLUP_PENDING:
-        return _result(
+        return result(
             STEP_CI, StepStatus.WAITING, [Evidence("check", f"checks pending on {head}")], explain
         )
     if state in _ROLLUP_FAILED:
-        return _result(
+        return result(
             STEP_CI,
             StepStatus.NEEDED,
             [Evidence("check", f"check rollup {state} on {head}")],
             explain,
         )
-    return _unknown(STEP_CI, f"unrecognised check rollup state {state}")
+    return unknown(STEP_CI, f"unrecognised check rollup state {state}")
 
 
 def _ci_from_checks(
@@ -282,27 +232,27 @@ def _ci_from_checks(
         f"{len(kept) - len(failed) - len(pending)} passed"
     )
     if failed:
-        return _result(
+        return result(
             STEP_CI,
             StepStatus.NEEDED,
             [Evidence("check", f"{c.name} failed on {head}", c.name) for c in failed],
             explain,
         )
     if pending:
-        return _result(
+        return result(
             STEP_CI,
             StepStatus.WAITING,
             [Evidence("check", f"{c.name} pending on {head}", c.name) for c in pending],
             explain,
         )
     if not kept:
-        return _result(
+        return result(
             STEP_CI,
             StepStatus.NOT_APPLICABLE,
             [Evidence("check", f"no checks left on {head} after ignoring {', '.join(ignored)}")],
             explain,
         )
-    return _result(
+    return result(
         STEP_CI,
         StepStatus.DONE,
         [Evidence("check", f"checks passed on {head} (ignored: {', '.join(ignored)})")],
@@ -312,7 +262,7 @@ def _ci_from_checks(
 
 def _findings_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResult:
     if pr.reviewers is None:
-        return _unknown(STEP_FINDINGS, "reviewer data was not fetched")
+        return unknown(STEP_FINDINGS, "reviewer data was not fetched")
 
     counted = _counted(pr, review)
     changes = [r for r in counted if r.latest_state == CHANGES_REQUESTED]
@@ -331,18 +281,18 @@ def _findings_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResul
             )
         evidence += [_review_evidence(r) for r in changes]
         explain.append("an unresolved thread or a standing changes-request: needed")
-        return _result(STEP_FINDINGS, StepStatus.NEEDED, evidence, explain)
+        return result(STEP_FINDINGS, StepStatus.NEEDED, evidence, explain)
 
     if not _reviewed(list(pr.reviewers)):
         explain.append("nobody has reviewed: n/a")
-        return _result(
+        return result(
             STEP_FINDINGS,
             StepStatus.NOT_APPLICABLE,
             [Evidence("review", "no reviews")],
             explain,
         )
     explain.append("no unresolved threads and no changes-request: done")
-    return _result(
+    return result(
         STEP_FINDINGS,
         StepStatus.DONE,
         [Evidence("thread", "no unresolved threads, no changes requested")],
@@ -352,9 +302,9 @@ def _findings_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResul
 
 def _rereview_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResult:
     if pr.reviewers is None:
-        return _unknown(STEP_REREVIEW, "reviewer data was not fetched")
+        return unknown(STEP_REREVIEW, "reviewer data was not fetched")
     if pr.head_sha is None:
-        return _unknown(STEP_REREVIEW, "head commit is unknown")
+        return unknown(STEP_REREVIEW, "head commit is unknown")
 
     counted = _reviewed(_counted(pr, review))
     labels = [label for label in pr.labels if label in review.rerequest_labels]
@@ -366,7 +316,7 @@ def _rereview_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResul
     ]
     if not counted:
         explain.append("no counted reviewer has reviewed: n/a")
-        return _result(
+        return result(
             STEP_REREVIEW, StepStatus.NOT_APPLICABLE, [Evidence("review", "no reviews")], explain
         )
 
@@ -385,23 +335,25 @@ def _rereview_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResul
         explain.append("a counted reviewer's latest review is on an older head with no request")
         evidence = [_review_evidence(r) for r in unrequested]
         evidence += [head_evidence, Evidence("request", "no pending request")]
-        return _result(STEP_REREVIEW, StepStatus.NEEDED, evidence, explain)
+        return result(STEP_REREVIEW, StepStatus.NEEDED, evidence, explain)
 
     if asked or (unrequested and labels):
         explain.append("a re-review is requested (pending request or label): waiting")
         evidence = [_request_evidence(r) for r in asked]
         evidence += [Evidence("label", f"label {label}", label) for label in labels]
         evidence.append(head_evidence)
-        return _result(STEP_REREVIEW, StepStatus.WAITING, evidence, explain)
+        return result(STEP_REREVIEW, StepStatus.WAITING, evidence, explain)
 
     explain.append("every counted reviewer's latest review is on the head: done")
     evidence = [_review_evidence(r) for r in counted] + [head_evidence]
-    return _result(STEP_REREVIEW, StepStatus.DONE, evidence, explain)
+    return result(STEP_REREVIEW, StepStatus.DONE, evidence, explain)
 
 
 def steps_mark(results: Sequence[StepResult]) -> str:
     """One character per step: UPPER needed, lower waiting, ``.`` done or n/a, ``?`` unknown."""
-    return "".join(_mark(letter, r.status) for letter, r in zip(STEP_LETTERS, results, strict=True))
+    return "".join(
+        _mark(letter, r.status) for letter, r in zip(STEP_LETTERS, results, strict=False)
+    )
 
 
 def _mark(letter: str, status: StepStatus) -> str:
@@ -421,9 +373,11 @@ def step_statuses(results: Sequence[StepResult]) -> dict[str, str]:
 
 
 def step_changes(prev: dict[str, str], curr: dict[str, str]) -> tuple[str, ...]:
-    """``step: old → new`` for each step whose status moved, in step order."""
+    """``step: old → new`` for each step whose status moved: the fixed steps in
+    :data:`STEP_NAMES` order, then any other report's steps."""
+    ordered = [n for n in STEP_NAMES if n in curr] + [n for n in curr if n not in STEP_NAMES]
     return tuple(
         f"{name}: {prev[name]} → {curr[name]}"
-        for name in STEP_NAMES
-        if name in prev and name in curr and prev[name] != curr[name]
+        for name in ordered
+        if name in prev and prev[name] != curr[name]
     )

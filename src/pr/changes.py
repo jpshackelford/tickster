@@ -211,6 +211,12 @@ class ChangesClient:
             raise ValueError(f"cannot compare base {base[:7]} with head {head[:7]}")
         return result
 
+    def pr_files(self, repo: str, number: int) -> list[ChangedFile] | None:
+        """The files the whole PR changes; None when it is too large to list."""
+        pull = self.get_pull(repo, number)
+        own = self.pr_commits(repo, pull.base, pull.head)
+        return None if own.truncated else own.files
+
     def _compare(self, repo: str, start: str, head: str) -> Compare | None:
         url = f"{GitHubClient.REST_BASE}/repos/{repo}/compare/{start}...{head}"
         result = Compare(status="")
