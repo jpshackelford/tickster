@@ -317,3 +317,12 @@ _None._
 - Labelled `ready`. Complexity low. Priority label left for the orchestrator.
 
 ---
+### 2026-11-07 22:45 UTC - Expansion Worker
+
+✅ **Expanded Issue #78:** [issue show / issue list: a merged PR that said `Fixes #N` is not shown as linked](https://github.com/jpshackelford/tickster/issues/78)
+
+- Type: bug. Reproduced on `main` for #40, #54, #70 and open #74: no PR cross-reference or connected event exists; GitHub only exposes the link as `closedByPullRequestsReferences` and `ClosedEvent.closer`, which tickster doesn't query.
+- Fix: read `closedByPullRequestsReferences` in `src/issue/github_api.py`, `history.py` and `src/show/issue.py`; prefer merged over open over closed; real-data fixture (#40/#69) and `doc/usage.md`.
+- Labelled `ready`. Complexity low to medium. Release PR #44 also appears as a closing ref for #54 and #70; noted as a risk.
+
+---
