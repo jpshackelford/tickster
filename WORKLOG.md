@@ -224,3 +224,25 @@ Testing [PR #68](https://github.com/jpshackelford/tickster/pull/68): `tkt pr ste
 - Left for a separate conversation: docs (`doc/usage.md`), the manual test, and review handling.
 
 ---
+### 2026-11-07 14:05 UTC - Orchestrator
+
+🚀 **Launched: Docs Worker** + re-review triggered
+
+- [PR #69](https://github.com/jpshackelford/tickster/pull/69) (`tkt pr show`): CI green, bot-approved, but no README/usage docs and no manual test. Docs worker: [`c2c3029`](https://app.beta.staging.all-hands-testing.dev/conversations/c2c30298567e447db506d8d3528e8c39). Manual test follows once docs land.
+- [PR #68](https://github.com/jpshackelford/tickster/pull/68) (`tkt pr steps`): manual test passed (20/20), but the only review predates it and withheld approval pending the test. Added `review-this` to re-trigger review.
+- Slots: PR 1 busy, 1 free (no other WIP PR or in-scope ready issue; #54 `hold`); expansion 0 busy, 2 free.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `c2c3029` | docs | PR #69 | **NEW** |
+
+**Current State:**
+
+- [PR #68](https://github.com/jpshackelford/tickster/pull/68): ready, CI green, head `8eb0503`, manual test valid, re-review requested
+- [PR #69](https://github.com/jpshackelford/tickster/pull/69): ready, CI green, head `2568fd6`, approved, docs + test pending
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44) release-please, `hold`, untouched
+- Ready issues: none unstarted (#54 `hold`). Needs expansion: none in scope
+
+---
