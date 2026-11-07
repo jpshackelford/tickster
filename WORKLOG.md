@@ -333,3 +333,14 @@ _None._
 - Approach: new `doc/automation.md` plus a README link; norms table, streams and exit codes checked against the code. Must start after [PR #83](https://github.com/jpshackelford/tickster/pull/83) (#54) merges, because it changes the output and the norms reads. Add `hold` if you want that enforced.
 
 ---
+### 2026-11-07 21:40 UTC - Expansion Worker (`18cabaa`)
+
+✅ **Expanded Issue #72**
+
+- Issue: [docs: bot detection text says every bot ends in [bot], but github-actions is classed as human](https://github.com/jpshackelford/tickster/issues/72)
+- Type: Enhancement (docs + norms)
+- Status: Ready for implementation
+- Root cause: GraphQL returns bot logins without `[bot]` (`github-actions`, `__typename: Bot`); tickster classifies by suffix or list only.
+- Approach: fix the "Bot detection" text and `pr show` example in `doc/usage.md`; add `github-actions` to `[actors] agent_logins` (not `bots`, so its AI reviews still count in `tkt pr steps`). Classifying by account type is out of scope and needs a separate code issue.
+
+---
