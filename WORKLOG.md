@@ -597,3 +597,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-07 23:27 UTC - Merge worker
+
+✅ **Merged: [PR #90](https://github.com/jpshackelford/tickster/pull/90)** (`fix(list): crop History with '>' and keep Steps and numbers whole on narrow terminals`), squash commit `2d9ba8b`. Closes #80.
+
+- Head `39aadf5` and CI green re-checked just before merge (`--match-head-commit`). Review: Acceptable at that head. Manual test: 15 scenarios pass, [results](https://github.com/jpshackelford/tickster/pull/90#issuecomment-6714304062).
+- PR description updated to link the test results. Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+- Next: [PR #89](https://github.com/jpshackelford/tickster/pull/89) still in flight.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
