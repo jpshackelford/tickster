@@ -122,6 +122,14 @@ class TestSelectLinkedPr:
         result = _select_linked_pr(prs)
         assert result == "owner/repo#2"
 
+    def test_prefers_merged_over_open(self):
+        prs = [("owner/repo#1", "OPEN"), ("owner/repo#2", "MERGED")]
+        assert _select_linked_pr(prs) == "owner/repo#2"
+
+    def test_merged_beats_an_earlier_closed_pr(self):
+        prs = [("owner/repo#1", "CLOSED"), ("owner/repo#2", "MERGED"), ("owner/repo#3", "MERGED")]
+        assert _select_linked_pr(prs) == "owner/repo#2"
+
     def test_falls_back_to_first_if_all_closed(self):
         """Test fallback to first PR if all are closed."""
         prs = [
@@ -251,3 +259,128 @@ class TestProcessIssueData:
         sample_issue_data["author"] = None
         result = process_issue_data(sample_issue_data, "testauthor")
         assert result.author == "ghost"
+
+
+def closing_pr(number: int, state: str, at: str, repo: str = "owner/repo", author="dev") -> dict:
+    return {
+        "number": number,
+        "state": state,
+        "createdAt": at,
+        "author": {"login": author} if author else None,
+        "repository": {"nameWithOwner": repo},
+    }
+
+
+def cross_reference(number: int, state: str, at: str) -> dict:
+    return {
+        "__typename": "CrossReferencedEvent",
+        "actor": {"login": "dev"},
+        "createdAt": at,
+        "source": {
+            "__typename": "PullRequest",
+            "number": number,
+            "state": state,
+            "repository": {"nameWithOwner": "owner/repo"},
+        },
+    }
+
+
+def issue_with(closing: list[dict] | None, timeline: list[dict] | None = None, **extra) -> dict:
+    data = {
+        "number": 7,
+        "title": "t",
+        "state": "OPEN",
+        "createdAt": "2024-01-15T10:00:00Z",
+        "closedAt": None,
+        "author": {"login": "dev"},
+        "repository": {"nameWithOwner": "owner/repo"},
+        "labels": {"nodes": []},
+        "timelineItems": {"nodes": timeline or []},
+    }
+    if closing is not None:
+        data["closedByPullRequestsReferences"] = {"nodes": closing}
+    data.update(extra)
+    return data
+
+
+class TestClosingPrReferences:
+    """A PR that says ``Fixes #N`` leaves no timeline item, only a closing reference."""
+
+    def test_merged_closing_pr_is_linked(self):
+        data = issue_with(
+            [closing_pr(69, "MERGED", "2024-01-16T10:00:00Z")],
+            [
+                {
+                    "__typename": "ClosedEvent",
+                    "actor": {"login": "dev"},
+                    "createdAt": "2024-01-17T10:00:00Z",
+                }
+            ],
+            state="CLOSED",
+            closedAt="2024-01-17T10:00:00Z",
+        )
+
+        info = process_issue_data(data, "dev")
+
+        assert info.linked_pr == "owner/repo#69"
+        assert info.history == "opx"
+        pr_event = info.events[1]
+        assert (pr_event.action, pr_event.actor, pr_event.at) == (
+            "pr_linked",
+            "dev",
+            "2024-01-16T10:00:00Z",
+        )
+
+    def test_open_closing_pr_is_linked_without_an_x(self):
+        info = process_issue_data(
+            issue_with([closing_pr(85, "OPEN", "2024-01-16T10:00:00Z")]), "dev"
+        )
+
+        assert info.linked_pr == "owner/repo#85"
+        assert info.history == "op"
+
+    def test_another_users_pr_is_uppercase(self):
+        data = issue_with([closing_pr(85, "OPEN", "2024-01-16T10:00:00Z", author="bob")])
+
+        assert process_issue_data(data, "dev").history == "oP"
+
+    def test_deleted_author_is_ghost(self):
+        data = issue_with([closing_pr(85, "OPEN", "2024-01-16T10:00:00Z", author=None)])
+
+        info = process_issue_data(data, "dev")
+
+        assert info.events[1].actor == "ghost"
+
+    def test_pr_found_by_cross_reference_and_closing_reference_counts_once(self):
+        data = issue_with(
+            [closing_pr(5, "OPEN", "2024-01-16T09:00:00Z")],
+            [cross_reference(5, "OPEN", "2024-01-16T09:00:01Z")],
+        )
+
+        info = process_issue_data(data, "dev")
+
+        assert info.history == "op"
+        assert [e.action for e in info.events].count("pr_linked") == 1
+
+    def test_merged_closing_pr_beats_an_earlier_closed_pr(self):
+        data = issue_with(
+            [closing_pr(9, "MERGED", "2024-01-18T10:00:00Z")],
+            [cross_reference(3, "CLOSED", "2024-01-16T10:00:00Z")],
+        )
+
+        assert process_issue_data(data, "dev").linked_pr == "owner/repo#9"
+
+    def test_a_closing_pr_from_another_repo_keeps_its_repo(self):
+        data = issue_with([closing_pr(2, "MERGED", "2024-01-16T10:00:00Z", repo="other/fork")])
+
+        assert process_issue_data(data, "dev").linked_pr == "other/fork#2"
+
+    def test_no_closing_references_changes_nothing(self):
+        for data in (
+            issue_with(None),
+            issue_with([]),
+            issue_with(None, closedByPullRequestsReferences=None),
+        ):
+            info = process_issue_data(data, "dev")
+            assert info.linked_pr is None
+            assert info.history == "o"

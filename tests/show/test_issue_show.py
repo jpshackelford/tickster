@@ -1,6 +1,7 @@
 """Tests for `tkt issue show`."""
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -21,6 +22,19 @@ schema = 1
 agent_logins = ["all-hands-bot"]
 agent_disclosure = 'created by an AI agent \\(OpenHands\\)'
 """).norms
+
+
+FIXTURES = Path(__file__).parent.parent / "fixtures"
+
+
+def closing(number: int, state: str, at: str, who: str = "bob", repo: str = "o/r") -> dict:
+    return {
+        "number": number,
+        "state": state,
+        "createdAt": at,
+        "author": login(who),
+        "repository": {"nameWithOwner": repo},
+    }
 
 
 def event(typename: str, who: str, at: str, **fields) -> dict:
@@ -179,6 +193,90 @@ class TestText:
         assert data["linked_prs"] == [{"ref": "o/r#9", "state": "closed"}]
         assert data["linked_pr"] == "o/r#9"
         assert [e["kind"] for e in data["events"]] == ["opened", "pr_linked"]
+
+
+class TestClosingKeyword:
+    """`Fixes #N` in a PR leaves no timeline item; GitHub lists it as a closing reference."""
+
+    def test_recorded_issue_closed_by_a_merged_pr(self, show):
+        node = json.loads((FIXTURES / "issue_40_closed_by_pr_69.json").read_text())
+
+        code, out, err = show(node, ref="jpshackelford/tickster#40")
+
+        assert code == 0, err
+        lines = out.splitlines()
+        assert "linked PRs: jpshackelford/tickster#69 (merged)" in lines
+        history = next(line for line in lines if line.startswith("history: "))
+        assert "p" in history.lower()
+        timeline = [line.split(maxsplit=2)[1] for line in lines if line.startswith("2026-")]
+        assert timeline[-2:] == ["P", "X"]
+
+    def test_open_closing_pr_is_linked_without_an_x(self, show):
+        node = issue_node([], closedByPullRequestsReferences=conn([closing(85, "OPEN", ts(11))]))
+
+        _, out, _ = show(node, "--format", "json")
+
+        data = json.loads(out)
+        assert data["history"] == "oP"
+        assert data["linked_pr"] == "o/r#85"
+        assert data["linked_prs"] == [{"ref": "o/r#85", "state": "open"}]
+        assert data["events"][1]["kind"] == "pr_linked"
+        assert data["events"][1]["pr"] == "o/r#85"
+
+    def test_pr_found_by_cross_reference_and_closing_reference_is_listed_once(self, show):
+        cross = event(
+            "CrossReferencedEvent",
+            "bob",
+            ts(11),
+            source={
+                "__typename": "PullRequest",
+                "number": 55,
+                "repository": {"nameWithOwner": "o/r"},
+                "state": "OPEN",
+            },
+        )
+        node = issue_node(
+            [cross], closedByPullRequestsReferences=conn([closing(55, "OPEN", ts(10))])
+        )
+
+        _, out, _ = show(node, "--format", "json")
+
+        data = json.loads(out)
+        assert data["linked_prs"] == [{"ref": "o/r#55", "state": "open"}]
+        assert [e["kind"] for e in data["events"]] == ["opened", "pr_linked"]
+
+    def test_merged_pr_is_the_linked_pr_over_an_earlier_closed_one(self, show):
+        node = issue_node(
+            [],
+            closedByPullRequestsReferences=conn(
+                [closing(9, "CLOSED", ts(10)), closing(12, "MERGED", ts(11))]
+            ),
+        )
+
+        _, out, _ = show(node, "--format", "json")
+
+        data = json.loads(out)
+        assert data["linked_pr"] == "o/r#12"
+        assert [p["ref"] for p in data["linked_prs"]] == ["o/r#9", "o/r#12"]
+
+    def test_a_closing_pr_from_another_repo_keeps_its_repo(self, show):
+        node = issue_node(
+            [], closedByPullRequestsReferences=conn([closing(2, "MERGED", ts(11), repo="x/y")])
+        )
+
+        _, out, _ = show(node)
+
+        assert "linked PRs: x/y#2 (merged)" in out
+
+    def test_the_query_asks_for_closing_references(self):
+        fake = FakeGitHub("issue", issue_node([]))
+        with patch("src.show.cli.GitHubClient", return_value=fake.client()):
+            main(["issue", "show", "o/r#40"])
+
+        assert (
+            "closedByPullRequestsReferences(first: 10, includeClosedPrs: true)"
+            in (fake.requests[0]["query"])
+        )
 
 
 class TestJson:

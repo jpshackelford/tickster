@@ -75,6 +75,18 @@ ISSUE_LABELS = ConnectionSpec(
     first=20,
 )
 
+# PRs whose closing keyword (Fixes/Closes/Resolves #N) names the issue. GitHub emits no
+# timeline event for these, open or merged.
+CLOSING_PRS_FIELD = """closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+        nodes {
+            number
+            state
+            createdAt
+            author { login }
+            repository { nameWithOwner }
+        }
+    }"""
+
 # GraphQL fragment for issue fields we need
 ISSUE_FIELDS_FRAGMENT = f"""
 fragment IssueFields on Issue {{
@@ -88,6 +100,7 @@ fragment IssueFields on Issue {{
     repository {{ nameWithOwner }}
     {ISSUE_LABELS.fragment_field()}
     {ISSUE_TIMELINE.fragment_field()}
+    {CLOSING_PRS_FIELD}
 }}
 """
 
