@@ -451,3 +451,11 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Note: `GITHUB_TOKEN` could not push or open PRs; `JPSHACKELFORD_GITHUB_TOKEN` was used.
 
 ---
+
+✅ **Implemented Issue #78:** [fix(issue): show a PR that says Fixes #N as linked](https://github.com/jpshackelford/tickster/pull/88) (ready for review, CI green)
+
+- `issue list` and `issue show` now read `closedByPullRequestsReferences`: a PR with a closing keyword (open, merged or closed) is in `linked_pr`/`linked PRs` and gives a `p` event. `linked_pr` prefers merged, then open, then closed. Tests use a fixture recorded from #40.
+- All acceptance criteria met. Follow-ups: release PR #44 is also listed as linked for issues its changelog "closes" (left as the issue suggested); the manual-test skill report is still to run in the review conversation.
+- Note: the task header said issue #76 in its URL but #78 in its title; I implemented #78. `GITHUB_TOKEN` could not push; `JPSHACKELFORD_GITHUB_TOKEN` was used.
+
+---
