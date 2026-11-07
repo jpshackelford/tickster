@@ -131,6 +131,43 @@ output — see [Snapshots & diffs](#snapshots--diffs).
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
 `--since` / `--after` / `--before` / `--date-field`.
 
+### `tkt issue show`
+
+Read one issue: a header and its timeline, oldest first, with the text of the
+opening post and each comment. Use it after `tkt issue list` shows an issue you
+need to read.
+
+```bash
+tkt issue show OWNER/REPO#NUM [--since TS | --since-snapshot KIND/NAME]
+    [--max-body N] [--format text|json]
+```
+
+The ref may be `owner/repo#number` or a GitHub issue URL. See
+[`tkt pr show`](#tkt-pr-show) for the options; they work the same way here.
+
+```text
+$ tkt issue show jpshackelford/tickster#49 --max-body 40
+jpshackelford/tickster#49 issue closed "issue list: no state flag returns closed issues too, although --open is documented as the default"
+history: olx
+author: jpshackelford  created: 2026-10-27T20:37:49Z  last activity: 2026-11-05T10:45:40Z
+labels: bug, priority:high, ready  assignees: --
+linked PRs: --
+Legend: the letter is the event's history character (lowercase = you, uppercase = others; n = AI comment, B = bot comment; - = not in the history string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. Class: me human bot agent me_agent.
+timeline: 5 events, oldest first
+2026-10-27T20:37:49Z o jpshackelford(me_agent) opened: ## Summary `tkt issue list` with no sta…(1944 more chars)
+2026-10-27T20:37:50Z l jpshackelford(me) labeled bug
+2026-11-05T05:43:19Z l jpshackelford(me) labeled ready
+2026-11-05T05:43:19Z l jpshackelford(me) labeled priority:high
+2026-11-05T10:45:40Z x jpshackelford(me) closed
+```
+
+The header has the state, the [history string](#history-strings), author, dates,
+labels, assignees, and linked PRs. Each timeline line is
+`time char actor(class) text`; the `char` is the event's character in the
+history string (`-` when the history string leaves that event out) and `class`
+is the [actor class](#bot-detection) (`me`, `human`, `bot`, `agent`,
+`me_agent`).
+
 ## `tkt pr`
 
 List pull requests with a compact history visualization. Accepts PR refs as
@@ -370,6 +407,95 @@ a `ref` (the login, commit or check it is about) when there is one. `--explain` 
   `n/a`, `?` unknown, `-` not configured. `R.F.` = review needed and findings to address.
 - The exit code is 0 whatever the statuses are; errors (a PR that is not found) exit 1.
 - The command is also a library function, `src.pr.steps.evaluate_steps`.
+
+### `tkt pr show`
+
+Read one PR: a header and its timeline, oldest first, with the text of comments,
+reviews and review threads. Use it after `tkt pr list` or `tkt review` shows a PR
+you need to read, or from a polling loop to read only what is new.
+
+```bash
+tkt pr show OWNER/REPO#NUM [--since TS | --since-snapshot KIND/NAME]
+    [--max-body N] [--format text|json]
+```
+
+| Option | Description |
+| --- | --- |
+| `--since TS` | Only events after this ISO-8601 time, e.g. `2026-11-05T10:00:00Z`. A date or a time with no zone is UTC |
+| `--since-snapshot KIND/NAME` | Only events after the `last_activity` the named [snapshot](#snapshots--diffs) stored for this item. Use `pr/NAME` or `review/NAME` for a PR (`issue/NAME` for an issue). Errors if the snapshot has no row for the item. Cannot be combined with `--since` |
+| `--max-body N` | Trim each comment, review or thread-comment body to `N` characters (default: 600, `0` = no trimming). A trimmed body ends with `…(K more chars)` |
+| `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
+
+The ref may be `owner/repo#number` or a GitHub PR URL.
+
+```text
+$ tkt pr show jpshackelford/tickster#60 --max-body 40
+jpshackelford/tickster#60 pr merged ready ci:green 💬0 "fix(issue): default `issue list` to open issues"
+history: oAnm
+author: jpshackelford  created: 2026-11-05T10:28:10Z  last activity: 2026-11-05T10:45:37Z
+head: 742dbea  mergeable: unknown  merge: unknown  review: approved
+reviewers: github-actions(human) ✓ approved on head
+linked issues: jpshackelford/tickster#49
+reports: manual_test 2026-11-05T10:37:08Z by jpshackelford at 742dbea (on head) no fail match
+Legend: the letter is the event's history character (lowercase = you, uppercase = others; e v n = AI review, approval, comment; - = not in the history string). o opened, h review requested, r changes or inline review, a approved, c comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
+timeline: 5 events, oldest first
+2026-11-05T10:27:37Z - openhands-agent(agent) pushed 1 commit, last 742dbea "fix(issue): default 'issue list' to open issues"
+2026-11-05T10:28:10Z o jpshackelford(me_agent) opened: Fixes #49 ## Why `tkt issue list` with…(2537 more chars)
+2026-11-05T10:33:56Z A github-actions(human) approved on head: **Correctness verified.** The fix proper…(1269 more chars)
+2026-11-05T10:37:08Z n jpshackelford(me_agent) commented: ## Manual Test Results for PR #60 _This…(7375 more chars)
+2026-11-05T10:45:37Z m jpshackelford(me) merged
+```
+
+The example uses a merged PR, so it reproduces; the `more chars` counts and
+`last activity` change if someone adds to the PR.
+
+Header lines: state, draft or ready, CI (`ci:green|red|pending|--`), unresolved
+review threads (`💬N`); the [history string](#history-strings); author and dates;
+head commit, mergeability, merge state and review decision; each reviewer with
+their [reviewer state](#reviewer-state); linked issues; and one `reports:` entry
+per `[reports]` marker in the [norms file](#tkt-norms) (when the repo has one),
+saying whether the latest matching comment was posted on the current head.
+
+Timeline lines are `time char actor(class) text`, as in
+[`tkt issue show`](#tkt-issue-show). Review threads print under their review as
+`↳ path:line [resolved|unresolved]`, one indented line per comment.
+Each body is flattened to one line, so a long comment cannot break the
+line-per-event layout.
+
+`--since` and `--since-snapshot` keep events strictly after the cutoff, and keep
+an older review if one of its thread comments is newer. With nothing new, the
+output is the header and `no new events since <time>`. The cutoff is printed in
+UTC. Together with a snapshot saved by `--watch` or `--snapshot`, this reads
+only what changed since the last poll:
+
+```bash
+tkt pr list jpshackelford/tickster#60 --snapshot hourly   # save a snapshot (pr/hourly)
+tkt pr show jpshackelford/tickster#60 --since-snapshot pr/hourly
+tkt pr show jpshackelford/tickster#60 --since 2026-11-05T10:35:00Z
+```
+
+JSON output (`--format json`) is one object. It has the header fields (`kind`,
+`ref`, `title`, `url`, `state`, `draft`, `author`, `created_at`,
+`last_activity`, `history`, `ci`, `unresolved_threads`, `head`, `mergeable`,
+`merge_state`, `review_decision`, `linked_issues`), `reviewers`, `reports`,
+`since` (`null` without a cutoff), `timeline_truncated`, and `events`. An issue
+has `labels`, `assignees` and `linked_prs` in place of the PR-only fields. Each
+event has `at`, `kind`, `char`, `actor`, `actor_class`, `text`, `body`,
+`more_chars`, kind-specific fields (e.g. `label`), and, for a review with
+threads, `threads` (`path`, `line`, `resolved`, `outdated`, `comments`).
+
+```bash
+tkt pr show jpshackelford/tickster#60 --format json | jq '.events[] | select(.kind == "merged") | .at'
+```
+
+Notes:
+
+- Unlike `tkt pr list`, this command takes exactly one ref and does not read
+  refs from stdin.
+- Errors (bad ref, bad time, unknown snapshot, no such item) print
+  `Error: ...` on stderr and exit 1. An invalid option combination exits 2.
+- If the item has more events than the fetch cap, the text output says
+  `(timeline truncated: ...)` and JSON has `"timeline_truncated": true`.
 
 ## `tkt review`
 
