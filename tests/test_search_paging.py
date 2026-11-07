@@ -26,6 +26,8 @@ def pr_node(n: int) -> dict:
         "author": {"login": "alice"},
         "repository": {"nameWithOwner": "owner/repo"},
         "reviewThreads": {"nodes": []},
+        "reviewRequests": {"nodes": []},
+        "latestReviews": {"nodes": []},
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]},
         "timelineItems": {"nodes": []},
     }

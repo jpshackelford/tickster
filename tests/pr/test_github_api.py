@@ -86,6 +86,8 @@ class TestSearchPRs:
                         "author": {"login": "testuser"},
                         "repository": {"nameWithOwner": "owner/repo"},
                         "reviewThreads": {"nodes": []},
+                        "reviewRequests": {"nodes": []},
+                        "latestReviews": {"nodes": []},
                         "commits": {
                             "nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]
                         },
@@ -102,6 +104,8 @@ class TestSearchPRs:
                         "author": {"login": "testuser"},
                         "repository": {"nameWithOwner": "owner/repo"},
                         "reviewThreads": {"nodes": []},
+                        "reviewRequests": {"nodes": []},
+                        "latestReviews": {"nodes": []},
                         "commits": {
                             "nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]
                         },
@@ -258,6 +262,8 @@ class TestGetPRsByRef:
                         "author": {"login": "testuser"},
                         "repository": {"nameWithOwner": "owner/repo"},
                         "reviewThreads": {"nodes": []},
+                        "reviewRequests": {"nodes": []},
+                        "latestReviews": {"nodes": []},
                         "commits": {"nodes": []},
                         "timelineItems": {"nodes": []},
                     }
@@ -320,6 +326,8 @@ class TestGetPrsByRefWithUnresolvableRef:
             "author": {"login": "testuser"},
             "repository": {"nameWithOwner": "owner/repo"},
             "reviewThreads": {"nodes": []},
+            "reviewRequests": {"nodes": []},
+            "latestReviews": {"nodes": []},
             "commits": {"nodes": []},
             "timelineItems": {"nodes": []},
         }

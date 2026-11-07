@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import Enum
 
 from src.actors import ActorClass, HistoryEvent
+from src.pr.reviewers import ReviewerState
 
 
 class ActionType(Enum):
@@ -69,6 +70,8 @@ class PRInfo:
     merge_state: str | None = None
     mergeable: str | None = None
     events: list[HistoryEvent] = field(default_factory=list)  # one per history character
+    reviewers: tuple[ReviewerState, ...] | None = None  # None = not fetched
+    reviewers_truncated: bool = False
 
     @property
     def age_seconds(self) -> float:

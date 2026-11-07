@@ -7,6 +7,7 @@ from src.connection_paging import TRUNCATION_MARKER, is_truncated
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
 from src.pr.models import ActionType, CIStatus, PRInfo, PRState, TimelineEvent
+from src.pr.reviewers import build_reviewers
 
 # An AI actor's version of these events gets its own letter.
 AI_CHARS = {ActionType.REVIEW: "e", ActionType.APPROVED: "v", ActionType.COMMENT: "n"}
@@ -41,7 +42,8 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
     ci_status = _determine_ci_status(pr_data)
 
     # Process timeline into history string
-    events = _extract_timeline_events(pr_data, author, reference_user, get_repo_norms(repo))
+    norms = get_repo_norms(repo)
+    events = _extract_timeline_events(pr_data, author, reference_user, norms)
     history_events = _history_events(events, reference_user)
     history = _history_text(history_events, truncated=is_truncated(pr_data, "timelineItems"))
 
@@ -66,6 +68,9 @@ def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
         merge_state=pr_data.get("mergeStateStatus"),
         mergeable=pr_data.get("mergeable"),
         events=history_events,
+        reviewers=build_reviewers(pr_data, reference_user, norms),
+        reviewers_truncated=is_truncated(pr_data, "reviewRequests")
+        or is_truncated(pr_data, "latestReviews"),
     )
 
 

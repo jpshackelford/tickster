@@ -79,6 +79,8 @@ def _pr_data(**overrides: Any) -> dict:
         "reviewDecision": "CHANGES_REQUESTED",
         "headRefOid": SHA_A,
         "reviewThreads": {"nodes": []},
+        "reviewRequests": {"nodes": []},
+        "latestReviews": {"nodes": []},
         "commits": {"nodes": []},
         "timelineItems": {"nodes": []},
     }

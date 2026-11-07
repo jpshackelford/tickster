@@ -84,7 +84,9 @@ def render_diff(
         "[dim]Δ: + new row, * changed, - gone (Note: why, `?` = a guess), (blank) unchanged.  "
         "History: \\[bracketed] = new since last snapshot.  "
         "Field!: value changed; prior value via `tkt snapshot diff`.  "
-        "head!/review!/merge!: PR head commit, review decision or merge state changed.[/]"
+        "head!/review!/merge!: PR head commit, review decision or merge state changed.  "
+        "Per-reviewer notes: requested / ↻ re-requested / approved on head / "
+        "review now on old head / request removed / review dismissed.[/]"
     )
 
 
@@ -316,6 +318,7 @@ def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
         notes.append("(history rewritten)")
     if show_pr_detail:
         notes.extend(_pr_detail_tags(d.changed_fields))
+    notes.extend(d.reviewer_changes)
     return f"[dim]{' '.join(notes)}[/]" if notes else ""
 
 

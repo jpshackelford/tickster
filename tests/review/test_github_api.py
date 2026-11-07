@@ -44,6 +44,8 @@ class TestProcessPrForReviewer:
             "isDraft": False,
             "mergeable": "MERGEABLE",
             "reviewThreads": {"nodes": []},
+            "reviewRequests": {"nodes": []},
+            "latestReviews": {"nodes": []},
             "commits": {"nodes": []},
             "timelineItems": {"nodes": timeline_items or []},
         }

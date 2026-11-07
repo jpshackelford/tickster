@@ -5,9 +5,11 @@ import traceback
 
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from src.all_authors import all_authors_error
+from src.connection_paging import TRUNCATION_MARKER
 from src.date_window import (
     DateWindow,
     DateWindowError,
@@ -19,6 +21,7 @@ from src.pr.cli.graph import render_merged_graph
 from src.pr.detail import merge_label, review_label, short_sha
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
+from src.pr.reviewers import REVIEWER_LEGEND, compact_reviewers, named_reviewers
 from src.snapshot.convert import snapshot_from_prs
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_PR, SnapshotScope
@@ -40,6 +43,8 @@ def cmd_list(
     show_title: bool = False,
     show_graph: bool = False,
     show_detail: bool = False,
+    show_reviewers: bool = False,
+    reviewer_names: bool = False,
     snapshot_name: str | None = None,
     diff_name: str | None = None,
     watch_name: str | None = None,
@@ -66,6 +71,8 @@ def cmd_list(
         show_title: Include PR titles in output
         show_graph: Show weekly merge/age graph (only for merged PRs)
         show_detail: Add head commit, review decision and merge state columns
+        show_reviewers: Add a Reviewers column with a count per reviewer state
+        reviewer_names: Like show_reviewers, but naming each reviewer
         since_days: Only include PRs within the last N days
         after: Only include PRs on/after this date (YYYY-MM-DD)
         before: Only include PRs on/before this date (YYYY-MM-DD)
@@ -79,6 +86,8 @@ def cmd_list(
     if show_graph and (not states or "merged" not in states):
         console.print("[red]Error:[/] --graph only works with --merged flag")
         return 1
+
+    reviewers_mode = "names" if reviewer_names else "counts" if show_reviewers else None
 
     try:
         window = build_date_window(
@@ -174,7 +183,11 @@ def cmd_list(
                     curr_snapshot,
                     console,
                     print_table=lambda: _print_pr_table(
-                        result.prs, show_title=show_title, show_detail=show_detail, window=window
+                        result.prs,
+                        show_title=show_title,
+                        show_detail=show_detail,
+                        reviewers=reviewers_mode,
+                        window=window,
                     ),
                     fetch_by_ref=lambda refs: client.get_prs_by_ref(refs).prs,
                 )
@@ -187,7 +200,11 @@ def cmd_list(
                     render_merged_graph(merged_prs, console=console)
 
             _print_pr_table(
-                result.prs, show_title=show_title, show_detail=show_detail, window=window
+                result.prs,
+                show_title=show_title,
+                show_detail=show_detail,
+                reviewers=reviewers_mode,
+                window=window,
             )
 
             if result.has_more:
@@ -231,6 +248,7 @@ def _print_pr_table(
     *,
     show_title: bool = False,
     show_detail: bool = False,
+    reviewers: str | None = None,
     window: DateWindow | None = None,
 ) -> None:
     """Print PRs in a formatted table."""
@@ -249,6 +267,8 @@ def _print_pr_table(
         table.add_column("Head", no_wrap=True)
         table.add_column("Review", no_wrap=True)
         table.add_column("Merge", no_wrap=True)
+    if reviewers:
+        table.add_column("Reviewers", no_wrap=True)
     table.add_column("State", no_wrap=True)
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Age", no_wrap=True)
@@ -274,6 +294,7 @@ def _print_pr_table(
                     if show_detail
                     else []
                 ),
+                *([_format_reviewers(pr, reviewers)] if reviewers else []),
                 _format_state(pr.state, pr.is_draft),
                 _format_unresolved_threads(pr.unresolved_thread_count),
                 _format_duration(pr.age_seconds),
@@ -283,6 +304,13 @@ def _print_pr_table(
         table.add_row(*row)
 
     console.print(table)
+    if reviewers:
+        console.print(f"[dim]{escape(REVIEWER_LEGEND)}[/]")
+
+
+def _format_reviewers(pr: PRInfo, mode: str) -> str:
+    cell = named_reviewers(pr.reviewers) if mode == "names" else compact_reviewers(pr.reviewers)
+    return escape(cell + TRUNCATION_MARKER if pr.reviewers_truncated else cell)
 
 
 def _format_history(history: str) -> str:

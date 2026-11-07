@@ -513,6 +513,19 @@ Examples:
         action="store_true",
         help="Add Head, Review and Merge columns (head commit, review decision, merge state)",
     )
+    pr_list_parser.add_argument(
+        "--reviewers",
+        dest="show_reviewers",
+        action="store_true",
+        help="Add a Reviewers column: a count per reviewer state (✓ approved, ✗ changes, "
+        "• waiting, ↻ re-review requested, ! needs re-request)",
+    )
+    pr_list_parser.add_argument(
+        "--reviewer-names",
+        dest="reviewer_names",
+        action="store_true",
+        help="Like --reviewers, but name each reviewer",
+    )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)
 
@@ -1140,6 +1153,8 @@ Examples:
                 show_title=args.show_title,
                 show_graph=args.show_graph,
                 show_detail=args.show_detail,
+                show_reviewers=args.show_reviewers,
+                reviewer_names=args.reviewer_names,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,

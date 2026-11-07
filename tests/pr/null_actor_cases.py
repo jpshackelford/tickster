@@ -94,6 +94,8 @@ def make_pr_data(null_item: dict) -> dict:
         "isDraft": False,
         "mergeable": "MERGEABLE",
         "reviewThreads": {"nodes": []},
+        "reviewRequests": {"nodes": []},
+        "latestReviews": {"nodes": []},
         "commits": {"nodes": []},
         "timelineItems": {"nodes": [APPROVAL_BY_REVIEWER, null_item]},
     }
