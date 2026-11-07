@@ -13,6 +13,8 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt review`](#tkt-review)
 - [`tkt board`](#tkt-board)
 - [`tkt repo`](#tkt-repo)
+- [`tkt norms`](#tkt-norms)
+- [Upgrading to 1.0](#upgrading-to-10)
 - [`tkt snapshot`](#tkt-snapshot)
 - [Snapshots & diffs](#snapshots--diffs)
 - [Date-window filtering](#date-window-filtering)
@@ -716,6 +718,45 @@ new optional keys do not bump it.
   `[ci] ignore_checks`; with no file it counts humans and agents.
 - Bot detection for issue history is the union of the `[bot]` suffix, `[issue]
   bot_usernames` and the repo's `[actors] bots`.
+
+## Upgrading to 1.0
+
+**What changed.** The agent username pattern no longer defaults to `"openhands"`. Boards
+that relied on the default lose agent detection until you set an agent setting. This is the
+only breaking change in 1.0.
+
+**Are you affected?** Yes, if you used `$has_agent_assigned` in a board rule and never set
+`agent_username_pattern`. The rule stops matching, and stderr shows once per run:
+
+```text
+tkt: $has_agent_assigned is always false for OWNER/NAME: no agent setting applies. ...
+```
+
+**Fix, per repo (preferred).**
+
+```bash
+tkt norms init --from github:jpshackelford/tickster   # or plain `tkt norms init`
+# edit [actors] agent_logins to your agent accounts, then commit and merge to the
+# default branch: tkt reads the file from there, not from your work tree
+tkt norms check
+```
+
+`init` never commits or pushes, so the fix does not take effect until the file is merged to
+the default branch. The `--from` source file lists tickster's own agents (`all-hands-bot`,
+`openhands-agent`); replace them with yours. Plain `tkt norms init` writes a neutral
+template to fill in. See [`tkt norms`](#tkt-norms) for the file format.
+
+**Fix, per board.**
+
+```bash
+tkt board config set agent-username-pattern openhands
+```
+
+You can also set `agent_username_pattern` in the board TOML. The repo's `agent_logins` win
+over the board pattern when both are set.
+
+**Verify.** `tkt norms check` validates the file; `tkt norms show --repo OWNER/NAME`
+prints the settings in effect.
 
 ## `tkt snapshot`
 

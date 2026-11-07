@@ -361,7 +361,7 @@ agent_username_pattern = "openhands"
 | `username` | auto-detected | GitHub username for searches |
 | `watched_repos` | `[]` | List of repositories to track |
 | `scan_lookback_days` | `90` | Default lookback period for scans |
-| `agent_username_pattern` | — | Substring that identifies agent accounts. No default: with neither this nor a repo's `[actors] agent_logins` (see [Norms](usage.md#tkt-norms)), `$has_agent_assigned` is false |
+| `agent_username_pattern` | — | Substring that identifies agent accounts. No default (see [Upgrading to 1.0](usage.md#upgrading-to-10)): with neither this nor a repo's `[actors] agent_logins` (see [Norms](usage.md#tkt-norms)), `$has_agent_assigned` is false |
 
 ### Cache Location
 

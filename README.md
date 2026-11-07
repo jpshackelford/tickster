@@ -121,7 +121,8 @@ Documentation:
 
 - **[doc/usage.md](doc/usage.md)** — complete usage guide: every command and
   option, the [history string reference](doc/usage.md#history-strings),
-  configuration, stdin piping, and environment variables.
+  configuration, stdin piping, and environment variables. Upgrading from 0.x? See
+  [Upgrading to 1.0](doc/usage.md#upgrading-to-10).
 - **[doc/board.md](doc/board.md)** — full board reference: scopes, workflow
   columns, column assignment rules, YAML configuration, macros, and gist sync.
 
