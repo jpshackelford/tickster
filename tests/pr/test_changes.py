@@ -9,6 +9,9 @@ import pytest
 
 from src.__main__ import main
 from src.board.github_api import GitHubClient
+from src.norms import store as norms_store
+from src.norms.model import Norms
+from src.norms.schema import parse_norms
 from src.pr.changes import (
     REASON_ONLY_MERGES,
     REASON_ONLY_MERGES_AND_BASE,
@@ -23,6 +26,7 @@ from src.pr.changes import (
     assess,
     parse_since,
     pr_changes,
+    resolve_commit_settings,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -619,3 +623,174 @@ class TestCli:
     def test_since_is_required(self):
         with pytest.raises(SystemExit):
             main(["pr", "changes", "o/r#7"])
+
+
+def _norms(commits_toml: str) -> Norms:
+    norms = parse_norms(commits_toml).norms
+    assert norms is not None
+    return norms
+
+
+def _install(text: str | None) -> None:
+    norms = _norms(text) if text else None
+    norms_store.set_loader(lambda _repo: norms)
+
+
+DOCS_NORMS = 'schema = 1\n[commits]\nignore_paths = ["doc/**"]\n'
+MIN10_NORMS = "schema = 1\n[commits]\nmin_changed_lines = 10\n"
+BOTH_NORMS = 'schema = 1\n[commits]\nignore_paths = ["doc/**"]\nmin_changed_lines = 10\n'
+FILE = ".agents/tickster.toml"
+DEFAULT = "default (no norms file)"
+
+
+class TestResolveCommitSettings:
+    def test_no_norms_and_no_flags_is_the_default(self):
+        s = resolve_commit_settings(None)
+        assert (s.ignore_paths, s.min_changed_lines) == ((), 0)
+        assert (s.ignore_paths_source, s.min_changed_lines_source) == (DEFAULT, DEFAULT)
+
+    def test_file_values_fill_unset_flags(self):
+        s = resolve_commit_settings(_norms(BOTH_NORMS))
+        assert (s.ignore_paths, s.min_changed_lines) == (("doc/**",), 10)
+        assert (s.ignore_paths_source, s.min_changed_lines_source) == (FILE, FILE)
+
+    def test_empty_ignore_paths_counts_as_not_given(self):
+        s = resolve_commit_settings(_norms(DOCS_NORMS), [], None)
+        assert s.ignore_paths == ("doc/**",)
+
+    def test_each_flag_replaces_only_its_own_setting(self):
+        norms = _norms(BOTH_NORMS)
+
+        paths = resolve_commit_settings(norms, ["src/**"], None)
+        assert (paths.ignore_paths, paths.ignore_paths_source) == (("src/**",), "--ignore-path")
+        assert (paths.min_changed_lines, paths.min_changed_lines_source) == (10, FILE)
+
+        lines = resolve_commit_settings(norms, None, 0)
+        assert (lines.min_changed_lines, lines.min_changed_lines_source) == (
+            0,
+            "--min-changed-lines",
+        )
+        assert (lines.ignore_paths, lines.ignore_paths_source) == (("doc/**",), FILE)
+
+    def test_flags_without_a_norms_file(self):
+        s = resolve_commit_settings(None, ["a"], 3)
+        assert (s.ignore_paths, s.min_changed_lines) == (("a",), 3)
+
+
+class TestCliNorms:
+    DOCS_PAGE = _page([_api_commit("a")], [_api_file("doc/usage.md", 9)])
+    SMALL_PAGE = _page([_api_commit("a")], [_api_file("src/a.py", 2, 1)])
+    MIXED_PAGE = _page(
+        [_api_commit("a")], [_api_file("doc/usage.md", 9), _api_file("src/a.py", 2, 1)]
+    )
+
+    def _json(self, run, page, *args):
+        code, out, err = run(FakeGitHub([page]), *args, "--format", "json")
+        assert code == 0
+        assert err == ""
+        return json.loads(out)
+
+    def test_norms_ignore_paths_apply_without_flags(self, run):
+        _install(DOCS_NORMS)
+
+        data = self._json(run, self.DOCS_PAGE)
+
+        assert data["significant"] is False
+        assert data["files"][0]["ignored"] is True
+
+    def test_norms_min_changed_lines_apply_without_flags(self, run):
+        _install(MIN10_NORMS)
+
+        _, out, _ = run(FakeGitHub([self.SMALL_PAGE]))
+
+        assert out.splitlines()[1] == (
+            "significant: no (3 changed lines is below min_changed_lines 10)"
+        )
+
+    def test_ignore_path_flag_replaces_the_file_list(self, run):
+        _install(DOCS_NORMS)
+
+        data = self._json(run, self.DOCS_PAGE, "--ignore-path", "src/**")
+
+        assert data["significant"] is True
+        assert data["files"][0]["ignored"] is False
+        assert data["settings"]["sources"]["ignore_paths"] == "--ignore-path"
+
+    def test_min_changed_lines_zero_overrides_the_file_value(self, run):
+        _install(MIN10_NORMS)
+
+        data = self._json(run, self.SMALL_PAGE, "--min-changed-lines", "0")
+
+        assert data["significant"] is True
+        assert data["settings"]["min_changed_lines"] == 0
+
+    def test_the_setting_not_passed_still_comes_from_the_file(self, run):
+        _install(BOTH_NORMS)
+
+        data = self._json(run, self.MIXED_PAGE, "--min-changed-lines", "1")
+        assert data["settings"]["ignore_paths"] == ["doc/**"]
+        assert data["settings"]["sources"] == {
+            "ignore_paths": FILE,
+            "min_changed_lines": "--min-changed-lines",
+        }
+        assert [f["ignored"] for f in data["files"]] == [True, False]
+        assert data["significant"] is True
+
+        data = self._json(run, self.SMALL_PAGE, "--ignore-path", "x/**")
+        assert data["settings"]["min_changed_lines"] == 10
+        assert data["significant"] is False
+
+    def test_no_norms_file_behaves_as_before(self, run):
+        _install(None)
+
+        data = self._json(run, self.DOCS_PAGE)
+
+        assert data["significant"] is True
+        assert data["settings"] == {
+            "ignore_paths": [],
+            "min_changed_lines": 0,
+            "sources": {"ignore_paths": DEFAULT, "min_changed_lines": DEFAULT},
+        }
+
+    def test_norms_are_not_fetched_when_both_flags_are_given(self, run):
+        def boom(_repo):
+            raise AssertionError("norms fetched")
+
+        norms_store.set_loader(boom)
+
+        code, _, _ = run(
+            FakeGitHub([self.DOCS_PAGE]), "--ignore-path", "x", "--min-changed-lines", "0"
+        )
+
+        assert code == 0
+
+    def test_explain_prints_each_setting_and_its_source(self, run):
+        _install(DOCS_NORMS)
+
+        _, out, _ = run(FakeGitHub([self.DOCS_PAGE]), "--min-changed-lines", "4", "--explain")
+
+        lines = out.splitlines()
+        assert lines[1].startswith("significant:")
+        assert lines[2] == f"  why: ignore_paths = [doc/**] ({FILE})"
+        assert lines[3] == "  why: min_changed_lines = 4 (--min-changed-lines)"
+
+    def test_explain_without_a_norms_file(self, run):
+        _install(None)
+
+        _, out, _ = run(FakeGitHub([self.DOCS_PAGE]), "--explain")
+
+        assert f"  why: ignore_paths = [] ({DEFAULT})" in out.splitlines()
+
+    def test_default_text_has_no_why_lines(self, run):
+        _install(DOCS_NORMS)
+
+        _, out, _ = run(FakeGitHub([self.MIXED_PAGE]))
+
+        assert "why:" not in out
+
+    def test_explain_keeps_json_valid(self, run):
+        _install(DOCS_NORMS)
+
+        data = self._json(run, self.DOCS_PAGE, "--explain")
+
+        assert data["settings"]["ignore_paths"] == ["doc/**"]

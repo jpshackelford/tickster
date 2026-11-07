@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
 from src.board.github_api import GitHubClient, get_github_token
+from src.norms.model import Norms
 
 SHA_RE = re.compile(r"[0-9a-fA-F]{7,40}")
 PER_PAGE = 100
@@ -24,6 +25,11 @@ REASON_TOO_LARGE = "too large to inspect"
 REASON_UNCHANGED = "no changes since commit"
 REASON_ONLY_MERGES = "only merge commits"
 REASON_ONLY_MERGES_AND_BASE = "only merge commits and commits brought in from the base"
+
+SOURCE_NORMS = ".agents/tickster.toml"
+SOURCE_DEFAULT = "default (no norms file)"
+SOURCE_FLAG_IGNORE_PATH = "--ignore-path"
+SOURCE_FLAG_MIN_CHANGED_LINES = "--min-changed-lines"
 
 
 class InvalidSince(ValueError):
@@ -79,6 +85,39 @@ class PRChanges:
     commits: list[ChangedCommit] = field(default_factory=list)
     files: list[ChangedFile] = field(default_factory=list)
     ignored: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class CommitSettings:
+    """The ``[commits]`` values in force for one run, and where each came from."""
+
+    ignore_paths: tuple[str, ...]
+    min_changed_lines: int
+    ignore_paths_source: str
+    min_changed_lines_source: str
+
+
+def resolve_commit_settings(
+    norms: Norms | None,
+    ignore_paths: Sequence[str] | None = None,
+    min_changed_lines: int | None = None,
+) -> CommitSettings:
+    """Per setting: the flag if given, else the repo's ``[commits]`` norms, else the default.
+
+    ``None`` (or an empty ``ignore_paths``) means the flag was not given;
+    ``min_changed_lines=0`` was given and overrides the file.
+    """
+    file_source = SOURCE_NORMS if norms is not None else SOURCE_DEFAULT
+    commits = norms.commits if norms is not None else None
+    if ignore_paths:
+        paths, paths_source = tuple(ignore_paths), SOURCE_FLAG_IGNORE_PATH
+    else:
+        paths, paths_source = (commits.ignore_paths if commits else ()), file_source
+    if min_changed_lines is not None:
+        lines, lines_source = min_changed_lines, SOURCE_FLAG_MIN_CHANGED_LINES
+    else:
+        lines, lines_source = (commits.min_changed_lines if commits else 0), file_source
+    return CommitSettings(paths, lines, paths_source, lines_source)
 
 
 @lru_cache(maxsize=256)

@@ -286,24 +286,45 @@ to decide whether a manual test report posted against X still holds.
 
 ```bash
 tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
-    [--ignore-path GLOB ...] [--min-changed-lines N]
+    [--ignore-path GLOB ...] [--min-changed-lines N] [--explain]
 ```
 
 | Option | Description |
 | --- | --- |
 | `--since SHA` | Required. The commit to compare from: a commit SHA of 7 to 40 hex characters, in either case. A branch name or tag is rejected, because a branch tip moves and the verdict could not be repeated; resolve it to a SHA first |
 | `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
-| `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments) |
-| `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant |
+| `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments). Replaces the norms file's `ignore_paths` |
+| `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant. `0` counts as given and replaces the norms file's value |
+| `--explain` | After the verdict, print one `why:` line per setting with its value and source |
+
+Where the settings come from: per setting, a flag beats `[commits]`
+(`ignore_paths`, `min_changed_lines`) in the repo's `.agents/tickster.toml`, which
+beats the default (no ignored paths, `0`). `--ignore-path` replaces the file's list;
+it does not add to it. A flag for one setting leaves the other coming from the file.
+The file is read from the default branch, and only when a setting was not given as a
+flag. With no norms file, or one tickster cannot read, the defaults apply. `tkt pr
+steps` reads the same `[commits]` values, so both commands give the same verdict.
 
 It makes one REST compare call (`SHA...head`, plus further pages for very large
 ranges). When that range holds a merge commit it makes one more (`base...head`, the
 commits the PR itself carries) to tell which commits a merge brought in from the
-base branch. It prints a summary line, a verdict, then one tab-separated line per
+base branch. It prints a summary line, a verdict, the `why:` lines with `--explain`,
+then one tab-separated line per
 commit (`commit<TAB>sha<TAB>merge|base|--<TAB>author<TAB>headline`; `merge` is a
 merge commit, `base` a commit reachable from the base branch that a merge brought
 in) and per file
-(`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`).
+(`file<TAB>status<TAB>+added<TAB>-deleted<TAB>ignored|--<TAB>path`). With
+`--format json` the document has a `settings` object: `ignore_paths`,
+`min_changed_lines` and `sources` (the source of each: `--ignore-path`,
+`--min-changed-lines`, `.agents/tickster.toml` or `default (no norms file)`).
+
+```text
+$ tkt pr changes OWNER/REPO#NUM --since SHA --explain
+...
+significant: no (all 1 changed files match ignore_paths)
+  why: ignore_paths = [doc/**] (.agents/tickster.toml)
+  why: min_changed_lines = 0 (.agents/tickster.toml)
+```
 
 ```text
 $ tkt pr changes jpshackelford/tickster#60 --since 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
@@ -329,8 +350,8 @@ Verdict rules, in order:
   more parents) or a `base` commit, or no files remain after `--ignore-path`, or
   the remaining lines are below `--min-changed-lines`. A merge-from-base commit
   alone is `no`, however much the base brought in.
-- Otherwise `significant: yes`. Without `--ignore-path` and `--min-changed-lines`
-  every change the PR itself authored is significant.
+- Otherwise `significant: yes`. Without `--ignore-path`, `--min-changed-lines` and
+  `[commits]` norms every change the PR itself authored is significant.
 
 Notes:
 

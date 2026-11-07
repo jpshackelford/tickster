@@ -21,6 +21,7 @@ import httpx
 import pytest
 from rich.console import Console
 
+from src.__main__ import main
 from src.actors import ActorClass
 from src.board import config as board_config
 from src.board.github_api import GitHubClient
@@ -28,8 +29,8 @@ from src.norms import store as norms_store
 from src.norms.model import Norms
 from src.norms.schema import parse_norms
 from src.pr.changes import REASON_ONLY_MERGES, ChangedFile, ChangesClient, PRChanges
+from src.pr.cli import changes_cmd, steps_cmd
 from src.pr.cli import list_cmd as pr_list
-from src.pr.cli import steps_cmd
 from src.pr.history import process_pr_data
 from src.pr.models import PRInfo, PRListResult, PRState
 from src.pr.reports import (
@@ -856,3 +857,28 @@ class TestUnits:
         assert tested_commits(pr_as_of(62, ON_REPORT_HEAD), NORMS) == []
         assert tested_commits(pr_as_of(62, AFTER_CODE_PUSH), NORMS) == [BFF03B3]
         assert tested_commits(pr_as_of(62, AFTER_CODE_PUSH), None) == []
+
+
+class TestChangesParity:
+    """``pr changes`` without flags and ``pr steps`` read the same ``[commits]`` norms."""
+
+    @pytest.mark.parametrize(
+        ("at", "head", "significant_expected"),
+        [(AFTER_DOCS_PUSH, AF8CDB1, False), (AFTER_CODE_PUSH, HEAD_62, True)],
+    )
+    def test_same_verdict_for_the_same_pr_and_commit(
+        self, capsys, monkeypatch, at, head, significant_expected
+    ):
+        fake = fake_62(head=head)
+        pr = pr_as_of(62, at)
+        via_steps = steps_cmd._report_facts(fake.client(), pr, NORMS).changes[BFF03B3]
+
+        monkeypatch.setattr(changes_cmd, "ChangesClient", fake.client)
+        code = main(
+            ["pr", "changes", "jpshackelford/tickster#62", "--since", BFF03B3, "--format", "json"]
+        )
+        via_changes = json.loads(capsys.readouterr().out)
+
+        assert code == 0
+        assert via_changes["significant"] is via_steps.significant is significant_expected
+        assert via_changes["reasons"] == via_steps.reasons
