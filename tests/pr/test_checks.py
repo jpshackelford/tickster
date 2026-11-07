@@ -193,6 +193,26 @@ class TestGetPrChecks:
             == []
         )
 
+    def test_contexts_say_where_each_latest_check_stands(self):
+        running = {**_check_run("build", ""), "status": "IN_PROGRESS", "conclusion": None}
+        done = {**_check_run("lint", "SUCCESS"), "status": "COMPLETED"}
+        failed = {**_check_run("test", "FAILURE"), "status": "COMPLETED"}
+        statuses = [
+            {"__typename": "StatusContext", "context": f"ext/{state}", "state": state}
+            for state in ("ERROR", "EXPECTED", "SUCCESS")
+        ]
+
+        result = _client(FakeGraphQL([[running, done, failed, *statuses]])).get_pr_checks("o/r", 1)
+
+        assert {c.name: c.outcome for c in result.contexts} == {
+            "build": "pending",
+            "lint": "passed",
+            "test": "failed",
+            "ext/ERROR": "failed",
+            "ext/EXPECTED": "pending",
+            "ext/SUCCESS": "passed",
+        }
+
     def test_paginates_contexts(self):
         fake = FakeGraphQL([[_check_run("a", "SUCCESS")], [_check_run("b", "FAILURE")]])
 

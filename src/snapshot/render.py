@@ -86,7 +86,8 @@ def render_diff(
         "Field!: value changed; prior value via `tkt snapshot diff`.  "
         "head!/review!/merge!: PR head commit, review decision or merge state changed.  "
         "Per-reviewer notes: requested / ↻ re-requested / approved on head / "
-        "review now on old head / request removed / review dismissed.[/]"
+        "review now on old head / request removed / review dismissed.  "
+        "Step notes: `step: old → new` (`pr list --steps`).[/]"
     )
 
 
@@ -319,6 +320,7 @@ def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
     if show_pr_detail:
         notes.extend(_pr_detail_tags(d.changed_fields))
     notes.extend(d.reviewer_changes)
+    notes.extend(d.step_changes)
     return f"[dim]{' '.join(notes)}[/]" if notes else ""
 
 

@@ -72,6 +72,8 @@ class PRInfo:
     events: list[HistoryEvent] = field(default_factory=list)  # one per history character
     reviewers: tuple[ReviewerState, ...] | None = None  # None = not fetched
     reviewers_truncated: bool = False
+    labels: tuple[str, ...] = ()
+    checks_state: str | None = None  # raw check-rollup state of the head commit, if any
 
     @property
     def age_seconds(self) -> float:

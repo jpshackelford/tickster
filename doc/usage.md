@@ -157,6 +157,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review), and a legend under the table. Off by default so the table stays narrow. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -305,6 +306,70 @@ Notes:
   exit code 141, without a traceback.
 - The exit code is 0 whether or not the change is significant; errors exit 1.
 - The command is also a library function, `src.pr.changes.pr_changes`.
+
+### `tkt pr steps`
+
+For each PR, say which follow-up steps still need to happen, and why. It states
+what is pending, not which step comes first: order is policy, and it belongs to
+the consumer.
+
+```bash
+tkt pr steps REF... [--format text|json] [--explain]
+```
+
+| Option | Description |
+| --- | --- |
+| `REF...` | PR refs, `owner/repo#number` or a PR URL |
+| `--format text\|json` | Text (default) or JSON. JSON is the only thing on stdout; notices and errors go to stderr |
+| `--explain` | Add why each rule fired: the settings used and the facts compared |
+
+Text gives the PR, then one line per step: the status, then the evidence in a few words.
+
+```
+OpenHands/software-agent-sdk#6338
+  review the PR: done — enyst COMMENTED on 0945b15
+  fix CI: done — checks passed on head e66822d
+  address review findings: done — no unresolved threads, no changes requested
+  request re-review: needed — enyst COMMENTED on 0945b15, head is e66822d, no pending request
+```
+
+JSON is a list with one object per PR: `{"pr": "owner/repo#N", "steps": [...]}`. Each
+step is `{"step", "status", "evidence"}`; `evidence` is a list of `{"kind", "text"}` with
+a `ref` (the login, commit or check it is about) when there is one. `--explain` adds an
+`explain` list to each step.
+
+| Status | Meaning |
+| --- | --- |
+| `needed` | The author's side has to act |
+| `waiting` | Someone else has to act: a requested reviewer, or running CI |
+| `done` | The step is satisfied |
+| `n/a` | The step does not apply. Every step is `n/a` on a merged or closed PR |
+| `not configured` | The step depends on a [norms](#tkt-norms) setting the repo does not have. No Phase A step uses it |
+| `unknown` | Facts are missing or uncertain, for example no checks yet while mergeability is still `UNKNOWN` |
+
+| Step | `needed` | `waiting` | `done` | `n/a` |
+| --- | --- | --- | --- | --- |
+| `review the PR` | No counted reviewer has reviewed, and none is requested | A counted reviewer is requested and has not reviewed since | A counted reviewer has reviewed (any state except dismissed) | Draft PR |
+| `fix CI` | The check rollup failed, after dropping `[ci] ignore_checks` | Checks pending | Checks passed | No checks |
+| `address review findings` | An unresolved review thread, or a counted reviewer's latest review is `CHANGES_REQUESTED` | | Neither | No reviews |
+| `request re-review` | A counted reviewer's latest review is on an older head and no request is pending | A re-request is pending, or a `[review] rerequest_labels` label is on the PR | Every counted reviewer's latest review is on the head | No reviews |
+
+- A reviewer is counted when their [actor class](#ai-actors) is in `[review]
+  count_reviews_from` (`humans`, `agents`, `bots`; a team counts as `humans`). Without
+  a norms file that is `humans` and `agents`, and no agents are known, so only humans count.
+  `agents` come from `[actors] agent_logins`.
+- `[ci] ignore_checks` globs are matched against each check's name. Only when a repo
+  sets them, and the rollup is failing or pending, does `tkt` read the PR's individual
+  checks (one extra request per such PR).
+- Not detected: findings left in a review summary or a plain comment instead of a thread.
+- With `--diff` / `--watch` on `tkt pr list --steps`, a step that moved marks the row `*`
+  and the Note (and `step_changes` in the JSON) says how: `request re-review: done →
+  needed`. A baseline saved without `--steps` is not compared.
+- `tkt pr list --steps` shows one character per step, in this order: `r` review, `c` CI,
+  `f` findings, `a` re-review. Uppercase is `needed`, lowercase `waiting`, `.` done or
+  `n/a`, `?` unknown, `-` not configured. `R.F.` = review needed and findings to address.
+- The exit code is 0 whatever the statuses are; errors (a PR that is not found) exit 1.
+- The command is also a library function, `src.pr.steps.evaluate_steps`.
 
 ## `tkt review`
 
@@ -521,6 +586,8 @@ new optional keys do not bump it.
   false, and a rule that needs it prints a one-time warning pointing to
   `tkt norms init --from github:jpshackelford/tickster`.
 - `$closed_by_bot` also matches the `[labels] stale` labels.
+- `tkt pr steps` reads `[review] count_reviews_from`, `[review] rerequest_labels` and
+  `[ci] ignore_checks`; with no file it counts humans and agents.
 - Bot detection for issue history is the union of the `[bot]` suffix, `[issue]
   bot_usernames` and the repo's `[actors] bots`.
 

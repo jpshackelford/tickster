@@ -109,6 +109,7 @@ fragment PRFields on PullRequest {{
     mergeStateStatus
     reviewDecision
     headRefOid
+    labels(first: 30) {{ nodes {{ name }} }}
     author {{ login }}
     repository {{ nameWithOwner }}
     {PR_REVIEW_THREADS.fragment_field()}
