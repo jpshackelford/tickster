@@ -1,0 +1,688 @@
+# OHTV Worklog Archive - 2026-11-05
+
+Archived entries from WORKLOG.md for 2026-11-05.
+
+---
+
+### 2026-11-05 07:45 UTC - Orchestrator
+
+⏳ **Blocked: merge worker still not spawned** — idle (escalated 07:30, head `c12d56b` unchanged)
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46) still meets every merge gate. No `<HOST>` in the prompt, so no spawn target. The config forbids the `app.all-hands.dev` fallback.
+- A human needs to supply the host or merge PR #46.
+
+**Active Workers:**
+
+_None._
+
+**Current State:**
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46): `approved green ready` — merge pending (head `c12d56b`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #45 (PR #46), #49, #48, #47, #25 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 08:04 UTC - Orchestrator
+
+⏳ **Waiting for Review** — idle (escalated 07:30, head `c12d56b` unchanged)
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46) still meets every merge gate. There is still no `<HOST>`, so no worker can be spawned.
+- This is the second idle cycle, so auto-disable is due. It can't run either: the disable call needs the host. A human must merge PR #46, supply the host, or disable automation `b2e31bf7-9f0d-46f6-89fc-75aafae0f9ec`.
+
+**Active Workers:**
+
+_None._
+
+**Current State:**
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46): `approved green ready` — merge pending (head `c12d56b`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #45 (PR #46), #47, #48, #49, #25 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 08:30 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merging [PR #46](https://github.com/jpshackelford/tickster/pull/46): feat(cli): add --all-authors to issue list and pr list
+- All gates met at head `c12d56b` (CI green, docs in diff, manual tests current, approved). `<HOST>` is available this cycle.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/744f0b6f858a4a0ebffe27b465e260e2
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `744f0b6` | merge | PR #46 | **NEW** |
+
+**Current State:**
+
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46): `approved green ready` — merge in flight (head `c12d56b`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #45 (PR #46), #47, #48, #49, #25 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 08:47 UTC - Implementation Worker (`ed59d08`)
+
+✅ **PR opened for issue #25** — ready for review
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor in PR timeline events no longer aborts `tkt pr list` / `tkt review`. Adds `_login` helper in `src/pr/history.py`; parametrized null cases cover `_parse_timeline_item`, `process_pr_data`, and `_process_pr_for_reviewer`.
+- CI green at head `b5b0b2e`; moved from draft to ready. Manual test, docs, and review handling are left to a separate conversation.
+
+---
+### 2026-11-05 08:50 UTC - Orchestrator
+
+🛠 **Launched: Implementation Worker**
+
+Implementing [issue #25](https://github.com/jpshackelford/tickster/issues/25): pr list / review abort on null author or actor (`priority:high`)
+- [PR #46](https://github.com/jpshackelford/tickster/pull/46) merged; merge worker `744f0b6` finished. No in-scope PR open.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/ed59d08f5a5b44f9aa4f6a349ca386de
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `ed59d08` | implementation | Issue #25 | **NEW** |
+
+**Current State:**
+
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #25, #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 09:08 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor fix (issue #25)
+- CI green at head `b5b0b2e`; bug fix with no user-facing docs impact (docs gate not required); no manual test results yet.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/8771662832a34b2793b4c64cf01c5a02
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `8771662` | testing | PR #57 | **NEW** |
+
+**Current State:**
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): `ready green` — testing in flight (head `b5b0b2e`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 09:26 UTC - Merge Worker
+
+✅ **Merged: [PR #57](https://github.com/jpshackelford/tickster/pull/57)** as `7a6f658` — fix(pr): tolerate null author/actor in PR timeline events
+
+- Squash-merged at 09:26 UTC from head `b5b0b2e`; issue #25 closed.
+- Gates at merge: CI green, manual test PASS (8/8), review `Acceptable` (approved), no open threads.
+- PR body updated to final state; PR #44 and `hold` issues untouched.
+
+---
+### 2026-11-05 09:30 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merging [PR #57](https://github.com/jpshackelford/tickster/pull/57): null author/actor fix (issue #25)
+- CI green, manual test PASS (09:09), review `Acceptable` (approved), no open threads; head `b5b0b2e` unchanged.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/31a0852a6b1a4aed9128337a11e93c27
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `31a0852` | merge | PR #57 | **NEW** |
+
+**Current State:**
+
+- [PR #57](https://github.com/jpshackelford/tickster/pull/57): `approved green ready` — merge in flight (head `b5b0b2e`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #47, #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 09:40 UTC - Orchestrator
+
+🛠 **Launched: Implementation Worker**
+
+Implementing [issue #47](https://github.com/jpshackelford/tickster/issues/47): pr list 502/504 on slow search pages (`priority:high`)
+- No open PR besides release PR #44; PR #57 merged at 09:26 (issue #25 closed).
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/fc64f4d5ff6c4c48a90170c697842cd7
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `fc64f4d` | implementation | Issue #47 | **NEW** |
+
+**Current State:**
+
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #47 (in flight), #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 09:41 UTC - Implementation Worker (`fc64f4d`)
+
+✅ **PR opened for issue #47** — ready for review
+
+- [PR #58](https://github.com/jpshackelford/tickster/pull/58): search pages capped at 25 items; GraphQL retries 502/503/504, timeouts and short rate limits with backoff and jitter (not mutations); a page that still times out is retried at half size, down to 5. Covers pr list, issue list and review.
+- CI green at head `9c4a6c3`; moved from draft to ready. Manual test, docs, and review handling are left to a separate conversation.
+
+---
+### 2026-11-05 09:50 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #58](https://github.com/jpshackelford/tickster/pull/58): search paging and 502/504 retry (issue #47)
+- CI green (external review check still pending), no manual test results yet; README needs no change (internal behavior).
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/e9040dcb998e4a7591a24bf960b2b054
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `e9040dc` | testing | PR #58 | **NEW** |
+
+**Current State:**
+
+- [PR #58](https://github.com/jpshackelford/tickster/pull/58): `green ready` — testing in flight (head `9c4a6c3`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low); next impl after PR #58 merges
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 09:56 UTC - Merge Worker
+
+✅ **Merged: [PR #58](https://github.com/jpshackelford/tickster/pull/58)** as `a9cccb9` (squash); closes #47
+
+- Search pages capped at 25 items for `pr list`, `issue list`, `review`; GraphQL retries 502/503/504, timeouts and short rate limits (mutations not retried); slow pages halve down to 5 items.
+- PR description updated to final state; issue #47 closed as completed.
+- Non-blocking follow-ups from manual test: halving warning spans two lines; `tkt board init` prints a raw traceback on a failed mutation (pre-existing on `main`).
+
+---
+### 2026-11-05 09:58 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merging [PR #58](https://github.com/jpshackelford/tickster/pull/58): search paging and 502/504 retry (issue #47)
+- All gates met at head `9c4a6c3`: CI green, manual test PASS (22/22), review approved, no open threads, no README change needed.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/6dad7e302bed4bd1a32bc6f8d4d16763
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `6dad7e3` | merge | PR #58 | **NEW** |
+
+**Current State:**
+
+- [PR #58](https://github.com/jpshackelford/tickster/pull/58): `oA green ready` — merge in flight (head `9c4a6c3`)
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #48, #49 (high), #50 (medium), #52, #42, #26, #16 (low); next impl after PR #58 merges
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 10:08 UTC - Orchestrator
+
+🛠 **Launched: Implementation Worker**
+
+Implementing [issue #48](https://github.com/jpshackelford/tickster/issues/48): `--diff-format json` notice before JSON on first `--watch` (`priority:high`)
+- No in-scope PR open; PR #58 merged at 09:56. Prior workers (`e9040dc`, `6dad7e3`) finished.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/f1b690c98c424643b62b55d1cd713190
+- Slots: 1 busy (PR), 1 free (expansion; nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `f1b690c` | implementation | Issue #48 | **NEW** |
+
+**Current State:**
+
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #48 (in flight), #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 10:20 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #59](https://github.com/jpshackelford/tickster/pull/59): Keep stdout valid JSON with --diff-format json (issue #48)
+- CI green, approved, bug fix (no README change needed); manual testing required and missing.
+- Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/d972e62c3a00429fbab66660c0e0c02d
+- Slots: 1 busy (PR), 1 free (expansion; nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `d972e62` | testing | PR #59 | **NEW** |
+
+**Current State:**
+
+- [PR #59](https://github.com/jpshackelford/tickster/pull/59): `A green ready` — head `8aea572`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #49 (high), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 10:27 UTC - Merge worker
+
+✅ **Merged [PR #59](https://github.com/jpshackelford/tickster/pull/59) (fixes #48)**
+
+- Squash-merged at approved head `8aea572` as `2b09310`: `fix: keep stdout valid JSON with --diff-format json`. [Issue #48](https://github.com/jpshackelford/tickster/issues/48) is closed.
+- With `--diff-format json`, the missing-baseline notice and errors now go to stderr. Stdout holds only JSON. Table output and exit codes are unchanged.
+- 14 manual CLI tests passed and the dev suite was clean (797 tests). The PR description was updated to its final state.
+- `GITHUB_TOKEN` could not edit or merge the PR. I used the repo-owner token for those two steps.
+
+---
+### 2026-11-05 10:30 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Merge worker for [PR #59](https://github.com/jpshackelford/tickster/pull/59): CI green, manual test PASS, approved at head `8aea572`, no open threads. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/ee99f770ee7d4f0abc597266532ccb39
+- Implementation worker for [issue #49](https://github.com/jpshackelford/tickster/issues/49) (`priority:high`), per the concurrency rule (start a new PR when all WIP PRs have workers). Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/ab0c2666501c48f3882ca9073fb804d7
+- Slots: 2 busy, 0 free.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `ee99f77` | merge | PR #59 | **NEW** |
+| `ab0c266` | implementation | Issue #49 | **NEW** |
+
+**Current State:**
+
+- [PR #59](https://github.com/jpshackelford/tickster/pull/59): `A green ready` — head `8aea572`, merge in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #49 (in flight), #50 (medium), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 10:40 UTC - Implementation worker
+
+✅ **Opened [PR #60](https://github.com/jpshackelford/tickster/pull/60) (fixes #49), ready for review**
+
+- `tkt issue list` now defaults to open issues (`cmd_list` sets `states=["open"]`). `--all` and `--closed` are unchanged.
+- Old `issue` snapshots with `states: null` load as `["open"]`, so no one-time scope mismatch and no `--diff-force`.
+- New tests cover the query qualifiers and the watch scope. CI is green. Docs, manual test and review are still open.
+
+---
+### 2026-11-05 10:50 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Testing worker for [PR #60](https://github.com/jpshackelford/tickster/pull/60): CI green, approved at head `742dbea`, no manual test results. No docs update needed (the fix matches the documented `--open` default). Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/b89559a90248435790085e4ad9919384
+- Implementation worker for [issue #50](https://github.com/jpshackelford/tickster/issues/50) (`priority:medium`), the next new PR after the WIP PR got a worker. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/85b533ce09ea4b9b8f3e86e7939882e5
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `b89559a` | testing | PR #60 | **NEW** |
+| `85b533c` | implementation | Issue #50 | **NEW** |
+
+**Current State:**
+
+- [PR #60](https://github.com/jpshackelford/tickster/pull/60): `A green ready` — head `742dbea`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #50 (in flight), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 10:55 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+- Merge worker for [PR #60](https://github.com/jpshackelford/tickster/pull/60): CI green, approved at head `742dbea`, manual test 12/12 pass at that head, no docs update needed. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/9771c320e6db44cb9439dc194227cafc
+- Implementation worker for #50 still running; testing worker `b89559a` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `9771c32` | merge | PR #60 | **NEW** |
+| `85b533c` | implementation | Issue #50 | running |
+
+**Current State:**
+
+- [PR #60](https://github.com/jpshackelford/tickster/pull/60): `A green ready` — head `742dbea`, merge in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #50 (in flight), #52, #42, #26, #16 (low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:00 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Testing worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61) (#50 norms): CI green, head `ceee52d`, docs in `doc/usage.md`, review bot asked for a manual test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/d5c8f49bc584487e8425c0de388890f0
+- Implementation worker for [issue #52](https://github.com/jpshackelford/tickster/issues/52) (`priority:low`), the next ready, unheld issue. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/e1a32732042b4a96bd6d9cf7410964db
+- PR #60 merged; workers `9771c32`, `85b533c`, `b89559a` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `d5c8f49` | testing | PR #61 | **NEW** |
+| `e1a3273` | implementation | Issue #52 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `ceee52d`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #52 (in flight), #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:25 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Re-testing worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): review "Good", CI green, but docs-fix commit `1ba6a83` changed `src/board/macros.py` after the 10:58 test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/808aff9d22b242eab43ca6e0d5f372d2
+- Docs worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): approved, CI green, but manual test item #18 failed (`doc/usage.md` example not reproducible) and #19 gap (merge-from-base alone reports `significant: yes`) needs documenting. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/87d29c87637e4c3ca7c55a514ad4aca2
+- Workers `9dade39`, `914dea6` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+- Human decision needed on #62: accept the merge-from-base over-reporting (issue #52 criterion) or change the code.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `808aff9` | re-testing | PR #61 | **NEW** |
+| `87d29c8` | docs | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `1ba6a83`, re-test in flight
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `A green ready` — head `bff03b3`, docs fix in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:40 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Merge worker for [PR #61](https://github.com/jpshackelford/tickster/pull/61): CI green, review "Good", re-test at head `1ba6a83` clean, docs fixed. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/bda4d4ae380248f99bddb48ffd3dcd6f
+- Fix worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): not merge-ready. Issue #52 criterion "A merge-from-base commit alone is `significant: no`" fails on real data (test 19), so docs alone don't satisfy it. Worker changes the code (or reports why it can't), fixes the BrokenPipeError, then re-test and re-review follow. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/5e8575f7de8c4eb2bcb7c88e5227b4f9
+- Workers `808aff9`, `87d29c8` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `bda4d4a` | merge | PR #61 | **NEW** |
+| `5e8575f` | impl/fix | PR #62 | **NEW** |
+
+**Current State:**
+
+- [PR #61](https://github.com/jpshackelford/tickster/pull/61): `green ready` — head `1ba6a83`, merging
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `A green ready` — head `af8cdb1`, code fix in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #42, #26, #16 (all low); #52 in PR #62, #50 in PR #61
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:46 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Testing worker for [PR #63](https://github.com/jpshackelford/tickster/pull/63): CI green, bot review approved at head `4759bc6`, docs updated, no manual test report yet. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/becf989bc8984df38fda2d9139acfd62
+- Implementation worker for issue #26 (`priority:low`): #62 needs no worker (re-test clean at `7ada92a`), so its PR slot goes to a new PR. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/6a11974779684b6dbae673d82b9f7abf
+- Added `review-this` to [PR #62](https://github.com/jpshackelford/tickster/pull/62): the only approval is at `bff03b3`, before the fix. Re-review run in progress.
+- Workers `0706e21` (PR #63 opened), `37495ba` (re-test posted) finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `becf989` | testing | PR #63 | **NEW** |
+| `6a11974` | implementation | Issue #26 | **NEW** |
+
+**Current State:**
+
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `oAcFcFc green ready` — head `7ada92a`, test clean, waiting for re-review
+- [PR #63](https://github.com/jpshackelford/tickster/pull/63): `oA green ready` — head `4759bc6`, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #16 (low); #52 in PR #62, #42 in PR #63, #26 in progress
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:50 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Re-testing worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): CI green, but `c77f38b` and the BrokenPipe fix changed source after the `bff03b3` test report. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/37495baac2354a7a9f30479d349530c1
+- Implementation worker for issue #42 (`priority:low`, WIP slot 2): no other WIP PR needs a worker. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/0706e21cadb741e1a5581ffc21d3f267
+- Workers `bda4d4a` (PR #61 merged), `5e8575f` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `37495ba` | re-testing | PR #62 | **NEW** |
+| `0706e21` | implementation | Issue #42 | **NEW** |
+
+**Current State:**
+
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `oAcFcFc green ready` — head `7ada92a`, re-test in flight; the approval predates the fix, so re-review follows
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #26, #16 (low); #52 in PR #62; #42 in progress
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 11:58 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Merge worker for [PR #62](https://github.com/jpshackelford/tickster/pull/62): CI green, approved and re-tested at head `7ada92a`, docs in diff, no open threads. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/3ac1f10023114c91b6d54672d6d95e5a
+- Testing worker for [PR #64](https://github.com/jpshackelford/tickster/pull/64) (issue #26): CI green, docs in diff, no manual test report yet. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/0cbad54b581c4cbf8c3ea7b384161b0a
+- [PR #63](https://github.com/jpshackelford/tickster/pull/63) also meets the merge gates but waits for a free PR slot. It overlaps #62 files, so it merges after #62.
+- Workers `6a11974`, `becf989` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `3ac1f10` | merge | PR #62 | **NEW** |
+| `0cbad54` | testing | PR #64 | **NEW** |
+
+**Current State:**
+
+- [PR #62](https://github.com/jpshackelford/tickster/pull/62): `oAcFcFc green ready` — head `7ada92a`, merging
+- [PR #63](https://github.com/jpshackelford/tickster/pull/63): `oA green ready` — head `4759bc6`, tested, approved, merge queued for next tick
+- [PR #64](https://github.com/jpshackelford/tickster/pull/64): `o green ready` — head `1d217b6`, testing in flight, review running
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #16 (low); #52 in PR #62, #42 in PR #63, #26 in PR #64
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 12:00 UTC - Merge worker (PR #62)
+
+Merged [PR #62](https://github.com/jpshackelford/tickster/pull/62) as `b04e0f1`; issue #52 closed.
+- Head `7ada92a` checked before merge: CI green, bot approved, re-test all pass, no open threads.
+- Squash-merged without `--admin`; PR description rewritten with review evolution.
+- Fixed in review: merge-from-base now gives `significant: no`; `BrokenPipeError` exits 141; doc example reproduces.
+- Follow-up: read `[commits]` norms from `.agents/tickster.toml` (#50 is on `main`).
+
+---
+### 2026-11-05 12:08 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+- Merge worker for [PR #63](https://github.com/jpshackelford/tickster/pull/63): CI green, approved and tested at head `4759bc6`, docs in diff. Told to rebase on `b04e0f1` (#62) if needed. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/21a2fddda62c4a05bd63a6d15e706ce6
+- Worker `3ac1f10` (merge #62) finished; `0cbad54` (testing #64) still running.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `21a2fdd` | merge | PR #63 | **NEW** |
+| `0cbad54` | testing | PR #64 | running |
+
+**Current State:**
+
+- [PR #63](https://github.com/jpshackelford/tickster/pull/63): `oA green ready` — head `4759bc6`, merging
+- [PR #64](https://github.com/jpshackelford/tickster/pull/64): `oA green ready` — head `1d217b6`, bot approved, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #16 (low) waits for a free PR slot; #42 in PR #63, #26 in PR #64
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 12:10 UTC - Merge worker
+
+✅ **Merged PR #63** as `9264498` (squash). Issue #42 closed.
+
+- Branch was 5 commits behind main (#62). Merged main in: no conflicts, mechanical only (`doc/usage.md`, `src/__main__.py`, `src/board/github_api.py`). Behavior unchanged, so no re-test needed.
+- At head `0e117e8`: 1103 tests pass, ruff and basedpyright clean, CI green, approval kept.
+- PR description updated with design decisions and test coverage. Release PR #44 untouched.
+- Note: `GITHUB_TOKEN` can't push or edit PRs here. `JPSHACKELFORD_GITHUB_TOKEN` was needed.
+
+---
+### 2026-11-05 12:18 UTC - Merge worker
+
+✅ **Merged PR #64** as `dba8f1a` (squash). Issue #26 closed.
+
+- Branch was 7 commits behind main (#62, #63). One mechanical conflict in `src/pr/github_api.py`: added `mergeStateStatus`, `reviewDecision` and `headRefOid` to the new spec-built PR fragment. No behavior change.
+- At head `8cbbb87`: 1121 tests pass, ruff and basedpyright clean, CI green, approval kept, no open threads. Manual test (12:05 UTC, 10/10 pass) covers the PR logic.
+- Squash-merged without `--admin`; PR description rewritten with review evolution. Release PR #44 untouched.
+- Follow-up: Rich crops long History cells with its own `…`, which looks like the new truncation marker. Needs a separate issue.
+
+---
+### 2026-11-05 12:20 UTC - Orchestrator
+
+🚀 **Launched: 2 workers in parallel**
+
+- Merge worker for [PR #64](https://github.com/jpshackelford/tickster/pull/64): CI green, approved and tested at head `1d217b6`, docs in diff. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/fa749cdd225a48e591fd18404432703c
+- Implementation worker for #16 (`priority:low`, only ready unheld issue left). Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/69cb1b31dcb34c6ab3543600a36365fe
+- Workers `21a2fdd` (merge #63) and `0cbad54` (testing #64) finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `fa749cd` | merge | PR #64 | **NEW** |
+| `69cb1b3` | implementation | Issue #16 | **NEW** |
+
+**Current State:**
+
+- [PR #64](https://github.com/jpshackelford/tickster/pull/64): `oA green ready` — head `1d217b6`, merging
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld: #16 (low) in implementation; #26 in PR #64
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 12:30 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+- [PR #65](https://github.com/jpshackelford/tickster/pull/65) (issue #16): CI green, docs in diff, no manual test results yet. Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/0628e998ddec4ff3b074f07af9844255
+- Workers `fa749cd` (merge #64) and `69cb1b3` (impl #16) finished.
+- Slots: PR 1 busy, 1 free (no WIP PR or ready unheld issue left to use it); expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `0628e99` | testing | PR #65 | **NEW** |
+
+**Current State:**
+
+- [PR #65](https://github.com/jpshackelford/tickster/pull/65): `o ready` — head `37cd727`, CI green, PR review check running, testing in flight
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld issues: none (#16 in PR #65)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 12:35 UTC - Implementation worker (#16)
+
+Opened [PR #65](https://github.com/jpshackelford/tickster/pull/65) `feat(snapshot): say why a diff row is gone and ignore mergeability warm-up`. CI green, marked ready for review. Closes #16.
+
+- Snapshots store `has_more`; a gone row near the tail of a truncated result shows `limit?` (JSON `limit`).
+- `--diff-resolve` (pr, issue, review) looks gone rows up by ref: `closed`, `merged`, `still open`, `not found`. Off by default, no extra calls.
+- A CI move to or from `conflict` is not flagged while either side's `mergeable` is `UNKNOWN`; review snapshots now record `mergeable`.
+- `doc/usage.md` and the legend updated. Docs, testing and review are left to separate conversations.
+
+---
+### 2026-11-05 12:37 UTC - Merge worker
+
+✅ **Merged PR #65** as `73ab0c9` (squash). Issue #16 closed.
+
+- Head stayed `37cd727`; main moved only by WORKLOG.md commits. At head: 1164 tests pass, ruff and basedpyright clean, CI green.
+- Manual test (12:30 UTC, 20/20 pass) and the 12:27 UTC review (excellent, only finding was the missing test report) both cover the final head.
+- Squash-merged without `--admin`; PR description rewritten with review evolution. Release PR #44 untouched.
+
+---
+### 2026-11-05 12:44 UTC - Orchestrator
+
+✅ **All quiet**
+
+- No active workers (`40d5d07` finished). Merged PR #65 closed issue #16.
+- Slots: PR 0 busy, 2 free; expansion 0 busy, 2 free. Nothing in scope to hand out.
+
+**Active Workers:**
+
+_None._
+
+**Current State:**
+
+- Open PRs: [#44](https://github.com/jpshackelford/tickster/pull/44) release-please, `hold`, untouched
+- Ready issues: none unheld (#40, #41, #51, #53, #54 are `hold`)
+- Needs expansion: none in scope (all open issues are `hold`)
+
+---
+### 2026-11-05 12:45 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+- [PR #65](https://github.com/jpshackelford/tickster/pull/65) (issue #16): CI green, docs in diff, manual test 20/20 pass at head `37cd727`, review rated it excellent (only finding was the missing test report, now posted). Conversation: https://app.beta.staging.all-hands-testing.dev/conversations/40d5d074058041259fb6c11bb0b902ac
+- Testing worker `0628e99` finished.
+- Slots: PR 1 busy, 1 free (no other WIP PR or ready unheld issue); expansion 0 busy, 2 free (nothing in scope to expand).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `40d5d07` | merge | PR #65 | **NEW** |
+
+**Current State:**
+
+- [PR #65](https://github.com/jpshackelford/tickster/pull/65): `o green ready` — head `37cd727`, merging
+- [PR #44](https://github.com/jpshackelford/tickster/pull/44): release-please, `hold` — untouched
+- Ready, unheld issues: none (#16 in PR #65)
+- Needs expansion: none in scope
+
+---
+### 2026-11-05 12:54 UTC - Orchestrator
+
+✅ **All quiet**
+
+- No active workers. Slots: PR 0 busy, 2 free; expansion 0 busy, 2 free. Nothing in scope to hand out.
+
+**Active Workers:**
+
+_None._
+
+**Current State:**
+
+- Open PRs: [#44](https://github.com/jpshackelford/tickster/pull/44) release-please, `hold`, untouched
+- Ready issues: none unheld (#40, #41, #51, #53, #54 are `hold`)
+- Needs expansion: none in scope (all open issues are `hold`)
