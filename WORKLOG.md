@@ -389,3 +389,15 @@ _None._
 - Approach: change the line to `tkt review`; add `tests/test_help_examples.py` that parses every epilog example with the real parser.
 
 ---
+
+### 2026-11-07 22:05 UTC - Expansion Worker
+
+✅ **Expanded Issue #75**
+
+- Issue: [Some error paths print a traceback or raw HTTP text instead of a one-line message](https://github.com/jpshackelford/tickster/issues/75)
+- Type: Bug
+- Status: Ready for implementation
+- Root cause: four paths with no command-boundary handler. All reproduced except that the `board init` HTTP failure needed a mocked 502. `config set` with no board hits `save_board_config`'s `ValueError`; `board init` lets `HTTPStatusError`/`RuntimeError` escape; `norms init --ref` prints httpx's text for GitHub's 422; `norms check` adds `missing required key` for a key `_validate` already dropped as invalid.
+- Approach: guard in `_handle_set`; catch HTTP/GraphQL errors in `board init` with a shared one-line formatter; map 422 to `ref 'X' not found in the source`; skip the required-key check for keys that already failed. One test per case.
+
+---
