@@ -17,13 +17,14 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
+from src.list_table import add_shrinkable_column, print_fitted_table
 from src.pr.cli.graph import render_merged_graph
 from src.pr.cli.steps_cmd import collect_steps
 from src.pr.detail import merge_label, review_label, short_sha
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
 from src.pr.reviewers import REVIEWER_LEGEND, compact_reviewers, named_reviewers
-from src.pr.steps import STEPS_LEGEND, StepResult, steps_mark
+from src.pr.steps import STEP_LETTERS, STEPS_LEGEND, StepResult, steps_mark
 from src.snapshot.convert import snapshot_from_prs
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_PR, SnapshotScope
@@ -270,10 +271,11 @@ def _print_pr_table(
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("PR", justify="right", no_wrap=True)
     if show_title:
-        table.add_column("Title", no_wrap=True, overflow="ellipsis", max_width=35)
+        add_shrinkable_column(table, "Title", max_width=35)
+    history_col = len(table.columns)
     table.add_column("History", no_wrap=True)
     table.add_column("CI", no_wrap=True)
     if show_detail:
@@ -283,12 +285,13 @@ def _print_pr_table(
     if reviewers:
         table.add_column("Reviewers", no_wrap=True)
     if steps is not None:
-        table.add_column("Steps", no_wrap=True)
+        table.add_column("Steps", no_wrap=True, min_width=len(STEP_LETTERS))
     table.add_column("State", no_wrap=True)
     table.add_column("💬", justify="right", no_wrap=True)
     table.add_column("Age", no_wrap=True)
     table.add_column("Last", no_wrap=True)
 
+    rows = []
     for pr in prs:
         row = [
             pr.repo,
@@ -317,9 +320,9 @@ def _print_pr_table(
                 _format_relative_time(pr.last_activity_seconds),
             ]
         )
-        table.add_row(*row)
+        rows.append(row)
 
-    console.print(table)
+    print_fitted_table(console, table, rows, history_col=history_col)
     if reviewers:
         console.print(f"[dim]{escape(REVIEWER_LEGEND)}[/]")
     if steps is not None:
