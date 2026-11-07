@@ -323,3 +323,13 @@ _None._
 - Ready issues: #70 (in flight). Needs split: #71. Needs expansion (queued): #74-#82
 
 ---
+### 2026-11-07 21:37 UTC - Expansion Worker (#73)
+
+✅ **Expanded Issue #73**
+
+- Issue: [docs: add an automation how-to](https://github.com/jpshackelford/tickster/issues/73)
+- Type: Enhancement (docs)
+- Status: Ready for implementation
+- Approach: new `doc/automation.md` plus a README link; norms table, streams and exit codes checked against the code. Must start after [PR #83](https://github.com/jpshackelford/tickster/pull/83) (#54) merges, because it changes the output and the norms reads. Add `hold` if you want that enforced.
+
+---
