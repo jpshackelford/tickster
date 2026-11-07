@@ -272,3 +272,13 @@ _None._
 - Approach: `cmd_changes` calls `get_repo_norms` and merges `[commits]` per setting (flag > file > default), via a small helper that `pr steps` can share. Adds `--explain` and a JSON `settings` key to show the source; default text output is unchanged.
 
 ---
+
+### 2026-11-07 22:30 UTC - Implementation Worker
+
+✅ **Implemented Issue #74**
+
+- Issue: [tkt --help shows `tkt review list`, but the CLI rejects `list`](https://github.com/jpshackelford/tickster/issues/74)
+- PR: https://github.com/jpshackelford/tickster/pull/85 (CI green, ready for review)
+- Change: epilog example is now `tkt review`; new `tests/test_help_examples.py` parses every epilog example with the real parser.
+
+---
