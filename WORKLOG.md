@@ -565,3 +565,10 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-07 23:30 UTC - Implementation Worker (#80)
+
+✅ **[PR #90](https://github.com/jpshackelford/tickster/pull/90)** (`fix(list): crop History with '>' and keep Steps and numbers whole on narrow terminals`) ready for review. CI green; closes #80.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
