@@ -377,3 +377,15 @@ _None._
 - Ready issues, no worker yet: #72, #73 (starts after #83 merges). Needs split: #71. Needs expansion (queued): #76-#82
 
 ---
+
+### 2026-11-07 21:55 UTC - Expansion Worker
+
+✅ **Expanded Issue #74**
+
+- Issue: [tkt --help shows `tkt review list`, but the CLI rejects `list`](https://github.com/jpshackelford/tickster/issues/74)
+- Type: Bug
+- Status: Ready for implementation
+- Root cause: epilog example at `src/__main__.py:101` says `tkt review list`; `review` has no subcommands. The other epilog examples parse.
+- Approach: change the line to `tkt review`; add `tests/test_help_examples.py` that parses every epilog example with the real parser.
+
+---
