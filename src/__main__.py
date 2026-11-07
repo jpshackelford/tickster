@@ -98,7 +98,7 @@ def _run(argv: list[str] | None = None) -> int:
 Examples:
   tkt issue list                        List open issues
   tkt pr list                           List open pull requests
-  tkt review list                       List PRs awaiting review
+  tkt review                            List PRs awaiting review
   tkt board status                      Show project board status
   tkt repo add owner/name               Track a repo on a board
 """,
