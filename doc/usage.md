@@ -488,7 +488,7 @@ tkt pr show OWNER/REPO#NUM [--since TS | --since-snapshot KIND/NAME]
 | --- | --- |
 | `--since TS` | Only events after this ISO-8601 time, e.g. `2026-11-05T10:00:00Z`. A date or a time with no zone is UTC |
 | `--since-snapshot KIND/NAME` | Only events after the `last_activity` the named [snapshot](#snapshots--diffs) stored for this item. Use `pr/NAME` or `review/NAME` for a PR (`issue/NAME` for an issue). Errors if the snapshot has no row for the item. Cannot be combined with `--since` |
-| `--max-body N` | Trim each comment, review or thread-comment body to `N` characters (default: 600, `0` = no trimming). A trimmed body ends with `…(K more chars)` |
+| `--max-body N` | Trim each comment, review or thread-comment body to its first `N` characters (default: 600, `0` = no trimming). `N` counts the body only; a trimmed body ends with an extra `…(K more chars)` suffix |
 | `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
 
 The ref may be `owner/repo#number` or a GitHub PR URL.
@@ -882,6 +882,8 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 
 Δ: + new row, * changed, - gone (Note: why, `?` = a guess), (blank) unchanged.  History: [bracketed] = new since last snapshot.  Field!: value changed; prior value via `tkt snapshot diff`.  head!/review!/merge!: PR head commit, review decision or merge state changed.
 ```
+
+A Note with several parts (history rewritten, `head!` tags, reviewer changes, step changes) joins them with `; `.
 
 ### Head, review and merge changes
 

@@ -1508,7 +1508,8 @@ def _add_show_args(parser: argparse.ArgumentParser) -> None:
         type=_non_negative_int,
         default=DEFAULT_MAX_BODY,
         metavar="N",
-        help=f"Trim each comment or review body to N characters (default: {DEFAULT_MAX_BODY}, "
+        help=f"Keep the first N characters of each comment or review body; N counts the body "
+        f"only, the '…(K more chars)' suffix is extra (default: {DEFAULT_MAX_BODY}, "
         "0 = no trimming)",
     )
     parser.add_argument(

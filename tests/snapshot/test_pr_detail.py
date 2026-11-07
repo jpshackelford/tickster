@@ -214,7 +214,7 @@ class TestRender:
         prev = _item()
         curr = _item(head_sha=SHA_B, review_decision="CHANGES_REQUESTED", merge_state="BEHIND")
         out = _render(prev, curr)
-        assert "head! review! merge!" in out
+        assert "head!; review!; merge!" in out
 
     def test_default_diff_note_is_empty_when_nothing_new_changed(self):
         out = _render(_item(), _item(state="closed"))

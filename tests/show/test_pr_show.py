@@ -419,6 +419,15 @@ class TestMaxBody:
         assert f"commented: {'x' * 20}…(30 more chars)" in out
         assert f"bob(human): {'y' * 20}…(10 more chars)" in out
 
+    def test_n_counts_the_body_only_and_the_suffix_is_extra(self, show, long_pr):
+        _, out, _ = show(long_pr, "--max-body", "20")
+
+        line = next(ln for ln in out.splitlines() if "opened: " in ln)
+        body = line.split("opened: ", 1)[1]
+        kept, _, suffix = body.partition("…")
+        assert kept == "z" * 20
+        assert suffix == "(20 more chars)"
+
     def test_zero_means_no_trimming(self, show, long_pr):
         _, out, _ = show(long_pr, "--max-body", "0")
 

@@ -10,8 +10,14 @@ import pytest
 from rich.console import Console
 
 from src.snapshot.diff import diff_snapshots
-from src.snapshot.models import SnapshotScope, WindowScope
-from src.snapshot.render import render_diff
+from src.snapshot.models import (
+    ChangeKind,
+    ItemDelta,
+    SnapshotScope,
+    WindowScope,
+    _delta_to_dict,
+)
+from src.snapshot.render import _render_note, render_diff
 
 from .conftest import make_item, make_snapshot
 
@@ -251,3 +257,40 @@ def test_summary_reports_a_window_added_or_removed():
 def test_summary_has_no_window_line_without_a_window():
     out = _capture(diff_snapshots(_windowed(None), _windowed(None)))
     assert "window:" not in out
+
+
+def _note_for(**changes) -> str:
+    item = make_item(key="a/b#1")
+    delta = ItemDelta(key="a/b#1", kind=ChangeKind.CHANGED, prev=item, curr=item, **changes)
+    return _render_note(delta)
+
+
+def test_note_joins_several_step_changes_with_semicolons():
+    note = _note_for(
+        step_changes=("fix CI: waiting → done", "address review findings: done → needed")
+    )
+    assert "fix CI: waiting → done; address review findings: done → needed" in note
+
+
+def test_note_joins_reviewer_and_step_changes_with_semicolons():
+    note = _note_for(
+        reviewer_changes=("bob ↻ re-requested",),
+        step_changes=("request re-review: done → needed",),
+    )
+    assert "bob ↻ re-requested; request re-review: done → needed" in note
+
+
+def test_note_with_a_single_part_has_no_separator():
+    assert ";" not in _note_for(step_changes=("fix CI: waiting → done",))
+
+
+def test_json_step_changes_stay_a_list():
+    item = make_item(key="a/b#1")
+    delta = ItemDelta(
+        key="a/b#1",
+        kind=ChangeKind.CHANGED,
+        prev=item,
+        curr=item,
+        step_changes=("a: x → y", "b: y → z"),
+    )
+    assert _delta_to_dict(delta)["step_changes"] == ["a: x → y", "b: y → z"]

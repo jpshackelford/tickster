@@ -323,7 +323,7 @@ def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
         notes.extend(_pr_detail_tags(d.changed_fields))
     notes.extend(d.reviewer_changes)
     notes.extend(d.step_changes)
-    return f"[dim]{' '.join(notes)}[/]" if notes else ""
+    return f"[dim]{'; '.join(notes)}[/]" if notes else ""
 
 
 def _pr_detail_tags(changed_fields: tuple[str, ...]) -> list[str]:

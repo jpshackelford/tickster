@@ -342,7 +342,7 @@ class TestSince:
         code, _, err = show(busy_issue(), "--since-snapshot", "pr/tick")
 
         assert code == 1
-        assert "`issue show` reads a issue snapshot, not pr" in err
+        assert "`issue show` reads an issue snapshot, not pr" in err
 
 
 class TestBodiesAndCompleteness:

@@ -119,7 +119,10 @@ def fetch_search_page(
             if not _is_gateway_timeout(e) or size <= MIN_SEARCH_PAGE_SIZE:
                 raise
             size = max(MIN_SEARCH_PAGE_SIZE, size // 2)
-            logger.warning("Search page timed out (%s); retrying with %d items", e, size)
+            reason = (
+                e.response.status_code if isinstance(e, httpx.HTTPStatusError) else type(e).__name__
+            )
+            logger.warning("Search page timed out (%s); retrying with %d items", reason, size)
 
 
 def _nulls_a_root(errors: list[dict], data: dict) -> bool:
