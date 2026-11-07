@@ -251,3 +251,13 @@ _None._
 - Release PR #44 untouched.
 
 ---
+
+### 2026-11-07 22:05 UTC - Expansion Worker (#76)
+
+✅ **Expanded Issue #76:** [pr changes --since: a mistyped SHA or a branch name reads as "history rewritten"](https://github.com/jpshackelford/tickster/issues/76)
+
+- Type: bug. Reproduced both cases on `main`; `--since` is never validated, so GitHub's 404/422 and `diverged` all map to `history rewritten`.
+- Fix: validate `--since` as 7-40 hex in `src/pr/changes.py`, CLI exits 2; branches and tags are rejected, and `doc/usage.md` says so.
+- Labelled `ready`. Complexity low. Priority label left for the orchestrator.
+
+---
