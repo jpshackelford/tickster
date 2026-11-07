@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from src.board.github_api import get_github_token
+from src.board.github_api import describe_http_error, get_github_token
 from src.norms.github import fetch_default_branch_file
 from src.norms.model import NORMS_PATH, Norms
 from src.norms.schema import LoadResult, parse_norms
@@ -42,7 +42,7 @@ def github_loader(repo: str, client: httpx.Client | None = None) -> Norms | None
     try:
         found = load_repo_norms(repo, get_github_token(), client=client)
     except (ValueError, httpx.HTTPError) as e:
-        _warn(f"could not read {NORMS_PATH} for {repo}: {e}")
+        _warn(f"could not read {NORMS_PATH} for {repo}: {describe_http_error(e)}")
         return None
     result = found.result
     if result is None:

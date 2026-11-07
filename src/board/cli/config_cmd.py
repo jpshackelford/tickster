@@ -95,6 +95,10 @@ def _handle_repos_remove(config, repo: str, board_name: str | None) -> int:
 
 def _handle_set(config, key: str, value: str) -> int:
     """Handle 'config set <key> <value>' command."""
+    if not config.name:
+        print_error("No board configured. Run 'tkt board init' first.")
+        return 1
+
     key_handlers = {
         "project-id": lambda v: setattr(config, "project_id", v),
         "project-number": lambda v: setattr(config, "project_number", int(v)),

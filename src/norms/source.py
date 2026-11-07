@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 
-from src.board.github_api import get_github_token
+from src.board.github_api import describe_http_error, get_github_token
 from src.norms import gitfetch, github
 from src.norms.model import CURRENT_SCHEMA, NORMS_PATH
 from src.norms.schema import (
@@ -118,7 +118,12 @@ def fetch_source(source: Source, ref: str | None, *, client: httpx.Client | None
     if source.kind == "github":
         assert source.repo is not None
         token = get_github_token()
-        commit = github.resolve_commit(source.repo, ref, token, client=client)
+        try:
+            commit = github.resolve_commit(source.repo, ref, token, client=client)
+        except httpx.HTTPStatusError as e:
+            if ref and e.response.status_code == 422:
+                raise SourceError(f"ref {ref!r} not found in the source") from e
+            raise SourceError(describe_http_error(e)) from e
         text = github.fetch_file_at(source.repo, source.path, commit, token, client=client)
         if text is None:
             raise SourceError(f"{source.path} not found in {source.repo} at {commit[:7]}")

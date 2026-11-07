@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from src.board.github_api import get_github_token
+from src.board.github_api import describe_http_error, get_github_token
 from src.norms import source as norms_source
 from src.norms.gitfetch import GitFetchError
 from src.norms.model import CURRENT_SCHEMA, NORMS_PATH, Norms, glob_regex
@@ -88,7 +88,7 @@ def cmd_init(
             fetched = norms_source.fetch_source(parsed, ref)
             text, notes = norms_source.render_copy(fetched, today or date.today())
         except (norms_source.SourceError, GitFetchError, httpx.HTTPError, ValueError) as e:
-            _err(str(e))
+            _err(describe_http_error(e))
             return 1
 
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -136,7 +136,7 @@ def cmd_check(
         try:
             found = load_repo_norms(repo, get_github_token(), client=client)
         except (ValueError, httpx.HTTPError) as e:
-            _err(f"cannot read {NORMS_PATH} from {repo}: {e}")
+            _err(f"cannot read {NORMS_PATH} from {repo}: {describe_http_error(e)}")
             return 1
         if found.text is None:
             _err(f"{repo} has no {NORMS_PATH} on its default branch")
@@ -206,7 +206,7 @@ def cmd_show(repo: str, *, client: httpx.Client | None = None) -> int:
     try:
         found = load_repo_norms(repo, get_github_token(), client=client)
     except (ValueError, httpx.HTTPError) as e:
-        _err(f"cannot read {NORMS_PATH} from {repo}: {e}")
+        _err(f"cannot read {NORMS_PATH} from {repo}: {describe_http_error(e)}")
         return 1
     result = found.result
     if result is None:
