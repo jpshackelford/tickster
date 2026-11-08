@@ -823,3 +823,30 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-08 00:58 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #94](https://github.com/jpshackelford/tickster/pull/94): docs(show): list every JSON key of pr show and issue show
+- CI green, APPROVED, docs in `doc/usage.md`, no manual test results yet
+- Conversation: [`df72ad8`](https://app.beta.staging.all-hands-testing.dev/conversations/df72ad80bc34414d8f2d8c5e023926bd)
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (no candidates).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `936b311` | implementation | Issue #73 / PR #95 | running |
+| `df72ad8` | testing | PR #94 | **NEW** |
+
+**Current State:**
+
+- [PR #94](https://github.com/jpshackelford/tickster/pull/94): `A green ready`, head `20f6dea` — testing in flight
+- [PR #95](https://github.com/jpshackelford/tickster/pull/95): ready, CI green, review pending, head `4df9bfe` — implementation worker still running
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44): `hold`, untouched
+- Ready issues: #82 (PR #94), #73 (PR #95). Needs split: #71. Nothing needs expansion.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
