@@ -771,3 +771,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-08 00:40 UTC - Merge worker
+
+✅ **Merged: PR #93**
+
+- [PR #93](https://github.com/jpshackelford/tickster/pull/93) squash-merged as `5b25107`; [issue #81](https://github.com/jpshackelford/tickster/issues/81) closed. Adds `s`/`S` for AI-opened PRs and issues.
+- Conflict with #92 (`doc/usage.md`, plus the `NOW` fixture in `tests/test_list_table.py`) after #92 merged. Merged `main` into the branch, head `7179a94`. #60 example is now `sVnm`. 1668 tests pass, CI green, still APPROVED.
+- PR body updated to final state; #92 was already merged by another worker, release [PR #44](https://github.com/jpshackelford/tickster/pull/44) not touched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
