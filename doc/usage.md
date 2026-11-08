@@ -150,13 +150,13 @@ The ref may be `owner/repo#number` or a GitHub issue URL. See
 ```text
 $ tkt issue show jpshackelford/tickster#49 --max-body 40
 jpshackelford/tickster#49 issue closed "issue list: no state flag returns closed issues too, although --open is documented as the default"
-history: olx
+history: slx
 author: jpshackelford  created: 2026-10-27T20:37:49Z  last activity: 2026-11-05T10:45:40Z
 labels: bug, priority:high, ready  assignees: --
 linked PRs: --
-Legend: the letter is the event's history character (lowercase = you, uppercase = others; n = AI comment, B = bot comment; - = not in the history string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. Class: me human bot agent me_agent.
+Legend: the letter is the event's history character (lowercase = you, uppercase = others; s n = AI opened, comment, B = bot comment; - = not in the history string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. Class: me human bot agent me_agent.
 timeline: 5 events, oldest first
-2026-10-27T20:37:49Z o jpshackelford(me_agent) opened: ## Summary `tkt issue list` with no sta…(1944 more chars)
+2026-10-27T20:37:49Z s jpshackelford(me_agent) opened: ## Summary `tkt issue list` with no sta…(1944 more chars)
 2026-10-27T20:37:50Z l jpshackelford(me) labeled bug
 2026-11-05T05:43:19Z l jpshackelford(me) labeled ready
 2026-11-05T05:43:19Z l jpshackelford(me) labeled priority:high
@@ -517,16 +517,16 @@ The ref may be `owner/repo#number` or a GitHub PR URL.
 ```text
 $ tkt pr show jpshackelford/tickster#60 --max-body 40
 jpshackelford/tickster#60 pr merged ready ci:green 💬0 "fix(issue): default `issue list` to open issues"
-history: oAnm
+history: sAnm
 author: jpshackelford  created: 2026-11-05T10:28:10Z  last activity: 2026-11-05T10:45:37Z
 head: 742dbea  mergeable: unknown  merge: unknown  review: approved
 reviewers: github-actions(human) ✓ approved on head
 linked issues: jpshackelford/tickster#49
 reports: manual_test 2026-11-05T10:37:08Z by jpshackelford at 742dbea (on head) no fail match
-Legend: the letter is the event's history character (lowercase = you, uppercase = others; e v n = AI review, approval, comment; - = not in the history string). o opened, h review requested, r changes or inline review, a approved, c comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
+Legend: the letter is the event's history character (lowercase = you, uppercase = others; s e v n = AI opened, review, approval, comment; - = not in the history string). o opened, h review requested, r changes or inline review, a approved, c comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
 timeline: 5 events, oldest first
 2026-11-05T10:27:37Z - openhands-agent(agent) pushed 1 commit, last 742dbea "fix(issue): default 'issue list' to open issues"
-2026-11-05T10:28:10Z o jpshackelford(me_agent) opened: Fixes #49 ## Why `tkt issue list` with…(2537 more chars)
+2026-11-05T10:28:10Z s jpshackelford(me_agent) opened: Fixes #49 ## Why `tkt issue list` with…(2537 more chars)
 2026-11-05T10:33:56Z A github-actions(human) approved on head: **Correctness verified.** The fix proper…(1269 more chars)
 2026-11-05T10:37:08Z n jpshackelford(me_agent) commented: ## Manual Test Results for PR #60 _This…(7375 more chars)
 2026-11-05T10:45:37Z m jpshackelford(me) merged
@@ -1163,6 +1163,8 @@ Two conventions apply to every history string:
 
 - **Case = who acted.** Lowercase = the reference user (you, or whoever
   `--reviewer`/`--author` selects); UPPERCASE = someone else.
+- **An item an AI actor opened starts with `s` / `S`** instead of `o` / `O`; see
+  [AI actors](#ai-actors).
 - **Consecutive duplicates collapse.** Ten review comments in a row render as a
   single `C`, so the string stays short and skimmable.
 - **A trailing `…` means the history is cut off.** `tkt` reads up to 500 timeline
@@ -1188,6 +1190,7 @@ Used by `tkt pr list` and `tkt review`.
 | Char | Meaning |
 | --- | --- |
 | `o` | Opened |
+| `s` / `S` | Opened by an AI actor |
 | `h` | Review requested |
 | `r` | Changes requested (a review) |
 | `a` | Approved |
@@ -1202,10 +1205,10 @@ Used by `tkt pr list` and `tkt review`.
 Example: `oRfAM` = *you* opened the PR, someone requested changes (`R`), *you*
 pushed fixes (`f`), someone approved (`A`), someone merged (`M`).
 
-`e`, `v` and `n` replace `r`, `a` and `c` when an [AI actor](#ai-actors) did it: lowercase
+`s`, `e`, `v` and `n` replace `o`, `r`, `a` and `c` when an [AI actor](#ai-actors) did it: lowercase
 when it acted with your own login (an AI disclosure in the text), uppercase when it
 acted under its own login. `oEVM` = an agent requested changes, an agent approved, and
-someone merged.
+someone merged; `SEVM` = the same PR, opened by an agent.
 
 ### Issue history characters
 
@@ -1214,6 +1217,7 @@ Used by `tkt issue list`.
 | Char | Meaning |
 | --- | --- |
 | `o` | Opened |
+| `s` / `S` | Opened by an AI actor (lowercase = it acted with your login, uppercase = its own login) |
 | `c` / `C` | Comment (lowercase = you, uppercase = other human) |
 | `n` / `N` | Comment by an AI actor (lowercase = it acted with your login, uppercase = its own login) |
 | `B` | Bot comment (always uppercase) |
@@ -1261,7 +1265,12 @@ Every event also carries an **actor class**, shown in JSON (the `events` list of
 Logins and the disclosure pattern come only from the repo's `.agents/tickster.toml`
 ([norms file](#tkt-norms)). With no file, no AI actor is recognised and `[bot]`
 accounts are still `bot`. The disclosure pattern is matched against the whole body of
-a comment or review. Histories with no AI actors render exactly as before.
+a comment, review or opened item (the PR or issue body). Histories with no AI actors
+render exactly as before.
+
+An item an AI actor opened starts with `s` / `S` instead of `o` / `O`. A snapshot taken
+before this letter existed stores `o` for such an item, so the first diff after upgrading
+reports those rows as `history-rewritten`, once.
 
 ### Bot detection
 

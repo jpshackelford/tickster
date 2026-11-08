@@ -93,6 +93,7 @@ fragment IssueFields on Issue {{
     id
     number
     title
+    body
     state
     createdAt
     closedAt

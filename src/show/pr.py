@@ -344,7 +344,9 @@ class _Builder:
             Entry(
                 at=iso_utc(self.info.created_at),
                 kind="opened",
-                char=_format_action(ActionType.OPENED, author, self.reference_user),
+                char=_format_action(
+                    ActionType.OPENED, author, self.reference_user, ai=actor_class.is_ai
+                ),
                 actor=author,
                 actor_class=actor_class,
                 text="opened",

@@ -177,13 +177,16 @@ def build_issue_show(node: dict, reference_user: str, max_body: int) -> Show:
     norms = get_repo_norms(info.repo)
 
     body, more = trim_body(node.get("body"), max_body)
+    opened_class = classify_actor(info.author, reference_user, norms, node.get("body"))
     entries = [
         Entry(
             at=iso_utc(info.created_at),
             kind="opened",
-            char=_format_action(IssueActionType.OPENED, info.author, reference_user),
+            char=_format_action(
+                IssueActionType.OPENED, info.author, reference_user, ai=opened_class.is_ai
+            ),
             actor=info.author,
-            actor_class=classify_actor(info.author, reference_user, norms, node.get("body")),
+            actor_class=opened_class,
             text="opened",
             body=body,
             more_chars=more,

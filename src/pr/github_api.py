@@ -107,6 +107,7 @@ fragment PRFields on PullRequest {{
     id
     number
     title
+    body
     state
     isDraft
     createdAt

@@ -155,7 +155,7 @@ def cmd_list(
             # Print legend
             console.print()
             console.print(
-                "[dim]History: o=opened, c/C=comment, n/N=AI comment, l/L=label, B=bot, "
+                "[dim]History: o=opened, s/S=AI opened, c/C=comment, n/N=AI comment, l/L=label, B=bot, "
                 "a=assigned, x=closed, r=reopened, p=PR linked[/]"
             )
             console.print("[dim]lowercase=you, UPPERCASE=others[/]")
