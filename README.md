@@ -123,6 +123,9 @@ Documentation:
   option, the [history string reference](doc/usage.md#history-strings),
   configuration, stdin piping, and environment variables. Upgrading from 0.x? See
   [Upgrading to 1.0](doc/usage.md#upgrading-to-10).
+- **[doc/automation.md](doc/automation.md)** — a worked loop for scheduled jobs
+  and agents: poll, read what changed, and decide what a PR needs, with the norms
+  each command reads, exit codes and known limits.
 - **[doc/board.md](doc/board.md)** — full board reference: scopes, workflow
   columns, column assignment rules, YAML configuration, macros, and gist sync.
 
