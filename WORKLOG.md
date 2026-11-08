@@ -901,3 +901,14 @@ Merge [PR #95](https://github.com/jpshackelford/tickster/pull/95): docs: add an 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-08 01:17 UTC - Merge worker
+
+✅ **Merged: PR #95**
+
+- [PR #95](https://github.com/jpshackelford/tickster/pull/95) squash-merged as `585f4d6` at head `4df9bfe`; [issue #73](https://github.com/jpshackelford/tickster/issues/73) closed. Adds `doc/automation.md` and a README link.
+- Verified before merge: CI green, APPROVED at the head, manual test report 19 of 19 PASS at the head. PR body updated to final state.
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`) not touched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
