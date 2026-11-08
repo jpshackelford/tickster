@@ -876,3 +876,28 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-08 01:16 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+Merge [PR #95](https://github.com/jpshackelford/tickster/pull/95): docs: add an automation how-to
+- CI green, APPROVED, tested at head `4df9bfe` (19/19 PASS), docs in README + `doc/automation.md`
+- PR #94 merged 01:06. Conversation: [`e82c030`](https://app.beta.staging.all-hands-testing.dev/conversations/e82c03044ae448faa718cc2c71e593d8)
+- Slots: PR 1 busy, 1 free (no PR-ready issues); expansion 0 busy, 2 free (no candidates).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `e82c030` | merge | PR #95 | **NEW** |
+
+**Current State:**
+
+- [PR #95](https://github.com/jpshackelford/tickster/pull/95): `A green ready`, head `4df9bfe` — merge in flight
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44): `hold`, untouched
+- Ready issues: #73 (PR #95). Needs split: #71. Nothing needs expansion; all others `hold`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
