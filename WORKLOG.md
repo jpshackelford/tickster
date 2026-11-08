@@ -806,3 +806,11 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-08T01:05Z — Issue #82 implemented
+
+- Implementation worker opened [PR #94](https://github.com/jpshackelford/tickster/pull/94) (`docs(show): list every JSON key of pr show and issue show`). CI green, marked ready for review. Docs/testing/review/merge are next.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
