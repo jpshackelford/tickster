@@ -215,6 +215,30 @@ class TestFetchSearchPage:
             _, size = fetch_search_page(client, SEARCH_QUERY, {}, 20)
         assert size == 10
 
+    def test_gateway_timeout_warning_is_one_line_with_the_status(self, sleeps, caplog):  # noqa: ARG002
+        attempts = github_api.GRAPHQL_MAX_ATTEMPTS
+        handler, _ = scripted(*[httpx.Response(504)] * attempts, ok())
+        with (
+            make_client(handler) as client,
+            caplog.at_level("WARNING", logger=github_api.logger.name),
+        ):
+            fetch_search_page(client, SEARCH_QUERY, {}, 100)
+        (message,) = [r.getMessage() for r in caplog.records if "timed out" in r.getMessage()]
+        assert (
+            message == f"Search page timed out (504); retrying with {SEARCH_PAGE_SIZE // 2} items"
+        )
+
+    def test_client_timeout_warning_is_one_line_with_the_exception_name(self, sleeps, caplog):  # noqa: ARG002
+        attempts = github_api.GRAPHQL_MAX_ATTEMPTS
+        handler, _ = scripted(*[httpx.ReadTimeout("slow")] * attempts, ok())
+        with (
+            make_client(handler) as client,
+            caplog.at_level("WARNING", logger=github_api.logger.name),
+        ):
+            fetch_search_page(client, SEARCH_QUERY, {}, 20)
+        (message,) = [r.getMessage() for r in caplog.records if "timed out" in r.getMessage()]
+        assert message == "Search page timed out (ReadTimeout); retrying with 10 items"
+
     def test_gives_up_at_minimum_size(self, sleeps):  # noqa: ARG002
         handler, seen = scripted(httpx.Response(502))
         with make_client(handler) as client, pytest.raises(httpx.HTTPStatusError):

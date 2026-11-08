@@ -30,6 +30,7 @@ _ISSUE_URL_RE = re.compile(r"^https://github\.com/(?P<repo>[^/]+/[^/]+)/issues/(
 
 # A review snapshot lists PRs too, so its last_activity says when a PR last moved.
 _SNAPSHOT_KINDS = {"pr": (KIND_PR, KIND_REVIEW), "issue": (KIND_ISSUE,)}
+_SNAPSHOT_ARTICLES = {"pr": "a", "issue": "an"}
 
 
 def parse_issue_ref(ref: str) -> tuple[str, int]:
@@ -47,7 +48,8 @@ def snapshot_last_activity(kind: str, snapshot_ref: str, repo: str, number: int)
     snapshot_kind, name = parse_snapshot_ref(snapshot_ref)
     if snapshot_kind not in _SNAPSHOT_KINDS[kind]:
         allowed = " or ".join(_SNAPSHOT_KINDS[kind])
-        raise ValueError(f"`{kind} show` reads a {allowed} snapshot, not {snapshot_kind}")
+        article = _SNAPSHOT_ARTICLES[kind]
+        raise ValueError(f"`{kind} show` reads {article} {allowed} snapshot, not {snapshot_kind}")
     snapshot = store.load(snapshot_kind, name)
     key = f"{repo}#{number}".lower()
     for item in snapshot.items:
