@@ -10,7 +10,12 @@ from src.pr.models import ActionType, CIStatus, PRComment, PRInfo, PRState, Time
 from src.pr.reviewers import build_reviewers
 
 # An AI actor's version of these events gets its own letter.
-AI_CHARS = {ActionType.REVIEW: "e", ActionType.APPROVED: "v", ActionType.COMMENT: "n"}
+AI_CHARS = {
+    ActionType.OPENED: "s",
+    ActionType.REVIEW: "e",
+    ActionType.APPROVED: "v",
+    ActionType.COMMENT: "n",
+}
 
 
 def process_pr_data(pr_data: dict, reference_user: str) -> PRInfo:
@@ -145,7 +150,7 @@ def _extract_timeline_events(
             action=ActionType.OPENED,
             actor=pr_author,
             timestamp=created_at,
-            actor_class=classify_actor(pr_author, reference_user, norms),
+            actor_class=classify_actor(pr_author, reference_user, norms, pr_data.get("body")),
         )
     )
 
@@ -295,7 +300,7 @@ def _format_action(action: ActionType, actor: str, reference_user: str, *, ai: b
 
     Lowercase = action by reference_user
     Uppercase = action by someone else
-    ``ai`` swaps in the AI actor's letter for review, approval and comment.
+    ``ai`` swaps in the AI actor's letter for opened, review, approval and comment.
     """
     char = AI_CHARS[action] if ai and action in AI_CHARS else action.value
     is_reference_user = actor.lower() == reference_user.lower()

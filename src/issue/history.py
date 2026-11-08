@@ -23,8 +23,8 @@ class ClosingPr:
     author: str
 
 
-# An AI actor's comment gets its own letter.
-AI_CHARS = {IssueActionType.COMMENT: "n"}
+# An AI actor's opened and comment events get their own letters.
+AI_CHARS = {IssueActionType.OPENED: "s", IssueActionType.COMMENT: "n"}
 
 
 def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
@@ -116,7 +116,7 @@ def _extract_timeline_events(
             action=IssueActionType.OPENED,
             actor=issue_author,
             timestamp=created_at,
-            actor_class=classify_actor(issue_author, reference_user, norms),
+            actor_class=classify_actor(issue_author, reference_user, norms, issue_data.get("body")),
         )
     )
 
@@ -270,7 +270,7 @@ def _format_action(
 
     - BOT_COMMENT is always uppercase "B"
     - Other actions: lowercase = reference_user, uppercase = others
-    - ``ai`` swaps in the AI actor's letter for a comment
+    - ``ai`` swaps in the AI actor's letter for opened and comment
     """
     char = AI_CHARS[action] if ai and action in AI_CHARS else action.value
 

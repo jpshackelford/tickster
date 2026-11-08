@@ -10,15 +10,15 @@ from src.show.models import Entry, ReportStatus, Show, Thread
 
 PR_LEGEND = (
     "Legend: the letter is the event's history character (lowercase = you, uppercase = "
-    "others; e v n = AI review, approval, comment; - = not in the history string). "
-    "o opened, h review requested, r changes or inline review, a approved, c comment, "
+    "others; s e v n = AI opened, review, approval, comment; - = not in the history "
+    "string). o opened, h review requested, r changes or inline review, a approved, c comment, "
     "f push after a review, m merged, k closed. Class: me human bot agent me_agent. "
     "↳ marks a review thread: path:line, resolved or unresolved."
 )
 ISSUE_LEGEND = (
     "Legend: the letter is the event's history character (lowercase = you, uppercase = "
-    "others; n = AI comment, B = bot comment; - = not in the history string). "
-    "o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. "
+    "others; s n = AI opened, comment, B = bot comment; - = not in the history "
+    "string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. "
     "Class: me human bot agent me_agent."
 )
 
