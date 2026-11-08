@@ -633,3 +633,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-08 00:10 UTC - Merge worker
+
+✅ **Merged [PR #91](https://github.com/jpshackelford/tickster/pull/91) (output polish), closed [#79](https://github.com/jpshackelford/tickster/issues/79)**
+
+- Squash-merged as `b741c8e` after re-checking head `ae5bbb8`, green CI, approved review and the posted manual test report.
+- PR description rewritten to the final state and linked to the [manual test results](https://github.com/jpshackelford/tickster/pull/91#issuecomment-6714740693); `Fixes #79` kept.
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
