@@ -1,7 +1,7 @@
 """Narrow-terminal rendering of the list tables (#80)."""
 
 import io
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from rich import box
@@ -27,7 +27,7 @@ from src.pr.steps import STEP_LETTERS, steps_mark
 from src.review.cli import list_cmd as review_cmd
 from src.review.models import ReviewInfo, ReviewStatus
 
-NOW = datetime(2026, 11, 7, tzinfo=UTC)
+NOW = datetime.now(UTC) - timedelta(hours=23, minutes=30)
 SHORT = "oCc"
 LONG = "o" + "cC" * 20
 CAPPED = "o" + "cC" * 24 + TRUNCATION_MARKER
