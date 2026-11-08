@@ -759,3 +759,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-08 00:37 UTC - Merge worker `a4389ae`
+
+✅ **Merged: PR #92**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92) squash-merged as `077cb70` at head `b0cb556`; [issue #72](https://github.com/jpshackelford/tickster/issues/72) closed. No conflict with #93.
+- Re-verified before merge: CI green, manual test report on the head, APPROVED on the head, no new feedback. PR body updated to final state.
+- #93 and release [PR #44](https://github.com/jpshackelford/tickster/pull/44) not touched.
+- Follow-up: re-run `tkt pr show jpshackelford/tickster#60` to confirm the `github-actions(agent)` output now that the norms change is on `main`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
