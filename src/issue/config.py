@@ -6,7 +6,8 @@ Configuration structure:
     [issue]
     bot_usernames = ["some-automation"]
 
-Any login ending in [bot] is a bot without being listed. A repo's
+A login ending in [bot] is a bot without being listed; accounts that arrive without
+the suffix (some GraphQL logins, e.g. github-actions) must be listed. A repo's
 .agents/tickster.toml [actors] bots adds to this, and [actors] agent_logins
 turns a login into an AI actor instead.
 """

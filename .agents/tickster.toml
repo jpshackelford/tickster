@@ -3,7 +3,7 @@
 schema = 1
 
 [actors]
-agent_logins = ["all-hands-bot", "openhands-agent"]
+agent_logins = ["all-hands-bot", "openhands-agent", "github-actions"]
 agent_disclosure = 'created by an AI agent \(OpenHands\)'
 bots = []
 

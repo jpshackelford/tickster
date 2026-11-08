@@ -682,3 +682,92 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-08 00:20 UTC - Orchestrator
+
+🛠 **Launched: 2 implementation workers in parallel**
+
+- Only open PR is release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`, untouched), so both PR slots were free.
+- #81 (History "opened" AI-actor marker): [`6285fa0`](https://app.beta.staging.all-hands-testing.dev/conversations/6285fa09e064492daabc72fdab0b8518).
+- #72 (docs: bot detection text): [`19085b3`](https://app.beta.staging.all-hands-testing.dev/conversations/19085b3c9ee44acd9346c2d895536cf7).
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (no candidates).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `6285fa0` | implementation | Issue #81 | **NEW** |
+| `19085b3` | implementation | Issue #72 | **NEW** |
+
+**Current State:**
+
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`, untouched)
+- Ready, next up: #82, #73 (`low`). Needs split: #71. Nothing needs expansion.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-08 00:27 UTC - Orchestrator
+
+🚀 **Launched: 2 testing workers in parallel**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92) (docs, closes #72): CI green, `doc/usage.md` updated, no test report yet, head `b0cb556`. Worker: [`1eae1cb`](https://app.beta.staging.all-hands-testing.dev/conversations/1eae1cb53afc48b98dc51738393cea8c).
+- [PR #93](https://github.com/jpshackelford/tickster/pull/93) (AI-opened marker, closes #81): CI green, `doc/usage.md` updated, no test report yet, head `6924170`. Worker: [`d437fd3`](https://app.beta.staging.all-hands-testing.dev/conversations/d437fd321b554cfcb76a805999136319).
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (no candidates). Implementation workers `6285fa0`, `19085b3` finished.
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `1eae1cb` | testing | PR #92 | **NEW** |
+| `d437fd3` | testing | PR #93 | **NEW** |
+
+**Current State:**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92): `o green ready` head `b0cb556`, testing in flight
+- [PR #93](https://github.com/jpshackelford/tickster/pull/93): `o green ready` head `6924170`, testing in flight
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`, untouched)
+- Ready, next up: #82, #73 (`low`). Needs split: #71. Nothing needs expansion.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-08 00:40 UTC - Orchestrator
+
+🚀 **Launched: 2 merge workers in parallel**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92) (head `b0cb556`) and [PR #93](https://github.com/jpshackelford/tickster/pull/93) (head `6924170`): CI green, manual test report posted, APPROVED review, no new commits since.
+- Merge workers: [`a4389ae`](https://app.beta.staging.all-hands-testing.dev/conversations/a4389aeb67e246d9835e7ca89ec5909a) (#92), [`0b0ccd1`](https://app.beta.staging.all-hands-testing.dev/conversations/0b0ccd14aae54e108b3a6efc71eabfdc) (#93). Testing workers `1eae1cb`, `d437fd3` finished.
+- Slots: PR 2 busy, 0 free; expansion 0 busy, 2 free (no candidates).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `a4389ae` | merge | PR #92 | **NEW** |
+| `0b0ccd1` | merge | PR #93 | **NEW** |
+
+**Current State:**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92): `o green ready` head `b0cb556`, merging
+- [PR #93](https://github.com/jpshackelford/tickster/pull/93): `o green ready` head `6924170`, merging
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`, untouched)
+- Ready, next up: #82, #73 (`low`). Needs split: #71. Nothing needs expansion.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+### 2026-11-08 00:37 UTC - Merge worker `a4389ae`
+
+✅ **Merged: PR #92**
+
+- [PR #92](https://github.com/jpshackelford/tickster/pull/92) squash-merged as `077cb70` at head `b0cb556`; [issue #72](https://github.com/jpshackelford/tickster/issues/72) closed. No conflict with #93.
+- Re-verified before merge: CI green, manual test report on the head, APPROVED on the head, no new feedback. PR body updated to final state.
+- #93 and release [PR #44](https://github.com/jpshackelford/tickster/pull/44) not touched.
+- Follow-up: re-run `tkt pr show jpshackelford/tickster#60` to confirm the `github-actions(agent)` output now that the norms change is on `main`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---

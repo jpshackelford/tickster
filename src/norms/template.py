@@ -10,7 +10,7 @@ schema = 1
 agent_logins = []
 # Regex; a body that matches marks an agent posting through a human's token.
 # agent_disclosure = 'created by an AI agent'
-# Non-AI automation beyond logins ending in [bot].
+# Non-AI automation. A login ending in [bot] needs no entry; accounts without the suffix must be listed.
 bots = []
 
 [labels]

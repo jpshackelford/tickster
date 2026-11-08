@@ -517,23 +517,26 @@ The ref may be `owner/repo#number` or a GitHub PR URL.
 ```text
 $ tkt pr show jpshackelford/tickster#60 --max-body 40
 jpshackelford/tickster#60 pr merged ready ci:green 💬0 "fix(issue): default `issue list` to open issues"
-history: sAnm
+history: sVnm
 author: jpshackelford  created: 2026-11-05T10:28:10Z  last activity: 2026-11-05T10:45:37Z
 head: 742dbea  mergeable: unknown  merge: unknown  review: approved
-reviewers: github-actions(human) ✓ approved on head
+reviewers: github-actions(agent) ✓ approved on head
 linked issues: jpshackelford/tickster#49
 reports: manual_test 2026-11-05T10:37:08Z by jpshackelford at 742dbea (on head) no fail match
 Legend: the letter is the event's history character (lowercase = you, uppercase = others; s e v n = AI opened, review, approval, comment; - = not in the history string). o opened, h review requested, r changes or inline review, a approved, c comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
 timeline: 5 events, oldest first
 2026-11-05T10:27:37Z - openhands-agent(agent) pushed 1 commit, last 742dbea "fix(issue): default 'issue list' to open issues"
 2026-11-05T10:28:10Z s jpshackelford(me_agent) opened: Fixes #49 ## Why `tkt issue list` with…(2537 more chars)
-2026-11-05T10:33:56Z A github-actions(human) approved on head: **Correctness verified.** The fix proper…(1269 more chars)
+2026-11-05T10:33:56Z V github-actions(agent) approved on head: **Correctness verified.** The fix proper…(1269 more chars)
 2026-11-05T10:37:08Z n jpshackelford(me_agent) commented: ## Manual Test Results for PR #60 _This…(7375 more chars)
 2026-11-05T10:45:37Z m jpshackelford(me) merged
 ```
 
 The example uses a merged PR, so it reproduces; the `more chars` counts and
-`last activity` change if someone adds to the PR.
+`last activity` change if someone adds to the PR. `github-actions` shows as `agent`
+because this repo lists it in `[actors] agent_logins`: GitHub's GraphQL API gives that
+account without a `[bot]` suffix, and its reviews are AI reviews. Without the entry it
+would show as `human`.
 
 Header lines: state, draft or ready, CI (`ci:green|red|pending|--`), unresolved
 review threads (`💬N`); the [history string](#history-strings); author and dates;
@@ -741,7 +744,7 @@ schema = 1                                # required integer
 [actors]
 agent_logins = ["all-hands-bot"]          # AI actors; globs; win over the [bot] suffix
 agent_disclosure = 'created by an AI agent \(OpenHands\)'
-bots = []                                 # non-AI automation beyond the [bot] suffix
+bots = []                                 # non-AI automation without a [bot] suffix
 
 [labels]
 stale = ["stale"]                         # closed_by_bot; this is the fallback; [] disables
@@ -802,7 +805,8 @@ new optional keys do not bump it.
   `[ci] ignore_checks`, `[commits]` and every `[reports.<name>]`; with no file it counts
   humans and agents, and the report steps are `not configured`.
 - Bot detection for issue history is the union of the `[bot]` suffix, `[issue]
-  bot_usernames` and the repo's `[actors] bots`.
+  bot_usernames` and the repo's `[actors] bots`. An account that arrives without the
+  suffix must be listed (see [Bot detection](#bot-detection)).
 
 ## Upgrading to 1.0
 
@@ -1258,7 +1262,7 @@ Every event also carries an **actor class**, shown in JSON (the `events` list of
 | --- | --- |
 | `me` | the reference user |
 | `human` | anyone else |
-| `bot` | non-AI automation: a `[bot]` login, `[issue] bot_usernames`, `[actors] bots` |
+| `bot` | non-AI automation: a `[bot]` login, an `[issue] bot_usernames` entry or an `[actors] bots` entry; some accounts come without the suffix, so list them |
 | `agent` | a login in the repo's `[actors] agent_logins`, even if it ends in `[bot]` |
 | `me_agent` | the reference user, when their login is in `agent_logins` or their text matches `[actors] agent_disclosure` |
 
@@ -1277,9 +1281,13 @@ reports those rows as `history-rewritten`, once.
 Bot **comments** get the distinct `B` marker (bot labels use `L`, like other
 humans). A username is treated as a bot when it ends in `[bot]` or appears in the
 list under `[issue] bot_usernames` in `~/.tkt/config.toml`, or in the repo's
-`[actors] bots` ([norms file](#tkt-norms)). There is no built-in name list: every
-well-known bot already ends in `[bot]`. A login in `[actors] agent_logins` is an
-AI actor instead, even if it ends in `[bot]`.
+`[actors] bots` ([norms file](#tkt-norms)). There is no built-in name list, and the
+`[bot]` suffix is a convenience, not a guarantee: some GitHub data sources give an
+automation account without it. For example, the GraphQL API that `tkt pr show`,
+`tkt pr list` and the reviewer records use returns `github-actions`, where the REST
+API returns `github-actions[bot]`. List such accounts in `[actors] bots`, or in
+`[actors] agent_logins` if they are AI actors; otherwise they are classed `human`.
+A login in `[actors] agent_logins` is an AI actor instead, even if it ends in `[bot]`.
 
 `tkt issue list` also prints a one-line legend beneath the table, so the
 encoding is self-documenting at the terminal.

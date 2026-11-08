@@ -27,7 +27,7 @@ from src.pr.steps import STEP_LETTERS, steps_mark
 from src.review.cli import list_cmd as review_cmd
 from src.review.models import ReviewInfo, ReviewStatus
 
-NOW = datetime.now(UTC) - timedelta(hours=23)
+NOW = datetime.now(UTC) - timedelta(hours=23, minutes=30)
 SHORT = "oCc"
 LONG = "o" + "cC" * 20
 CAPPED = "o" + "cC" * 24 + TRUNCATION_MARKER
