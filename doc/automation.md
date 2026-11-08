@@ -19,10 +19,11 @@ yours.
 - The examples use merged PRs, [#60](https://github.com/jpshackelford/tickster/pull/60)
   and [#62](https://github.com/jpshackelford/tickster/pull/62), whose heads cannot
   change, so you can rerun them. Anything that depends on the time you run it, such
-  as ages, is said so. A merged PR has no pending steps, so the one example with
-  pending steps comes from an open PR and is marked as live.
+  as ages, is said so. A merged PR has no pending steps and never changes,
+  so the examples with a changed row and pending steps come from an open PR, this
+  one, and are marked as live. They do not reproduce.
 - Snapshot names start with `doc-`. Remove them afterwards with
-  `tkt snapshot rm pr/doc-first`.
+  `tkt snapshot rm pr/doc-first pr/doc-live`.
 - `tkt` reads your GitHub token from `GITHUB_TOKEN`
   ([Authentication](usage.md#authentication)).
 
@@ -59,7 +60,12 @@ The first poll has no baseline. Every row is `added`, and the notice
 
 ```json
 {
-  "counts": { "added": 2, "removed": 0, "changed": 0, "unchanged": 0 },
+  "counts": {
+    "added": 2,
+    "removed": 0,
+    "changed": 0,
+    "unchanged": 0
+  },
   "deltas": [
     {
       "key": "jpshackelford/tickster#60",
@@ -68,27 +74,31 @@ The first poll has no baseline. Every row is `added`, and the notice
       "changed_fields": [],
       "curr": {
         "key": "jpshackelford/tickster#60",
-        "state": "merged",
         "history": "sVnm",
+        "state": "merged",
         "last_activity": "2026-11-05T10:45:37Z",
         "head_sha": "742dbea83bb141a3f06c1a82e87e32a862cc85be"
       }
-    },
-    …
+    }
   ]
 }
 ```
 
-_Trimmed: the second delta, and in each `curr` every field but the five shown
-(`jq` would give the same with `del(...)`). `curr` also has the title, CI, reviewers,
-events and `steps`._
+_Trimmed: the top-level `schema`, `prev`, `curr` and `scope_matches`; the second delta;
+in the delta, `disappearance_reason` and `prev` (both `null`); and in `curr` every
+field but the five shown (it also has the title, CI, reviewers, events and `steps`)._
 
 Run the same command again and nothing has changed. The `unchanged` rows stay in
 `deltas` (JSON always lists them), but with `prev` and `curr` set to `null`:
 
 ```json
 {
-  "counts": { "added": 0, "removed": 0, "changed": 0, "unchanged": 2 },
+  "counts": {
+    "added": 0,
+    "removed": 0,
+    "changed": 0,
+    "unchanged": 2
+  },
   "deltas": [
     {
       "key": "jpshackelford/tickster#60",
@@ -97,13 +107,13 @@ Run the same command again and nothing has changed. The `unchanged` rows stay in
       "changed_fields": [],
       "prev": null,
       "curr": null
-    },
-    …
+    }
   ]
 }
 ```
 
-_Trimmed: the second delta._
+_Trimmed: the same top-level fields, the second delta (also `unchanged`), and
+`disappearance_reason` (`null`)._
 
 What a script can rely on in each delta:
 
@@ -114,6 +124,53 @@ What a script can rely on in each delta:
 | `new_history_tail` | The characters appended to the [history string](usage.md#history-strings) since the baseline |
 | `prev`, `curr` | The row before and after. `prev` is `null` for `added`, `curr` is `null` for `removed`, and both are `null` for `unchanged` |
 | `step_changes`, `reviewer_changes` | Present only when a step or a reviewer moved |
+
+### 1b. A changed row (live)
+
+A merged PR never changes, so this one comes from an open PR: this PR
+([#95](https://github.com/jpshackelford/tickster/pull/95)), polled with the same
+command as the loop's first line, `--watch doc-live`, once when it was opened (head `6eb294a`)
+and again after a second commit was pushed. It will not reproduce, because the PR
+moves on; the values here are from 2026-11-08 00:51 UTC.
+
+```json
+{
+  "key": "jpshackelford/tickster#95",
+  "kind": "changed",
+  "new_history_tail": "",
+  "changed_fields": [
+    "ci_status",
+    "head_sha",
+    "merge_state",
+    "activity",
+    "steps"
+  ],
+  "prev": {
+    "history": "s",
+    "state": "open",
+    "last_activity": "2026-11-08T00:51:09Z",
+    "ci_status": "pending",
+    "head_sha": "6eb294aa0dd948e23266ebf1b48e2c0babe08074"
+  },
+  "curr": {
+    "history": "s",
+    "state": "open",
+    "last_activity": "2026-11-08T00:51:24Z",
+    "ci_status": "--",
+    "head_sha": "a77e1355f68fe22c18639c19c520bab54a067136"
+  },
+  "step_changes": [
+    "fix CI: waiting → n/a"
+  ]
+}
+```
+
+_Trimmed: `disappearance_reason` (`null`), and in `prev` and `curr` every field but
+the five shown (title, `key`, reviewers, events, `steps` and more)._
+
+A push left the history string alone (`new_history_tail` is empty, because commits
+before a review are not events), yet the row is `changed`: `head_sha` moved. The
+loop's `prev.last_activity` is `2026-11-08T00:51:09Z`.
 
 ### 2. Read: only the new text
 
@@ -139,6 +196,24 @@ timeline since 2026-11-05T11:31:49Z: 4 events, oldest first
 
 _Trimmed: the `Legend:` line. `--max-body 40` shortens each body; the default is 600.
 `TIME` here is the time of an earlier comment, standing in for a `prev.last_activity`._
+
+For the live row above, `TIME` is its `prev.last_activity`:
+
+```text
+$ tkt pr show jpshackelford/tickster#95 --since 2026-11-08T00:51:09Z --max-body 40
+jpshackelford/tickster#95 pr open draft ci:pending 💬0 "docs: add an automation how-to (poll, read what changed, decide what a PR needs)"
+history: s
+author: jpshackelford  created: 2026-11-08T00:51:09Z  last activity: 2026-11-08T00:51:24Z
+head: a77e135  mergeable: mergeable  merge: unstable  review: --
+reviewers: --
+linked issues: jpshackelford/tickster#73
+reports: manual_test none
+timeline since 2026-11-08T00:51:09Z: 1 events, oldest first
+2026-11-08T00:51:24Z - openhands-agent(agent) pushed 2 commits, last a77e135 "docs: link the automation how-to from the README"
+```
+
+_Trimmed: the `Legend:` line. Live, so it will not reproduce. The push is the one
+new event._
 
 Use `--format json` in a script ([fields](usage.md#tkt-pr-show)).
 
@@ -218,7 +293,24 @@ with `step`, `status` and `evidence` for each step ([statuses](usage.md#tkt-pr-s
 
 _Trimmed: the other six steps._
 
-LIVE_STEPS
+For a PR that still has work, the same command gives the pending steps. This is the
+live PR at head `a77e135`, a draft with CI still running (it will not reproduce):
+
+```text
+$ tkt pr steps jpshackelford/tickster#95
+jpshackelford/tickster#95
+  review the PR: n/a — draft PR
+  fix CI: waiting — Lint pending on head a77e135, Type Check pending on head a77e135, Test (Python 3.12) pending on head a77e135
+  address review findings: n/a — no reviews
+  request re-review: n/a — no reviews
+  manually test: needed — no report
+  address test findings: n/a — no report
+  retest after a fix: n/a — no report
+```
+
+`manually test: needed` comes from `[reports.manual_test]` with `required = true` in
+the norms file; `tkt` does not say whether to wait for CI first or write the report
+now. That order is yours.
 
 ### 3b. Did the code change since a report or a review?
 
@@ -232,11 +324,11 @@ jpshackelford/tickster#60 75d1faa..742dbea 1 commits 4 files +104 -4
 significant: yes (4 files, 108 changed lines)
   why: ignore_paths = [doc/**, **/*.md] (.agents/tickster.toml)
   why: min_changed_lines = 0 (.agents/tickster.toml)
-commit  742dbea --      openhands-agent fix(issue): default 'issue list' to open issues
-file    modified        +0      -1      --      src/__main__.py
-file    modified        +2      -1      --      src/issue/cli/list_cmd.py
-file    modified        +7      -2      --      src/snapshot/models.py
-file    added   +95     -0      --      tests/snapshot/test_issue_default_state.py
+commit	742dbea	--	openhands-agent	fix(issue): default 'issue list' to open issues
+file	modified	+0	-1	--	src/__main__.py
+file	modified	+2	-1	--	src/issue/cli/list_cmd.py
+file	modified	+7	-2	--	src/snapshot/models.py
+file	added	+95	-0	--	tests/snapshot/test_issue_default_state.py
 ```
 
 `75d1faa` is the `main` commit the PR branched from. The `why:` lines say where each
