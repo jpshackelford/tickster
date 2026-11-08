@@ -170,6 +170,33 @@ history string (`-` when the history string leaves that event out) and `class`
 is the [actor class](#bot-detection) (`me`, `human`, `bot`, `agent`,
 `me_agent`).
 
+With `--format json` the output is one object with these top-level keys, in this
+order. It has no `draft`, `ci`, `unresolved_threads`, `head`, `mergeable`,
+`merge_state`, `review_decision`, `linked_issues`, `reviewers_truncated`,
+`reviewers` or `reports`; those are PR-only. The `events` have the
+[same keys as for a PR](#tkt-pr-show).
+
+| Key | Meaning |
+| --- | --- |
+| `kind` | `"issue"` |
+| `ref` | `owner/repo#number` |
+| `title` | The issue title |
+| `repo` | `owner/repo` |
+| `number` | The issue number |
+| `url` | The issue's web URL |
+| `state` | `open` or `closed` |
+| `author` | Login of the issue author |
+| `created_at` | When the issue was opened (UTC, ISO-8601) |
+| `last_activity` | Time of the latest event (UTC, ISO-8601) |
+| `history` | The [history string](#history-strings) |
+| `labels` | Label names |
+| `assignees` | Assignee logins |
+| `linked_pr` | One linked PR as `owner/repo#number`, or `null` if there is none. The same PR the [history string](#linked-prs) uses: the first merged one, else the first open one, else the first |
+| `linked_prs` | Every linked PR as `{"ref", "state"}`, with a lowercase `state` (`open`, `merged`, `closed`) |
+| `since` | The `--since` cutoff in UTC, `null` without one |
+| `timeline_truncated` | `true` when the item has more events than the fetch cap |
+| `events` | The timeline, oldest first |
+
 ## `tkt pr`
 
 List pull requests with a compact history visualization. Accepts PR refs as
@@ -563,15 +590,54 @@ tkt pr show jpshackelford/tickster#60 --since-snapshot pr/hourly
 tkt pr show jpshackelford/tickster#60 --since 2026-11-05T10:35:00Z
 ```
 
-JSON output (`--format json`) is one object. It has the header fields (`kind`,
-`ref`, `title`, `url`, `state`, `draft`, `author`, `created_at`,
-`last_activity`, `history`, `ci`, `unresolved_threads`, `head`, `mergeable`,
-`merge_state`, `review_decision`, `linked_issues`), `reviewers`, `reports`,
-`since` (`null` without a cutoff), `timeline_truncated`, and `events`. An issue
-has `labels`, `assignees` and `linked_prs` in place of the PR-only fields. Each
-event has `at`, `kind`, `char`, `actor`, `actor_class`, `text`, `body`,
-`more_chars`, kind-specific fields (e.g. `label`), and, for a review with
-threads, `threads` (`path`, `line`, `resolved`, `outdated`, `comments`).
+JSON output (`--format json`) is one object with these top-level keys, in this
+order:
+
+| Key | Meaning |
+| --- | --- |
+| `kind` | `"pr"` |
+| `ref` | `owner/repo#number` |
+| `title` | The PR title |
+| `repo` | `owner/repo` |
+| `number` | The PR number |
+| `url` | The PR's web URL |
+| `state` | `open`, `merged` or `closed` |
+| `draft` | `true` while the PR is a draft |
+| `author` | Login of the PR author |
+| `created_at` | When the PR was opened (UTC, ISO-8601) |
+| `last_activity` | Time of the latest event (UTC, ISO-8601) |
+| `history` | The [history string](#history-strings) |
+| `ci` | `green`, `red`, `pending`, `conflict` or `--` (none) |
+| `unresolved_threads` | Number of unresolved review threads |
+| `head` | SHA of the head commit |
+| `mergeable` | GitHub's value, as is: `MERGEABLE`, `CONFLICTING` or `UNKNOWN` |
+| `merge_state` | GitHub's merge state status, as is, e.g. `CLEAN` or `BLOCKED` |
+| `review_decision` | GitHub's review decision, as is: `APPROVED`, `CHANGES_REQUESTED` or `REVIEW_REQUIRED`; `null` when the repo does not require reviews |
+| `reviewers_truncated` | `true` when the reviewer list hit the fetch cap, so some reviewers are missing. The text output marks this with a trailing `…` on the `reviewers:` line |
+| `linked_issues` | Issues the PR closes, as `owner/repo#number` strings |
+| `reviewers` | One object per reviewer, with the fields of the [reviewer state](#reviewer-state) (`login`, `actor_class`, `requested`, `latest_state`, `on_head`, `waiting`, `rereview_needed` and more) |
+| `reports` | One object per `[reports]` marker: `name`, `found`, `at`, `actor`, `head`, `on_head`, `failed` |
+| `since` | The `--since` cutoff in UTC, `null` without one |
+| `timeline_truncated` | `true` when the item has more events than the fetch cap |
+| `events` | The timeline, oldest first |
+
+Each object in `events` has these keys:
+
+| Key | Meaning |
+| --- | --- |
+| `at` | When the event happened (UTC, ISO-8601) |
+| `kind` | What happened, e.g. `opened`, `comment`, `review`, `merged` |
+| `char` | The event's [history](#history-strings) character, `-` if the history string leaves it out |
+| `actor` | Login of the person or bot that did it |
+| `actor_class` | `me`, `human`, `bot`, `agent` or `me_agent` |
+| `text` | The one-line description shown in the text output |
+| `body` | The comment, review or opening post, trimmed by `--max-body`; `null` if there is none |
+| `more_chars` | Characters cut by `--max-body` (`0` if none) |
+
+Some events add keys of their own, e.g. `reviewer` for a review request, `head`
+for a force push, `state`, `commit` and `on_head` for a review. A review with threads also
+has `threads`: a list of `path`, `line`, `resolved`, `outdated` and `comments`
+(each with `at`, `actor`, `actor_class`, `body` and `more_chars`).
 
 ```bash
 tkt pr show jpshackelford/tickster#60 --format json | jq '.events[] | select(.kind == "merged") | .at'
