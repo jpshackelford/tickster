@@ -814,3 +814,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-08T00:55Z — Issue #73 implemented
+
+- Implementation worker opened [PR #95](https://github.com/jpshackelford/tickster/pull/95) (`docs: add an automation how-to (poll, read what changed, decide what a PR needs)`). Adds `doc/automation.md` and a README link. CI green, marked ready for review. Docs/testing/review/merge are next.
+- The issue's `--steps` 80-column limit did not reproduce (the Steps cell is always 7 characters), so it is not listed. The changed-row and pending-steps examples are live output from the PR itself.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
