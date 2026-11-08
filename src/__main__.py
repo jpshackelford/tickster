@@ -623,7 +623,8 @@ Examples:
         "changes",
         help="Show what changed in a PR since a commit, and whether it matters",
         description="List the commits and files between --since and the PR's head, "
-        "and report whether the change is significant.",
+        "and report whether the change is significant. Settings not given as flags come "
+        "from [commits] in the repo's .agents/tickster.toml.",
     )
     pr_changes_parser.add_argument(
         "ref",
@@ -651,14 +652,20 @@ Examples:
         default=[],
         metavar="GLOB",
         help="Ignore changed files matching GLOB (repeatable; * stays in a segment, "
-        "** crosses segments)",
+        "** crosses segments). Replaces [commits] ignore_paths from the repo's norms file",
     )
     pr_changes_parser.add_argument(
         "--min-changed-lines",
         type=_non_negative_int,
-        default=0,
+        default=None,
         metavar="N",
-        help="After ignoring paths, changes below N added+deleted lines are not significant",
+        help="After ignoring paths, changes below N added+deleted lines are not significant. "
+        "Replaces [commits] min_changed_lines from the repo's norms file (0 included)",
+    )
+    pr_changes_parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Print where each setting (ignore_paths, min_changed_lines) came from",
     )
 
     # review command - reviewer's view of PR queue
@@ -1184,6 +1191,7 @@ Examples:
                 output_format=args.output_format,
                 ignore_paths=args.ignore_paths,
                 min_changed_lines=args.min_changed_lines,
+                explain=args.explain,
             )
 
         if args.pr_command == "checks":

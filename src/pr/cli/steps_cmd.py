@@ -10,7 +10,7 @@ from rich.console import Console
 
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
-from src.pr.changes import ChangesClient, pr_changes
+from src.pr.changes import ChangesClient, pr_changes, resolve_commit_settings
 from src.pr.checks import ChecksClient, parse_pr_ref
 from src.pr.github_api import PRClient
 from src.pr.models import PRInfo
@@ -57,14 +57,15 @@ def collect_steps(prs: Sequence[PRInfo]) -> dict[str, tuple[StepResult, ...]]:
 
 
 def _report_facts(client: ChangesClient, pr: PRInfo, norms: Norms) -> ReportFacts:
+    settings = resolve_commit_settings(norms)
     changes = {
         sha: pr_changes(
             client,
             pr.repo,
             pr.number,
             sha,
-            ignore_paths=norms.commits.ignore_paths,
-            min_changed_lines=norms.commits.min_changed_lines,
+            ignore_paths=settings.ignore_paths,
+            min_changed_lines=settings.min_changed_lines,
         )
         for sha in tested_commits(pr, norms)
     }
