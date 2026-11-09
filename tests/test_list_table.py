@@ -54,6 +54,11 @@ def make_console(width: int) -> tuple[Console, io.StringIO]:
     return Console(file=buf, width=width, force_terminal=True, color_system=None), buf
 
 
+def make_pipe_console(width: int) -> tuple[Console, io.StringIO]:
+    buf = io.StringIO()
+    return Console(file=buf, width=width, color_system=None), buf
+
+
 def lines_for(out: str, number: int) -> str:
     (line,) = [ln for ln in out.splitlines() if f"#{number}" in ln]
     return line
@@ -303,4 +308,92 @@ class TestPrintFittedTable:
         console, buf = make_console(80)
         rows = [["owner/repo", "oC\\[c]", "#1"]]
         print_fitted_table(console, self.table(), rows, history_col=1)
+        assert "oC[c]" in buf.getvalue()
+
+
+@pytest.mark.parametrize("kind", PRINTERS)
+class TestListTablesWhenPiped:
+    def render(self, kind: str, width: int = 80) -> tuple[str, Console]:
+        console, buf = make_pipe_console(width)
+        assert not console.is_terminal
+        PRINTERS[kind](console)
+        return buf.getvalue(), console
+
+    def test_history_is_whole_and_never_cropped(self, kind):
+        out, _ = self.render(kind)
+        assert LONG in lines_for(out, 2)
+        assert CAPPED in lines_for(out, 3)
+        assert HISTORY_CROP_MARK not in out
+
+    def test_no_legend(self, kind):
+        out, _ = self.render(kind)
+        assert "History cropped" not in out
+
+    def test_repo_title_and_labels_are_never_ellipsized(self, kind):
+        out, _ = self.render(kind)
+        assert "…" not in out.replace(CAPPED, "")
+        assert "OpenHands/OpenHands" in lines_for(out, 1)
+        assert "a title long enough to need shrinking" in " ".join(lines_for(out, 1).split())
+
+    def test_cells_stay_on_one_line_per_row(self, kind):
+        out, _ = self.render(kind)
+        assert len([ln for ln in out.splitlines() if "#" in ln]) == 3
+
+    def test_columns_variable_does_not_change_the_output(self, kind, monkeypatch):
+        monkeypatch.setenv("COLUMNS", "40")
+        narrow, _ = self.render(kind, 40)
+        wide, _ = self.render(kind, 200)
+        assert LONG in lines_for(narrow, 2)
+        assert LONG in lines_for(wide, 2)
+
+    def test_console_width_is_restored(self, kind):
+        _, console = self.render(kind)
+        assert console.width == 80
+
+
+class TestPrintFittedTableWhenPiped:
+    @staticmethod
+    def table() -> Table:
+        table = Table(box=box.SIMPLE)
+        add_shrinkable_column(table, "Repo")
+        add_shrinkable_column(table, "Labels", max_width=10)
+        table.add_column("History", no_wrap=True)
+        table.add_column("PR", no_wrap=True)
+        return table
+
+    ROWS = [["owner/a-long-repository-name", "bug, priority:medium", LONG, "#1"]]
+
+    def test_returns_false_and_prints_whole_cells_without_legend(self):
+        console, buf = make_pipe_console(80)
+        assert print_fitted_table(console, self.table(), self.ROWS, history_col=2) is False
+        out = buf.getvalue()
+        assert LONG in out
+        assert HISTORY_CROP_MARK not in out
+        assert CROP_LEGEND not in out
+        assert "…" not in out
+        assert "owner/a-long-repository-name" in out
+        assert "bug, priority:medium" in out
+
+    def test_a_line_may_be_longer_than_the_console(self):
+        console, buf = make_pipe_console(40)
+        print_fitted_table(console, self.table(), self.ROWS, history_col=2)
+        assert max(len(ln) for ln in buf.getvalue().splitlines()) > 40
+        assert console.width == 40
+
+    def test_column_max_width_is_restored(self):
+        console, _ = make_pipe_console(80)
+        table = self.table()
+        print_fitted_table(console, table, self.ROWS, history_col=2)
+        assert [c.max_width for c in table.columns] == [None, 10, None, None]
+
+    def test_wide_console_keeps_its_width(self):
+        console, buf = make_pipe_console(200)
+        print_fitted_table(console, self.table(), self.ROWS, history_col=2)
+        assert console.width == 200
+        assert "…" not in buf.getvalue()
+
+    def test_history_markup_is_kept(self):
+        console, buf = make_pipe_console(80)
+        rows = [["owner/repo", "bug", "oC\\[c]", "#1"]]
+        print_fitted_table(console, self.table(), rows, history_col=2)
         assert "oC[c]" in buf.getvalue()

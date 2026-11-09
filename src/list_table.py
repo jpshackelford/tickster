@@ -48,14 +48,20 @@ def print_fitted_table(
     history_col: int,
     floor: int = SHRINK_FLOOR,
 ) -> bool:
-    """Add `rows` to `table`, crop History to the room left, and print it.
+    """Add `rows` to `table` and print it, fitted to the terminal.
 
-    Cells are Rich markup. Columns built with `add_shrinkable_column` never wrap:
+    When `console` is not a terminal there is no line width to fit, so the table prints
+    at its natural width: nothing is ellipsized or cropped, no legend is printed, and
+    the result is `False`. On a terminal, History is cropped to the room left. Cells are Rich markup. Columns built with `add_shrinkable_column` never wrap:
     their cells ellipsize on one line. If even the floors do not fit, the table
     prints at the width it needs rather than letting Rich shrink every column.
     `floor` is the narrowest a shrinkable column gets before History is cropped.
     Returns whether a History cell was cropped; the crop legend is printed too.
     """
+    if not console.is_terminal:
+        _print_natural(console, table, rows)
+        return False
+
     shrinkable = {i for i, c in enumerate(table.columns) if c.width is None and not c.no_wrap}
     histories = [Text.from_markup(row[history_col]) for row in rows]
     for row, history in zip(rows, histories, strict=True):
@@ -76,6 +82,24 @@ def print_fitted_table(
     finally:
         console.width = saved
     return any(cropped)
+
+
+def _print_natural(console: Console, table: Table, rows: Sequence[Sequence[str]]) -> None:
+    for row in rows:
+        table.add_row(*row)
+    columns = table.columns
+    saved_max = [c.max_width for c in columns]
+    saved_width = console.width
+    try:
+        for column in columns:
+            column.max_width = None
+        natural = console.measure(table, options=console.options.update_width(10_000)).maximum
+        console.width = max(saved_width, natural)
+        console.print(table)
+    finally:
+        console.width = saved_width
+        for column, max_width in zip(columns, saved_max, strict=True):
+            column.max_width = max_width
 
 
 def _cell(index: int, cell: str, shrinkable: set[int]) -> Text | str:

@@ -1242,9 +1242,11 @@ Two conventions apply to every history string:
   more than 100). If an item has more, the oldest 500 are shown and the string
   ends in `…`; later events, including a final `M` or `x`, are not shown. Review
   threads are counted up to 1000 and labels are read up to 100 per issue.
-- **A trailing `>` means the history was cropped to fit the terminal.** When the
-  History cell of `tkt pr list`, `tkt issue list`, `tkt review` or a `--diff` /
-  `--watch` table is wider than the room left, `tkt` keeps its head and ends it
+- **A trailing `>` means the history was cropped to fit the terminal.** The width
+  fit applies on a terminal only: when stdout is a pipe or a file, tables print at
+  their natural width and are never cropped, whatever `$COLUMNS` says. On a
+  terminal, when the History cell of `tkt pr list`, `tkt issue list`, `tkt review`
+  or a `--diff` / `--watch` table is wider than the room left, `tkt` keeps its head and ends it
   in `>`, and prints one line under the table to say so. Repo, Title and Labels
   give up width first (down to a floor); the PR / issue number and the Steps cell
   are never shortened. A `>` is only about width: widen the terminal to see

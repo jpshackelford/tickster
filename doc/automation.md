@@ -411,7 +411,8 @@ These are the limits that matter to a polling loop. The first two are also in
   changes](usage.md#head-review-and-merge-changes)).
 - **Table output is for people.** On a terminal the table is fitted to the width: Repo,
   Title and History give up width, and a cut History ends in `>`
-  ([`--steps`](usage.md#tkt-pr)). JSON is not cut.
+  ([`--steps`](usage.md#tkt-pr)). The fit is for terminals only: piped or redirected
+  table output is never cropped. JSON is not cut.
 
 ## See also
 
