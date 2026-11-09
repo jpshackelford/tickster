@@ -12,7 +12,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_fitted_table
+from src.list_table import add_shrinkable_column, print_fitted_table, print_note
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo
 from src.review.github_api import ReviewClient
@@ -125,18 +125,21 @@ def cmd_list(
                         result.reviews, reviewer=resolved_reviewer, show_title=show_title
                     )
                 elif showing_historical and not showing_open:
-                    console.print(
+                    print_note(
+                        console,
                         f"[dim]No historical PRs found that {resolved_reviewer} reviewed"
-                        f"{window_suffix(window)}.[/]"
+                        f"{window_suffix(window)}.[/]",
                     )
                 elif all_reviews:
-                    console.print(
+                    print_note(
+                        console,
                         f"[dim]No PRs found in {target_possessive} review queue"
-                        f"{window_suffix(window)}.[/]"
+                        f"{window_suffix(window)}.[/]",
                     )
                 else:
-                    console.print(
-                        f"[dim]No PRs needing {target_possessive} review{window_suffix(window)}.[/]"
+                    print_note(
+                        console,
+                        f"[dim]No PRs needing {target_possessive} review{window_suffix(window)}.[/]",
                     )
 
             plan = SnapshotPlan.from_args(
@@ -178,19 +181,21 @@ def cmd_list(
 
             # Print summary
             if showing_historical and not showing_open:
-                console.print(f"\n[dim]Showing {len(result.reviews)} historical PRs[/]")
+                print_note(console, f"\n[dim]Showing {len(result.reviews)} historical PRs[/]")
             elif all_reviews:
-                console.print(
+                print_note(
+                    console,
                     f"\n[dim]Showing {len(result.reviews)} PRs "
-                    f"({result.action_count} need action)[/]"
+                    f"({result.action_count} need action)[/]",
                 )
             else:
-                console.print(
-                    f"\n[dim]Showing {len(result.reviews)} PRs needing {target_possessive} review[/]"
+                print_note(
+                    console,
+                    f"\n[dim]Showing {len(result.reviews)} PRs needing {target_possessive} review[/]",
                 )
 
             if window:
-                console.print(f"[dim]{window_line(window)}[/]")
+                print_note(console, f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -263,7 +268,7 @@ def _print_review_table(
         rows.append(row)
 
     print_fitted_table(console, table, rows, history_col=history_col)
-    console.print(f"\n[dim]History: lowercase={reviewer}, UPPERCASE=others[/]")
+    print_note(console, f"\n[dim]History: lowercase={reviewer}, UPPERCASE=others[/]")
 
 
 def _format_history(history: str) -> str:

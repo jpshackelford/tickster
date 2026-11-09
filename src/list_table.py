@@ -40,6 +40,15 @@ def crop_history(history: Text, width: int) -> bool:
     return True
 
 
+def print_note(console: Console, markup: str) -> None:
+    """Print a legend, summary or other note line around a table.
+
+    Every note above or below a table goes through here. When `console` is not a terminal
+    the line is not wrapped, so piped output does not depend on `$COLUMNS`.
+    """
+    console.print(markup, soft_wrap=not console.is_terminal)
+
+
 def print_fitted_table(
     console: Console,
     table: Table,

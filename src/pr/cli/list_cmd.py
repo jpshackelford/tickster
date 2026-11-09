@@ -17,7 +17,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_fitted_table
+from src.list_table import add_shrinkable_column, print_fitted_table, print_note
 from src.pr.cli.graph import render_merged_graph
 from src.pr.cli.steps_cmd import collect_steps
 from src.pr.detail import merge_label, review_label, short_sha
@@ -221,10 +221,12 @@ def cmd_list(
             )
 
             if result.has_more:
-                console.print(f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]")
+                print_note(
+                    console, f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]"
+                )
 
             if window and result.prs:
-                console.print(f"[dim]{window_line(window)}[/]")
+                print_note(console, f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -267,7 +269,7 @@ def _print_pr_table(
 ) -> None:
     """Print PRs in a formatted table."""
     if not prs:
-        console.print(f"[dim]No PRs found{window_suffix(window)}.[/]")
+        print_note(console, f"[dim]No PRs found{window_suffix(window)}.[/]")
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 
@@ -324,9 +326,9 @@ def _print_pr_table(
 
     print_fitted_table(console, table, rows, history_col=history_col)
     if reviewers:
-        console.print(f"[dim]{escape(REVIEWER_LEGEND)}[/]")
+        print_note(console, f"[dim]{escape(REVIEWER_LEGEND)}[/]")
     if steps is not None:
-        console.print(f"[dim]{escape(STEPS_LEGEND)}[/]")
+        print_note(console, f"[dim]{escape(STEPS_LEGEND)}[/]")
 
 
 def _format_reviewers(pr: PRInfo, mode: str) -> str:

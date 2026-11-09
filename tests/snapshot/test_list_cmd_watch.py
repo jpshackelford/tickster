@@ -6,6 +6,7 @@ store, diff, and render code run for real against a tmp TKT_HOME.
 
 from __future__ import annotations
 
+import io
 import json
 from collections.abc import Callable
 from dataclasses import replace
@@ -483,3 +484,53 @@ def test_diff_resolve_with_nothing_gone_makes_no_lookup(
 
     assert cmd_list(watch_name="hourly", diff_resolve=True) == 0
     assert fake_client.ref_calls == []
+
+
+def _run_with_console(command, console, monkeypatch) -> int:
+    _, cmd_list = COMMANDS[command]
+    for module in (pr_list, issue_list, review_list):
+        monkeypatch.setattr(module, "console", console)
+    return cmd_list(before="2026-08-31")
+
+
+def _piped(width: int) -> tuple[Console, io.StringIO]:
+    buf = io.StringIO()
+    return Console(file=buf, width=width, color_system=None), buf
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_piped_notes_do_not_depend_on_width(command, fake_client, monkeypatch):
+    fake_client.numbers = [1]
+    fake_client.has_more = True
+    outs = []
+    for width in (20, 200):
+        console, buf = _piped(width)
+        assert _run_with_console(command, console, monkeypatch) == 0
+        outs.append(buf.getvalue())
+    assert outs[0] == outs[1]
+    lines = outs[0].splitlines()
+    assert any(line.startswith("Showing 1 ") for line in lines)
+    assert any(line.startswith("History: ") for line in lines) == (command != "pr")
+    assert "Window: updated ≤ 2026-08-31 (UTC)" in lines
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_piped_empty_result_line_does_not_depend_on_width(command, fake_client, monkeypatch):
+    fake_client.numbers = []
+    outs = []
+    for width in (20, 200):
+        console, buf = _piped(width)
+        assert _run_with_console(command, console, monkeypatch) == 0
+        outs.append(buf.getvalue())
+    assert outs[0] == outs[1]
+    assert len(outs[0].splitlines()) == 1
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_terminal_window_line_still_wraps(command, fake_client, monkeypatch):
+    fake_client.numbers = [1]
+    buf = io.StringIO()
+    console = Console(file=buf, width=20, force_terminal=True, color_system=None)
+    assert _run_with_console(command, console, monkeypatch) == 0
+    assert "Window: updated ≤ 2026-08-31 (UTC)" not in buf.getvalue().splitlines()
+    assert "(UTC)" in buf.getvalue()

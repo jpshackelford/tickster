@@ -19,11 +19,13 @@ from src.list_table import (
     add_shrinkable_column,
     crop_history,
     print_fitted_table,
+    print_note,
 )
 from src.pr.cli import list_cmd as pr_cmd
 from src.pr.models import CIStatus, PRInfo, PRState
+from src.pr.reviewers import REVIEWER_LEGEND
 from src.pr.step_types import StepResult, StepStatus
-from src.pr.steps import STEP_LETTERS, steps_mark
+from src.pr.steps import STEP_LETTERS, STEPS_LEGEND, steps_mark
 from src.review.cli import list_cmd as review_cmd
 from src.review.models import ReviewInfo, ReviewStatus
 
@@ -68,20 +70,24 @@ def history_cell(line: str) -> str:
     return next(t for t in line.split() if t.startswith("oc"))
 
 
+def make_pr(number: int, history: str) -> PRInfo:
+    return PRInfo(
+        repo="OpenHands/OpenHands",
+        number=number,
+        title="fix: a title long enough to need shrinking",
+        state=PRState.OPEN,
+        ci_status=CIStatus.GREEN,
+        history=history,
+        created_at=NOW,
+        closed_at=None,
+        last_activity=NOW,
+        author="octocat",
+    )
+
+
 def print_pr(console: Console, *, steps: bool = True, title: bool = True) -> None:
     prs = [
-        PRInfo(
-            repo="OpenHands/OpenHands",
-            number=number,
-            title="fix: a title long enough to need shrinking",
-            state=PRState.OPEN,
-            ci_status=CIStatus.GREEN,
-            history=history,
-            created_at=NOW,
-            closed_at=None,
-            last_activity=NOW,
-            author="octocat",
-        )
+        make_pr(number, history)
         for number, history in zip((1, 2, 3), HISTORIES.values(), strict=True)
     ]
     pr_cmd.console = console
@@ -397,3 +403,69 @@ class TestPrintFittedTableWhenPiped:
         rows = [["owner/repo", "bug", "oC\\[c]", "#1"]]
         print_fitted_table(console, self.table(), rows, history_col=2)
         assert "oC[c]" in buf.getvalue()
+
+
+NOTE = "a note that is much longer than the forty column console it is printed to " * 2
+
+
+class TestPrintNote:
+    def test_piped_note_is_one_line_at_any_width(self):
+        outs = []
+        for width in (20, 200):
+            console, buf = make_pipe_console(width)
+            print_note(console, f"[dim]{NOTE}[/]")
+            outs.append(buf.getvalue())
+        assert outs[0] == outs[1] == f"{NOTE}\n"
+
+    def test_terminal_note_wraps(self):
+        console, buf = make_console(40)
+        print_note(console, NOTE)
+        assert len(buf.getvalue().splitlines()) > 1
+        assert max(len(line) for line in buf.getvalue().splitlines()) <= 40
+
+    def test_markup_still_renders_when_piped(self):
+        console, buf = make_pipe_console(20)
+        print_note(console, "[bold]one[/] \\[two]")
+        assert buf.getvalue() == "one [two]\n"
+
+
+class TestLegendsWhenPiped:
+    @pytest.mark.parametrize("width", [40, 200])
+    def test_pr_legends_are_one_line_each(self, width):
+        console, buf = make_pipe_console(width)
+        pr_cmd.console = console
+        pr_cmd._print_pr_table(
+            [make_pr(1, SHORT)],
+            show_title=False,
+            reviewers="counts",
+            steps={"OpenHands/OpenHands#1": STEP_RESULTS},
+        )
+        lines = buf.getvalue().splitlines()
+        assert lines.count(REVIEWER_LEGEND) == 1
+        assert lines.count(STEPS_LEGEND) == 1
+
+    @pytest.mark.parametrize("kind", PRINTERS)
+    def test_output_is_the_same_at_every_width(self, kind):
+        outs = []
+        for width in (40, 200):
+            console, buf = make_pipe_console(width)
+            PRINTERS[kind](console)
+            outs.append(buf.getvalue())
+        assert outs[0] == outs[1]
+
+    @pytest.mark.parametrize("width", [40, 200])
+    def test_empty_pr_and_issue_lists_are_one_line(self, width):
+        console, buf = make_pipe_console(width)
+        pr_cmd.console = issue_cmd.console = console
+        pr_cmd._print_pr_table([])
+        issue_cmd._print_issue_table([])
+        assert buf.getvalue().splitlines() == ["No PRs found.", "No issues found."]
+
+    def test_pr_legends_still_wrap_on_a_terminal(self):
+        console, buf = make_console(40)
+        pr_cmd.console = console
+        pr_cmd._print_pr_table(
+            [make_pr(1, SHORT)], show_title=False, steps={"OpenHands/OpenHands#1": STEP_RESULTS}
+        )
+        assert STEPS_LEGEND not in buf.getvalue().splitlines()
+        assert "Steps:" in buf.getvalue()

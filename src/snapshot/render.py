@@ -21,7 +21,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from src.list_table import add_shrinkable_column, print_fitted_table
+from src.list_table import add_shrinkable_column, print_fitted_table, print_note
 from src.pr.detail import merge_label, review_label, short_sha
 from src.snapshot.models import ChangeKind, DiffResult, ItemDelta, Snapshot
 
@@ -72,7 +72,7 @@ def render_diff(
     _print_summary(diff, console=console)
     deltas = [d for d in diff.deltas if show_unchanged or d.kind is not ChangeKind.UNCHANGED]
     if not deltas:
-        console.print("[dim]No changes.[/]")
+        print_note(console, "[dim]No changes.[/]")
         return
 
     kind = diff.curr.kind
@@ -84,14 +84,15 @@ def render_diff(
         raise ValueError(f"unknown snapshot kind: {kind!r}")
 
     console.print()
-    console.print(
+    print_note(
+        console,
         "[dim]Δ: + new row, * changed, - gone (Note: why, `?` = a guess), (blank) unchanged.  "
         "History: \\[bracketed] = new since last snapshot.  "
         "Field!: value changed; prior value via `tkt snapshot diff`.  "
         "head!/review!/merge!: PR head commit, review decision or merge state changed.  "
         "Per-reviewer notes: requested / ↻ re-requested / approved on head / "
         "review now on old head / request removed / review dismissed.  "
-        "Step notes: `step: old → new` (`pr list --steps`).[/]"
+        "Step notes: `step: old → new` (`pr list --steps`).[/]",
     )
 
 
@@ -114,9 +115,9 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
         f"[red]-{counts[ChangeKind.REMOVED]}[/] gone, "
         f"{counts[ChangeKind.UNCHANGED]} unchanged){scope_tag}"
     )
-    console.print(header)
+    print_note(console, header)
     if note := window_note(prev, curr):
-        console.print(f"[dim]{note}[/]")
+        print_note(console, f"[dim]{note}[/]")
 
 
 def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
