@@ -960,7 +960,7 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 | Conv ID | Type | Working On | Status |
 |---------|------|------------|--------|
-| `4d62cd5` | implementation | Issue #96 | **NEW** |
+| `4d62cd5` | implementation | Issue #96 → [PR #97](https://github.com/jpshackelford/tickster/pull/97) | CI green, ready for review |
 
 **Current State:**
 
