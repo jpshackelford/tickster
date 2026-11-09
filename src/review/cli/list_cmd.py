@@ -6,6 +6,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.cli_errors import VERBOSE_HINT, print_error
 from src.date_window import (
     DateWindowError,
     build_date_window,
@@ -88,7 +89,7 @@ def cmd_list(
             date_field=date_field,
         )
     except DateWindowError as e:
-        console.print(f"[red]Error:[/] {e}")
+        print_error(str(e))
         return 1
     date_qualifier = window.to_qualifier() if window else None
 
@@ -199,10 +200,11 @@ def cmd_list(
 
             return 0
 
+    except BrokenPipeError:
+        raise
     except Exception as e:
         logger.exception("Error listing reviews:")
-        console.print(f"[red]Error:[/] {e}")
-        console.print("[dim]Run with --verbose for full traceback[/]")
+        print_error(str(e), hint=VERBOSE_HINT)
         return 1
 
 

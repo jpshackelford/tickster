@@ -378,12 +378,13 @@ Each claim below was checked by running the command.
 
 | Command | stdout | stderr | Exit code |
 | --- | --- | --- | --- |
-| `tkt pr list … --watch NAME --diff-format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …` | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed |
+| `tkt pr list … --watch NAME --diff-format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …`, and errors | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed. Any other failure, such as a bad token or no network, exits 1 with the `Error:` line on stderr and empty stdout. If only the save fails, stdout still holds the document and the exit code is 1 |
 | `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref, a bad time, an unknown snapshot or a snapshot with no row for the PR exits 1. `--since` with `--since-snapshot` exits 2 |
 | `tkt pr steps REF… --format json` | One JSON document | Notices and errors | 0 whatever the statuses. A PR that is not found exits 1, with empty stdout |
 | `tkt pr changes REF --since SHA --format json` | One JSON document | Errors | 0 whether or not the change is significant. A PR that is not found exits 1. A `--since` that is not a 7 to 40 character hex SHA, so also a branch or a tag, exits 2, with no GitHub call |
 
 - Parse stdout only. Do not merge stderr into it.
+- A command whose stdout closes early, such as `tkt … | head -1`, exits 141 and prints nothing.
 - `--watch` and `--diff` exit 0 on an empty diff, and exit 0 when there is a lot to do.
   Decide from `counts` and `kind`.
 - A scope is the set of refs, repos, authors, states and so on in the query. If the

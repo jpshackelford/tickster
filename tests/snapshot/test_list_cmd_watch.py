@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -320,26 +321,27 @@ def test_window_with_explicit_refs_is_an_error(
 ):
     _, cmd_list = COMMANDS[command]
     assert cmd_list(since_days=7, **{refs_kwarg: ["o/r#1"]}) == 1
-    out = capsys.readouterr().out
-    assert "--since cannot narrow explicit refs" in out
-    assert "Drop the refs to search by date, or drop --since." in out
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--since cannot narrow explicit refs" in captured.err
+    assert "Drop the refs to search by date, or drop --since." in captured.err
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
 def test_date_field_without_a_window_is_an_error(command, fake_client, capsys):  # noqa: ARG001
     _, cmd_list = COMMANDS[command]
     assert cmd_list(date_field="created") == 1
-    assert "--date-field needs --since, --after or --before" in capsys.readouterr().out
+    assert "--date-field needs --since, --after or --before" in capsys.readouterr().err
 
 
 def test_open_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
     assert pr_list.cmd_list(states=["open"], since_days=7, date_field="merged") == 1
-    assert "add --merged" in capsys.readouterr().out
+    assert "add --merged" in capsys.readouterr().err
 
 
 def test_issue_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
     assert issue_list.cmd_list(since_days=7, date_field="merged") == 1
-    assert "Issues have no merged date" in capsys.readouterr().out
+    assert "Issues have no merged date" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -534,3 +536,84 @@ def test_terminal_window_line_still_wraps(command, fake_client, monkeypatch):
     assert _run_with_console(command, console, monkeypatch) == 0
     assert "Window: updated ≤ 2026-08-31 (UTC)" not in buf.getvalue().splitlines()
     assert "(UTC)" in buf.getvalue()
+
+
+class RaisingClient(FakeClient):
+    """Client whose list calls fail with `error`."""
+
+    error: BaseException = RuntimeError("boom")
+
+    def list_prs_by_author(self, *_: Any, **__: Any) -> PRListResult:
+        raise self.error
+
+    def list_issues_by_author(self, *_: Any, **__: Any) -> IssueListResult:
+        raise self.error
+
+    def list_reviews(self, *_: Any, **__: Any) -> ReviewListResult:
+        raise self.error
+
+
+@pytest.fixture
+def raising_client(fake_client, monkeypatch) -> type[RaisingClient]:  # noqa: ARG001
+    for module, client_attr in (
+        (pr_list, "PRClient"),
+        (issue_list, "IssueClient"),
+        (review_list, "ReviewClient"),
+    ):
+        monkeypatch.setattr(module, client_attr, RaisingClient)
+    return RaisingClient
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_failure_in_json_mode_keeps_stdout_empty_and_prints_error_on_stderr(
+    command,
+    tkt_home,  # noqa: ARG001
+    raising_client,  # noqa: ARG001
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    assert cmd_list(watch_name="hourly", diff_format="json") == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "Error: boom",
+        "Run with --verbose for full traceback",
+    ]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_closed_pipe_from_a_client_call_is_not_reported_as_an_error(
+    command,
+    raising_client,
+    capsys,
+    monkeypatch,
+):
+    monkeypatch.setattr(raising_client, "error", BrokenPipeError())
+    _, cmd_list = COMMANDS[command]
+    with pytest.raises(BrokenPipeError):
+        cmd_list()
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_failed_save_leaves_the_json_document_alone_on_stdout(
+    command,
+    tkt_home,
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    snapshots = store.snapshots_dir()
+    snapshots.chmod(0o555)
+    try:
+        assert cmd_list(watch_name="hourly", diff_format="json") == 1
+    finally:
+        snapshots.chmod(0o755)
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["counts"]["added"] == 1
+    error_lines = [line for line in captured.err.splitlines() if line.startswith("Error: ")]
+    assert len(error_lines) == 1
+    assert "Permission denied" in error_lines[0]
+    assert not (tkt_home / "snapshots" / f"{kind}-hourly.json").exists()

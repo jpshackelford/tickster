@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from src.all_authors import all_authors_error
+from src.cli_errors import VERBOSE_HINT, print_error
 from src.date_window import (
     DateWindow,
     DateWindowError,
@@ -83,7 +84,7 @@ def cmd_list(
             merged_ok=False,
         )
     except DateWindowError as e:
-        console.print(f"[red]Error:[/] {e}")
+        print_error(str(e))
         return 1
     date_qualifier = window.to_qualifier() if window else None
 
@@ -92,7 +93,7 @@ def cmd_list(
         if all_authors:
             error = all_authors_error(has_refs=bool(issue_refs), repos=target_repos, noun="issues")
             if error:
-                console.print(f"[red]Error:[/] {error}")
+                print_error(error)
                 return 1
 
         with IssueClient() as client:
@@ -172,10 +173,11 @@ def cmd_list(
 
             return 0
 
+    except BrokenPipeError:
+        raise
     except Exception as e:
         logger.debug("Full traceback:\n%s", traceback.format_exc())
-        console.print(f"[red]Error:[/] {e}")
-        console.print("[dim]Run with --verbose for full traceback[/]")
+        print_error(str(e), hint=VERBOSE_HINT)
         return 1
 
 
