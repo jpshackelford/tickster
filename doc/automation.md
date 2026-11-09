@@ -58,6 +58,12 @@ stdout is one JSON document ([`--watch` and `--diff-format`](usage.md#snapshots-
 The first poll has no baseline. Every row is `added`, and the notice
 `No snapshot pr/doc-first found; treating all current rows as new.` goes to stderr.
 
+A baseline saved by tickster 0.3.0 gives a different first poll. Every row an AI actor took
+part in is `changed`, with `history-rewritten` in `changed_fields` and the whole history in
+`new_history_tail`, but nothing is new: the same events are spelled differently. Skip those
+deltas on that run, or replace the baseline once before the first scheduled run
+([Upgrading to 1.0](usage.md#upgrading-to-10)). The next poll is clean.
+
 ```json
 {
   "counts": {
@@ -120,8 +126,8 @@ What a script can rely on in each delta:
 | Field | Meaning |
 | --- | --- |
 | `kind` | `added`, `changed`, `removed` or `unchanged`. Act on `added` and `changed` |
-| `changed_fields` | For `changed`: which fields moved, such as `head_sha`, `review_decision`, `activity`, `ci_status` ([why](usage.md#head-review-and-merge-changes)) |
-| `new_history_tail` | The characters appended to the [history string](usage.md#history-strings) since the baseline |
+| `changed_fields` | For `changed`: which fields moved, such as `head_sha`, `review_decision`, `activity`, `ci_status` ([why](usage.md#head-review-and-merge-changes)). `history-rewritten` means the new history does not start with the old one, so no event is new |
+| `new_history_tail` | The characters appended to the [history string](usage.md#history-strings) since the baseline. With `history-rewritten`, the whole string |
 | `prev`, `curr` | The row before and after. `prev` is `null` for `added`, `curr` is `null` for `removed`, and both are `null` for `unchanged` |
 | `step_changes`, `reviewer_changes` | Present only when a step or a reviewer moved |
 
