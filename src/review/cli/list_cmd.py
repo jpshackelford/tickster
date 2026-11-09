@@ -1,6 +1,7 @@
 """Review list command - show reviewer's PR queue."""
 
 import logging
+import traceback
 
 from rich import box
 from rich.console import Console
@@ -203,7 +204,7 @@ def cmd_list(
     except BrokenPipeError:
         raise
     except Exception as e:
-        logger.exception("Error listing reviews:")
+        logger.debug("Full traceback:\n%s", traceback.format_exc())
         print_error(str(e), hint=VERBOSE_HINT)
         return 1
 

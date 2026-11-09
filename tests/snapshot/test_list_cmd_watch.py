@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 from collections.abc import Callable
 from dataclasses import replace
@@ -570,11 +571,13 @@ def test_failure_in_json_mode_keeps_stdout_empty_and_prints_error_on_stderr(
     tkt_home,  # noqa: ARG001
     raising_client,  # noqa: ARG001
     capsys,
+    caplog,
 ):
     _, cmd_list = COMMANDS[command]
     assert cmd_list(watch_name="hourly", diff_format="json") == 1
     captured = capsys.readouterr()
     assert captured.out == ""
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
     assert captured.err.splitlines() == [
         "Error: boom",
         "Run with --verbose for full traceback",
