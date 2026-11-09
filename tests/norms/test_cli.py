@@ -315,6 +315,14 @@ class TestCheck:
         assert cmd_check(repo="octo/hello", client=FakeGitHub(None).client()) == 1
         assert "has no .agents/tickster.toml" in capsys.readouterr().err
 
+    def test_repo_mode_missing_repo(self, monkeypatch, capsys):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(404)))
+        assert cmd_check(repo="octo/nope", client=client) == 1
+        assert capsys.readouterr().err == (
+            "error: repo not found, or not visible to this token: octo/nope\n"
+        )
+
     def test_repo_mode_api_failure(self, monkeypatch, capsys):
         monkeypatch.setenv("GITHUB_TOKEN", "tok")
         client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(500)))
@@ -350,6 +358,41 @@ class TestShow:
         client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(403)))
         assert cmd_show("octo/hello", client=client) == 1
         assert "cannot read" in capsys.readouterr().err
+
+    def test_missing_repo_is_an_error_not_a_missing_file(self, monkeypatch, capsys):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(404)))
+        assert cmd_show("octo/nope", client=client) == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == "error: repo not found, or not visible to this token: octo/nope\n"
+
+    def test_empty_repo_has_no_file(self, monkeypatch, capsys):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(409 if "/commits/" in request.url.path else 404)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler))
+        assert cmd_show("octo/empty", client=client) == 0
+        assert "not configured" in capsys.readouterr().out
+
+    def test_repo_with_the_file_makes_no_extra_request(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        api = FakeGitHub(ISSUE_EXAMPLE)
+        assert cmd_show("octo/hello", client=api.client()) == 0
+        assert [r.url.path for r in api.requests] == [
+            "/repos/octo/hello/contents/.agents/tickster.toml"
+        ]
+
+    def test_repo_without_the_file_asks_whether_the_repo_exists(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        api = FakeGitHub(None)
+        assert cmd_show("octo/hello", client=api.client()) == 0
+        assert [r.url.path for r in api.requests] == [
+            "/repos/octo/hello/contents/.agents/tickster.toml",
+            "/repos/octo/hello/commits/HEAD",
+        ]
 
 
 class TestUpgrade:

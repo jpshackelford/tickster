@@ -13,6 +13,7 @@ import httpx
 from src.board.github_api import describe_http_error, get_github_token
 from src.norms import source as norms_source
 from src.norms.gitfetch import GitFetchError
+from src.norms.github import resolve_commit
 from src.norms.model import CURRENT_SCHEMA, NORMS_PATH, Norms, glob_regex
 from src.norms.schema import (
     Issue,
@@ -23,7 +24,7 @@ from src.norms.schema import (
     read_raw,
     unsupported_message,
 )
-from src.norms.store import load_repo_norms
+from src.norms.store import RepoNorms, load_repo_norms
 from src.norms.template import TEMPLATE
 
 
@@ -33,6 +34,32 @@ def _err(message: str) -> None:
 
 def _warn(message: str) -> None:
     print(f"warning: {message}", file=sys.stderr)
+
+
+def _repo_exists(repo: str, token: str, client: httpx.Client | None) -> bool:
+    """GitHub answers 404 for a missing file and for a missing repo alike, so ask for the repo's head."""
+    try:
+        resolve_commit(repo, None, token, client=client)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return False
+        if e.response.status_code != 409:  # 409: an empty repo, which does exist
+            raise
+    return True
+
+
+def _load_repo(repo: str, client: httpx.Client | None) -> RepoNorms | None:
+    """Read the norms file of `repo`; print the error and return None when that fails."""
+    token = get_github_token()
+    try:
+        found = load_repo_norms(repo, token, client=client)
+        if found.text is None and not _repo_exists(repo, token, client):
+            _err(f"repo not found, or not visible to this token: {repo}")
+            return None
+    except (ValueError, httpx.HTTPError) as e:
+        _err(f"cannot read {NORMS_PATH} from {repo}: {describe_http_error(e)}")
+        return None
+    return found
 
 
 def _git_output(*args: str, cwd: Path | None = None) -> str | None:
@@ -133,10 +160,8 @@ def cmd_check(
     client: httpx.Client | None = None,
 ) -> int:
     if repo is not None:
-        try:
-            found = load_repo_norms(repo, get_github_token(), client=client)
-        except (ValueError, httpx.HTTPError) as e:
-            _err(f"cannot read {NORMS_PATH} from {repo}: {describe_http_error(e)}")
+        found = _load_repo(repo, client)
+        if found is None:
             return 1
         if found.text is None:
             _err(f"{repo} has no {NORMS_PATH} on its default branch")
@@ -203,10 +228,8 @@ def _norms_to_dict(norms: Norms) -> dict[str, Any]:
 
 
 def cmd_show(repo: str, *, client: httpx.Client | None = None) -> int:
-    try:
-        found = load_repo_norms(repo, get_github_token(), client=client)
-    except (ValueError, httpx.HTTPError) as e:
-        _err(f"cannot read {NORMS_PATH} from {repo}: {describe_http_error(e)}")
+    found = _load_repo(repo, client)
+    if found is None:
         return 1
     result = found.result
     if result is None:
