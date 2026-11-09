@@ -620,3 +620,45 @@ def test_failed_save_leaves_the_json_document_alone_on_stdout(
     assert len(error_lines) == 1
     assert "Permission denied" in error_lines[0]
     assert not (tkt_home / "snapshots" / f"{kind}-hourly.json").exists()
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_corrupt_baseline_is_one_error_line_and_is_left_alone(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    path = store.snapshots_dir() / f"{kind}-hourly.json"
+    path.write_text("{")
+
+    assert cmd_list(watch_name="hourly", diff_format="json") == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        f"Error: snapshot {kind}/hourly cannot be read ({path}): "
+        f"invalid JSON at line 1 column 2: Expecting property name enclosed in double quotes. "
+        f"Delete it with: tkt snapshot rm {kind}/hourly"
+    ]
+    assert path.read_text() == "{"
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_snapshot_name_that_is_changed_on_disk_is_announced_once(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+    caplog,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="pr/hourly") == 0
+    assert [r.getMessage() for r in caplog.records] == [
+        "tkt: snapshot name 'pr/hourly' is stored as 'pr-hourly'"
+    ]
+    assert (store.snapshots_dir() / f"{kind}-pr-hourly.json").exists()
+    assert "tkt: snapshot name" not in capsys.readouterr().out

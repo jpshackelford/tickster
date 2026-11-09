@@ -11,6 +11,7 @@ text editor; schema is versioned (see `models.SCHEMA_VERSION`).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -20,8 +21,14 @@ from pathlib import Path
 from src.board import config as _board_config
 from src.snapshot.models import VALID_KINDS, Snapshot
 
+logger = logging.getLogger(__name__)
+
 _SNAPSHOTS_DIRNAME = "snapshots"
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
+
+
+class SnapshotFormatError(ValueError):
+    """A snapshot file exists but cannot be read as a snapshot."""
 
 
 def snapshots_dir() -> Path:
@@ -70,6 +77,9 @@ def save(snapshot: Snapshot) -> Path:
     """
     _validate_kind(snapshot.kind)
     dst = path_for(snapshot.kind, snapshot.name)
+    stored_name = slugify(snapshot.name)
+    if stored_name != snapshot.name:
+        logger.warning("tkt: snapshot name %r is stored as %r", snapshot.name, stored_name)
     tmp = dst.with_suffix(".json.tmp")
     payload = json.dumps(snapshot.to_dict(), indent=2, sort_keys=False)
     with tmp.open("w", encoding="utf-8") as f:
@@ -81,11 +91,28 @@ def save(snapshot: Snapshot) -> Path:
 
 
 def load(kind: str, name: str) -> Snapshot:
-    """Load a snapshot by (kind, name). Raises FileNotFoundError if absent."""
+    """Load a snapshot by (kind, name).
+
+    Raises FileNotFoundError if absent and SnapshotFormatError if the file is not a snapshot.
+    """
     p = path_for(kind, name)
     if not p.exists():
         raise FileNotFoundError(f"snapshot not found: {kind}/{name} (looked in {p})")
-    return Snapshot.from_dict(json.loads(p.read_text()))
+    try:
+        data = json.loads(p.read_text())
+        if not isinstance(data, dict):
+            raise TypeError("the top level is not a JSON object")
+        return Snapshot.from_dict(data)
+    except json.JSONDecodeError as e:
+        reason = f"invalid JSON at line {e.lineno} column {e.colno}: {e.msg}"
+    except KeyError as e:
+        reason = f"missing the required field {e.args[0]!r}"
+    except (TypeError, ValueError, AttributeError) as e:
+        reason = str(e)
+    raise SnapshotFormatError(
+        f"snapshot {kind}/{name} cannot be read ({p}): {reason}. "
+        f"Delete it with: tkt snapshot rm {kind}/{name}"
+    )
 
 
 def exists(kind: str, name: str) -> bool:
@@ -126,20 +153,25 @@ def list_(kind: str | None = None) -> list[SnapshotRecord]:
     for p in sorted(snapshots_dir().glob("*.json")):
         try:
             data = json.loads(p.read_text())
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("tkt: skipping unreadable snapshot file %s: %s", p, e)
+            continue
+        if not isinstance(data, dict):
+            logger.warning("tkt: skipping unreadable snapshot file %s: not a JSON object", p)
             continue
         k = data.get("kind")
         if k not in VALID_KINDS:
             continue
         if kind is not None and k != kind:
             continue
+        items = data.get("items")
         out.append(
             SnapshotRecord(
                 kind=k,
                 name=data.get("name", p.stem),
                 captured_at=data.get("captured_at", ""),
                 scope_hash=data.get("scope_hash", ""),
-                item_count=len(data.get("items", [])),
+                item_count=len(items) if isinstance(items, list) else 0,
                 path=p,
             )
         )

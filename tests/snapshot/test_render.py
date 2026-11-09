@@ -108,7 +108,7 @@ def test_summary_line_names_both_snapshots_when_they_differ():
     prev = make_snapshot(name="monday", captured_at=_ago(days=3))
     curr = make_snapshot(name="current", captured_at=_ago(minutes=1))
     header = _capture(diff_snapshots(prev, curr)).splitlines()[0]
-    assert header.startswith("diff pr/monday (3d ago) → current (1m ago)  (")
+    assert header.startswith("diff pr/monday (3d ago) → pr/current (1m ago)  (")
 
 
 def test_unchanged_rows_hidden_by_default():

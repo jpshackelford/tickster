@@ -1131,6 +1131,15 @@ Snapshots live as JSON files under `~/.tkt/snapshots/<kind>-<name>.json`.
 Each file is small, inspectable with a text editor, and trivial to gist
 if you want to share. Overwriting an existing name is atomic.
 
+A name may use letters, digits, `.`, `_` and `-`. Any other run of characters,
+such as `/` or a space, is stored as one `-`, so `a/b` and `a-b` are the same
+snapshot. When `--snapshot` or `--watch` saves under a name it had to change,
+`tkt` prints `tkt: snapshot name 'a/b' is stored as 'a-b'` on stderr.
+
+A snapshot file that is not valid, or lacks a required field, is an error that
+names the snapshot and the file. `tkt snapshot rm KIND/NAME` deletes it.
+`tkt snapshot list` skips such a file and warns on stderr.
+
 ```bash
 # hourly agent loop
 tkt pr list    --board oh --watch hourly
