@@ -1005,7 +1005,8 @@ instead of a Note.
   `CLEAN` on the next run is silent. The same goes for the CI column: while
   either run has `UNKNOWN` mergeability, CI falls back to the check rollup
   (for example `green`) and then shows `conflict` once GitHub answers, so a CI
-  move to or from `conflict` is not flagged. A real rollup change
+  move to or from `conflict` is not flagged. A baseline saved before `mergeable`
+  was recorded counts the same way. A real rollup change
   (`green` → `red`) is still flagged, and a push shows as `head!`.
 - A baseline saved before these fields existed has no head SHA, so these
   fields are not compared until it is replaced; the first run after upgrading
