@@ -132,24 +132,8 @@ def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
 def _print_table(
     table: Table, rows: list[list[str]], *, console: Console, history_col: int
 ) -> None:
-    """Print `table`, never truncating it when output isn't a terminal.
-
-    Piped output (an agent's cron loop, a log) has no line width to fit, and
-    Rich's 80-column default would cut exactly the cells the diff exists for.
-    On a terminal, a History cell too long for the width is cropped with `>`.
-    """
-    if console.is_terminal:
-        print_fitted_table(console, table, rows, history_col=history_col, floor=SHRINK_FLOOR)
-        return
-    for row in rows:
-        table.add_row(*row)
-    natural = console.measure(table, options=console.options.update_width(10_000)).maximum
-    saved = console.width
-    console.width = max(saved, natural)
-    try:
-        console.print(table)
-    finally:
-        console.width = saved
+    """Print `table`; see `print_fitted_table` for the terminal and piped rules."""
+    print_fitted_table(console, table, rows, history_col=history_col, floor=SHRINK_FLOOR)
 
 
 def _print_pr_like_table(
