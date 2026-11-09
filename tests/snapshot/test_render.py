@@ -294,3 +294,39 @@ def test_json_step_changes_stay_a_list():
         step_changes=("a: x → y", "b: y → z"),
     )
     assert _delta_to_dict(delta)["step_changes"] == ["a: x → y", "b: y → z"]
+
+
+@pytest.mark.parametrize("kind", ["pr", "issue", "review"])
+def test_piped_header_and_notes_do_not_depend_on_width(kind):
+    outs = []
+    for width in (30, 200):
+        buf = io.StringIO()
+        console = Console(file=buf, width=width, color_system=None)
+        render_diff(_narrow_diff(kind), console=console)
+        outs.append(buf.getvalue())
+    assert outs[0] == outs[1]
+    lines = outs[0].splitlines()
+    assert sum(line.startswith("diff ") for line in lines) == 1
+    assert sum(line.startswith("Δ:") and "Step notes:" in line for line in lines) == 1
+
+
+def test_piped_no_changes_line_does_not_depend_on_width():
+    snap = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    outs = []
+    for width in (10, 200):
+        buf = io.StringIO()
+        render_diff(
+            diff_snapshots(snap, snap), console=Console(file=buf, width=width, color_system=None)
+        )
+        outs.append(buf.getvalue())
+    assert outs[0] == outs[1]
+    assert outs[0].splitlines()[-1] == "No changes."
+
+
+def test_terminal_footer_still_wraps():
+    buf = io.StringIO()
+    console = Console(file=buf, width=60, force_terminal=True, color_system=None)
+    render_diff(_narrow_diff("pr"), console=console)
+    lines = buf.getvalue().splitlines()
+    assert not any(line.startswith("Δ:") and "Step notes:" in line for line in lines)
+    assert any(line.startswith("Δ:") for line in lines)

@@ -17,7 +17,7 @@ from src.date_window import (
 )
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
-from src.list_table import add_shrinkable_column, print_fitted_table
+from src.list_table import add_shrinkable_column, print_fitted_table, print_note
 from src.snapshot.convert import snapshot_from_issues
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_ISSUE, SnapshotScope
@@ -154,19 +154,21 @@ def cmd_list(
 
             # Print legend
             console.print()
-            console.print(
+            print_note(
+                console,
                 "[dim]History: o=opened, s/S=AI opened, c/C=comment, n/N=AI comment, l/L=label, B=bot, "
-                "a=assigned, x=closed, r=reopened, p=PR linked[/]"
+                "a=assigned, x=closed, r=reopened, p=PR linked[/]",
             )
-            console.print("[dim]lowercase=you, UPPERCASE=others[/]")
+            print_note(console, "[dim]lowercase=you, UPPERCASE=others[/]")
 
             if result.has_more:
-                console.print(
-                    f"\n[dim]Showing {len(result.issues)} of {result.total_count} issues[/]"
+                print_note(
+                    console,
+                    f"\n[dim]Showing {len(result.issues)} of {result.total_count} issues[/]",
                 )
 
             if window:
-                console.print(f"[dim]{window_line(window)}[/]")
+                print_note(console, f"[dim]{window_line(window)}[/]")
 
             return 0
 
@@ -203,7 +205,7 @@ def _print_issue_table(
 ) -> None:
     """Print issues in a formatted table."""
     if not issues:
-        console.print(f"[dim]No issues found{window_suffix(window)}.[/]")
+        print_note(console, f"[dim]No issues found{window_suffix(window)}.[/]")
         return
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
 

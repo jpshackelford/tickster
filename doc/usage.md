@@ -1253,7 +1253,8 @@ Two conventions apply to every history string:
   the whole string. `…` stays the 500-event cap and is never added by the crop.
   If the columns cannot fit even then (for example `--detail --steps --title` at
   80 columns), the table prints at the width it needs instead of squeezing every
-  column.
+  column. When stdout is a pipe or a file, the legends and notes around the
+  tables are not wrapped either: each prints on one line, whatever `$COLUMNS` says.
 
 ### PR history characters
 
