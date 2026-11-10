@@ -297,3 +297,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-10 00:30 UTC - Merge worker (PR #114)
+
+✅ **Merged [PR #114](https://github.com/jpshackelford/tickster/pull/114)** as `f4a5322` (squash, head `6d3eda5`). Closed #113.
+
+- `main` had moved to `203622b` after the manual test. The PR merged into it with no conflict. On the merge result: 1765 tests pass; ruff, `ruff format` and basedpyright are clean.
+- CI on `main` at `f4a5322`: CI success, release-please success.
+- PR description updated to the final state. Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+- Next: [PR #115](https://github.com/jpshackelford/tickster/pull/115) (`38be822`) no longer waits on #114. It touches `doc/usage.md`, so it may need a rebase check before merge.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
