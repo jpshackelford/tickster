@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import json
 
 import pytest
+from rich.console import Console
 
 from src.snapshot import store
 from src.snapshot.cli import commands as cli
@@ -188,3 +190,68 @@ def test_diff_with_a_corrupt_snapshot_is_an_error_on_stderr(seed, capsys):
 def test_diff_header_names_the_kind_of_both_snapshots(seed, capsys):  # noqa: ARG001
     assert cli.cmd_diff("pr/hourly", "pr/later") == 0
     assert "→ pr/later (" in capsys.readouterr().out.splitlines()[0]
+
+
+LONG_HISTORY = "oCrfA" * 60
+LONG_REPO = "OpenHands/a-very-long-repository-name"
+
+
+@pytest.fixture
+def wide_snapshot(tkt_home):  # noqa: ARG001
+    store.save(
+        make_snapshot(
+            kind="pr",
+            name="wide",
+            items=[
+                make_item(key=f"{LONG_REPO}#13306", history=LONG_HISTORY),
+                make_item(key="jpshackelford/tickster#86", history=LONG_HISTORY),
+            ],
+        )
+    )
+
+
+def _show(monkeypatch, *, width: int, terminal: bool) -> str:
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        cli, "console", Console(file=buf, width=width, force_terminal=terminal or None)
+    )
+    assert cli.cmd_show("pr/wide") == 0
+    return buf.getvalue()
+
+
+def test_show_piped_prints_everything_at_natural_width(wide_snapshot, monkeypatch):  # noqa: ARG001
+    out = _show(monkeypatch, width=40, terminal=False)
+    assert LONG_HISTORY in out
+    assert LONG_REPO in out
+    assert "13306" in out and " 86 " in out
+    assert "…" not in out
+    assert ">" not in out
+    assert "cropped" not in out
+
+
+def test_show_piped_output_does_not_depend_on_width(wide_snapshot, monkeypatch):  # noqa: ARG001
+    assert _show(monkeypatch, width=40, terminal=False) == _show(
+        monkeypatch, width=200, terminal=False
+    )
+
+
+def test_show_terminal_fits_and_crops_history(wide_snapshot, monkeypatch):  # noqa: ARG001
+    out = _show(monkeypatch, width=80, terminal=True)
+    rows = [line for line in out.splitlines() if "13306" in line or " 86 " in line]
+    assert len(rows) == 2
+    assert all("open" in line for line in rows)
+    assert all(line.count(">") == 1 for line in rows)
+    assert LONG_HISTORY not in out
+    assert "History cropped to fit the terminal" in out
+
+
+def test_list_piped_prints_full_columns_on_narrow_console(seed, monkeypatch):  # noqa: ARG001
+    buf = io.StringIO()
+    monkeypatch.setattr(cli, "console", Console(file=buf, width=20))
+    assert cli.cmd_list() == 0
+    out = buf.getvalue()
+    assert "…" not in out
+    for item in ("pr/hourly", "2026-09-30T22:00:00Z", "pr/later"):
+        assert item in out
+    header = next(line for line in out.splitlines() if "Ref" in line)
+    assert all(h in header for h in ("Captured at", "Items", "Scope#"))

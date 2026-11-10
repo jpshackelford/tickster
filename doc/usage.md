@@ -931,6 +931,12 @@ tkt snapshot diff PREV CURR  [--all] [--format {table,json}] [--detail]
   `review` — the three list commands that produce snapshots.
 - Named snapshots overwrite in place; auto-timestamped snapshots (from
   bare `--snapshot`) are named `ts-YYYYMMDDTHHMMSSZ` so they coexist.
+- `snapshot show` and `snapshot list` follow the same width rule as the list
+  commands. Piped or redirected, the table prints at its natural width: full
+  Repo, `#` and History, no `…` or `>`, no crop legend, whatever `$COLUMNS` says.
+  On a terminal, `snapshot show` fits to the width (`#` and State kept whole,
+  Repo gives up width first, History cropped with `>` and a one-line legend), and
+  `snapshot list` prints as before. `--format json` is unchanged.
 
 ```bash
 tkt snapshot list                               # all stored snapshots
