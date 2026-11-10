@@ -913,6 +913,22 @@ over the board pattern when both are set.
 **Verify.** `tkt norms check` validates the file; `tkt norms show --repo OWNER/NAME`
 prints the settings in effect.
 
+**Saved snapshots.** Recognising AI actors also changes the history string of every item
+one took part in: `oAcm` from 0.3.0 reads `sVnm` now (see [AI actors](#ai-actors)). The
+first `--watch` or `--diff` run against a snapshot saved by 0.3.0 reports each such row as
+changed, with `history-rewritten` in `changed_fields`, and `new_history_tail` is the whole
+string, not new events. Rows with no AI actor are not affected, and neither is any repo
+without a norms file. A `--watch` run replaces the baseline, so the second run is clean. To
+skip the report, replace the baseline once, before the first scheduled run, with the same
+query and name and `--snapshot`:
+
+```bash
+tkt pr list --repo OWNER/NAME --all --snapshot NAME
+```
+
+A job that polls with `--watch` can also skip the deltas that have `history-rewritten` on
+that first run ([`doc/automation.md`](automation.md#1-poll-what-moved-since-the-last-run)).
+
 ## `tkt snapshot`
 
 Manage saved query snapshots stored under `~/.tkt/snapshots/`. Snapshots
@@ -1351,9 +1367,11 @@ accounts are still `bot`. The disclosure pattern is matched against the whole bo
 a comment, review or opened item (the PR or issue body). Histories with no AI actors
 render exactly as before.
 
-An item an AI actor opened starts with `s` / `S` instead of `o` / `O`. A snapshot taken
-before this letter existed stores `o` for such an item, so the first diff after upgrading
-reports those rows as `history-rewritten`, once.
+An item an AI actor opened starts with `s` / `S` instead of `o` / `O`. Each later event
+of an AI actor changes its letter too: `A` becomes `V` and `c` becomes `n`, so `oAcm` in
+0.3.0 is `sVnm` now. A snapshot saved before AI actors were recognised holds the old
+letters, so the first diff against it reports each row an AI actor took part in as
+`history-rewritten`, once. See [Upgrading to 1.0](#upgrading-to-10).
 
 ### Bot detection
 
