@@ -332,3 +332,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-10 01:00 UTC - Merge Worker
+
+✅ **Merged: PR #115** (squash, [`26c7760`](https://github.com/jpshackelford/tickster/commit/26c7760b81f527db71a1f7c0a803fe9c73d217ae))
+
+- Head `38be822` merged cleanly into current `main` (after #114); pytest (1765 passed), ruff check, ruff format and basedpyright were clean on the merge result. CI and release-please on `26c7760` are green.
+- PR body updated to the final state. The commit uses `Refs #100`, so [#100](https://github.com/jpshackelford/tickster/issues/100) stays open (item 4, the release-notes sentence, waits for the release).
+- Next: [PR #117](https://github.com/jpshackelford/tickster/pull/117) can merge now. Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
