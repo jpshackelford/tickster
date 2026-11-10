@@ -3,6 +3,22 @@
 Coordination log for the sample-dark-factory orchestrator. Its configuration is in `.agents/resources/orchestration.md`.
 The orchestrator appends entries and commits them to `main`. Humans can leave `## INSTRUCTION:` entries for it.
 
+## INSTRUCTION: Merge order for the 1.0 pre-release fixes (2026-11-10, @jpshackelford)
+
+This block is live until PRs #111, #112, #114 and #115 are all merged. Then a human removes it.
+
+**Merge order.** Merge one PR at a time, in this order, and wait for CI on the new `main` head before the next:
+
+1. [PR #111](https://github.com/jpshackelford/tickster/pull/111) (fixes #103, #104, #106). It was stacked on #110. It now targets `main` and was rebased on #110's merge commit, so its head is `6845244`. The code and docs are identical to the head that was manually tested and approved (`e8d3da9`). Do not run manual testing again. Wait for CI on `6845244`, and check that the base is `main` before you merge. Never merge it into any other branch.
+2. [PR #112](https://github.com/jpshackelford/tickster/pull/112) (fixes #108) and [PR #114](https://github.com/jpshackelford/tickster/pull/114) (fixes #113), in any order. They touch different files.
+3. [PR #115](https://github.com/jpshackelford/tickster/pull/115) (docs for #100). It changes docs only, so `.openhands/skills/manual-test/SKILL.md` does not require a manual-test report. It was checked against a real 0.3.0 install. Treat a testing worker's report on it as extra, not as a gate. It uses `Refs #100`, so merging it must not close #100: item 4 of that issue (a sentence in the v1.0.0 release notes) can only be done after the release. Leave #100 open.
+
+**Issue #109.** It is `ready`, but it changes `cmd_show` and `cmd_list` in `src/snapshot/cli/commands.py` and their tests in `tests/snapshot/test_cli.py`. PR #111 changes the same functions and tests. Do not start work on #109 until #111 is merged. Then branch from `main`.
+
+**Issues with a PR or a human step.** Do not expand or implement #100, #102, #103, #104, #105, #106, #108 or #113. Each has a PR already, or is waiting on one above. #107 was closed as not reproducible. Do not reopen it. #101 (the `&gt;` in the changelog) is a human step on the release PR, after the four PRs above are merged and release-please has refreshed it. Do not touch release [PR #44](https://github.com/jpshackelford/tickster/pull/44) or #101.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
 ## Log
 
 ### 2026-11-08 01:36 UTC - Orchestrator
