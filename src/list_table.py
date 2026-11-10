@@ -68,7 +68,7 @@ def print_fitted_table(
     Returns whether a History cell was cropped; the crop legend is printed too.
     """
     if not console.is_terminal:
-        _print_natural(console, table, rows)
+        print_natural(console, table, rows)
         return False
 
     shrinkable = {i for i, c in enumerate(table.columns) if c.width is None and not c.no_wrap}
@@ -93,7 +93,8 @@ def print_fitted_table(
     return any(cropped)
 
 
-def _print_natural(console: Console, table: Table, rows: Sequence[Sequence[str]]) -> None:
+def print_natural(console: Console, table: Table, rows: Sequence[Sequence[str]]) -> None:
+    """Add `rows` to `table` and print it at the width it needs, ignoring the console width."""
     for row in rows:
         table.add_row(*row)
     columns = table.columns

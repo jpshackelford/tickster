@@ -12,9 +12,11 @@ import logging
 
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from src.cli_errors import err_console, print_error
+from src.list_table import add_shrinkable_column, print_fitted_table, print_natural, print_note
 from src.snapshot import diff as diff_module
 from src.snapshot import render, store
 from src.snapshot.models import VALID_KINDS
@@ -47,14 +49,16 @@ def cmd_list(*, kind: str | None = None) -> int:
     table.add_column("Captured at", no_wrap=True)
     table.add_column("Items", justify="right", no_wrap=True)
     table.add_column("Scope#", no_wrap=True)
-    for r in records:
-        table.add_row(
-            f"{r.kind}/{r.name}",
-            r.captured_at,
-            str(r.item_count),
-            r.scope_hash,
-        )
-    console.print(table)
+    rows = [
+        [escape(f"{r.kind}/{r.name}"), r.captured_at, str(r.item_count), r.scope_hash]
+        for r in records
+    ]
+    if console.is_terminal:
+        for row in rows:
+            table.add_row(*row)
+        console.print(table)
+    else:
+        print_natural(console, table, rows)
     return 0
 
 
@@ -75,23 +79,30 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
         print(json.dumps(snap.to_dict(), indent=2))
         return 0
 
-    console.print(
+    print_note(
+        console,
         f"[bold]{snap.kind}/{snap.name}[/]  "
         f"captured_at={snap.captured_at}  "
         f"scope#{snap.scope_hash}  "
-        f"items={len(snap.items)}"
+        f"items={len(snap.items)}",
     )
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
-    table.add_column("Repo", style="cyan", no_wrap=True)
+    add_shrinkable_column(table, "Repo", style="cyan")
     table.add_column("#", justify="right", no_wrap=True)
     table.add_column("History", no_wrap=True)
     table.add_column("State", no_wrap=True)
     table.add_column("Last", no_wrap=True)
-    for it in snap.items:
-        table.add_row(
-            it.repo, str(it.number), it.history, it.state, render.relative_time(it.last_activity)
-        )
-    console.print(table)
+    rows = [
+        [
+            escape(it.repo),
+            str(it.number),
+            escape(it.history),
+            it.state,
+            render.relative_time(it.last_activity),
+        ]
+        for it in snap.items
+    ]
+    print_fitted_table(console, table, rows, history_col=2)
     return 0
 
 
