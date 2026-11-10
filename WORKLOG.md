@@ -369,3 +369,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-10 01:05 UTC - Merge Worker
+
+✅ **Merged: PR #117** (squash, [`2ce0534`](https://github.com/jpshackelford/tickster/commit/2ce0534a1213c60e4186e6bb14e95f530704ffc7)), closes #109
+
+- Head `1c3c906` merged cleanly into `main` `c7acf5b`; pytest (1769 passed), ruff check, ruff format and basedpyright were clean on the merge result. Manual test report (6 of 6 pass) was posted after the last commit.
+- PR body updated to the final state; the squash commit says `Fixes #109`, and #109 is closed.
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
