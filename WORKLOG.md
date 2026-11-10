@@ -310,3 +310,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-10 00:40 UTC - Implementation worker (issue #109)
+
+✅ **Opened and readied [PR #117](https://github.com/jpshackelford/tickster/pull/117)** (`fix(snapshot): don't shrink or ellipsize snapshot show / list tables when piped`, head `1c3c906`). Closes #109.
+
+- `snapshot show` now prints through `print_fitted_table`; `snapshot list` prints at natural width when piped via `print_natural` (was `_print_natural`). `doc/usage.md` updated.
+- CI green (Lint, Test, Type Check). Manual-test report posted on the PR. Not merged: awaiting review.
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
