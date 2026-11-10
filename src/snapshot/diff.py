@@ -222,10 +222,12 @@ def _is_mergeability_warmup(prev: ItemSnapshot, curr: ItemSnapshot) -> bool:
     """True when a CI change to or from `conflict` is only GitHub still computing mergeability.
 
     While `mergeable` is `UNKNOWN`, `ci_status` falls back to the check rollup,
-    so it flips to `conflict` once the answer arrives. Only moves involving
-    `conflict` are suppressed: a rollup change (green to red) is real.
+    so it flips to `conflict` once the answer arrives. A baseline saved before
+    `mergeable` was recorded (`None`) is the same case: its CI value never knew
+    about conflicts. Only moves involving `conflict` are suppressed: a rollup
+    change (green to red) is real.
     """
-    if _MERGEABILITY_UNKNOWN not in (prev.mergeable, curr.mergeable):
+    if not {_MERGEABILITY_UNKNOWN, None} & {prev.mergeable, curr.mergeable}:
         return False
     return "conflict" in (prev.ci_status, curr.ci_status)
 

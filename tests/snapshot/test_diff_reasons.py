@@ -171,6 +171,16 @@ class TestMergeabilityWarmUp:
     def test_conflict_appearing_or_clearing_around_unknown_is_not_a_change(self, prev, curr):
         assert _changed(_pr(**prev), _pr(**curr)) == ()
 
+    @pytest.mark.parametrize("prev_ci", ["green", "red", "pending"])
+    def test_a_baseline_without_mergeable_does_not_flag_a_conflict(self, prev_ci):
+        prev = _pr(head_sha=None, mergeable=None, merge_state=None, ci_status=prev_ci)
+        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci_status="conflict")
+        assert _changed(prev, curr) == ()
+
+    def test_a_baseline_without_mergeable_still_flags_a_rollup_change(self):
+        prev = _pr(head_sha=None, mergeable=None, merge_state=None, ci_status="green")
+        assert _changed(prev, _pr(ci_status="red")) == ("ci_status",)
+
     def test_unknown_to_conflicting_leaves_the_row_unchanged(self):
         prev = _pr(mergeable="UNKNOWN", merge_state="UNKNOWN", ci_status="green")
         curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci_status="conflict")
