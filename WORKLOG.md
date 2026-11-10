@@ -5,21 +5,6 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
-### 2026-11-08 01:36 UTC - Orchestrator
-
-🔒 **Auto-disabled due to inactivity**
-
-- Second consecutive quiet cycle: no active workers, no `ready` issues, nothing in scope to expand. Slots: PR 0 busy, 2 free; expansion 0 busy, 2 free.
-- Only open PR is release [PR #44](https://github.com/jpshackelford/tickster/pull/44) (`hold`, untouched).
-- Re-enable: `PATCH $OPENHANDS_HOST/api/automation/v1/b2e31bf7-9f0d-46f6-89fc-75aafae0f9ec` with `{"enabled": true}`, or use the automations UI.
-
-**Active Workers:**
-
-_None._
-
-_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
-
----
 ### 2026-11-09 20:55 UTC - Orchestrator
 
 🛠 **Launched: Implementation Worker**
@@ -318,6 +303,31 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - `snapshot show` now prints through `print_fitted_table`; `snapshot list` prints at natural width when piped via `print_natural` (was `_print_natural`). `doc/usage.md` updated.
 - CI green (Lint, Test, Type Check). Manual-test report posted on the PR. Not merged: awaiting review.
 - Release [PR #44](https://github.com/jpshackelford/tickster/pull/44) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-10 00:50 UTC - Orchestrator
+
+🚀 **Launched: Merge Worker**
+
+- Merge [PR #115](https://github.com/jpshackelford/tickster/pull/115) (head `38be822`, CI green, approved, tested after head). Conversation: [`62e35a1`](https://app.beta.staging.all-hands-testing.dev/conversations/62e35a186be2431e8ab4785474ed6fe0)
+- #114 merged, #109 implemented as [PR #117](https://github.com/jpshackelford/tickster/pull/117); workers `ee6d5d0`, `e8cb2fd` finished.
+- Slots: PR 1 busy, 1 free (PR #117 waits for #115: both touch `doc/usage.md`); expansion 0 busy, 2 free (nothing in scope).
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `62e35a1` | merge | PR #115 | **NEW** |
+
+**Current State:**
+
+- [PR #117](https://github.com/jpshackelford/tickster/pull/117) (`1c3c906`): CI green, approved, tested; next to merge after #115
+- Release [PR #44](https://github.com/jpshackelford/tickster/pull/44): `hold`, untouched
+- Ready issues without a PR: none. Needs split: #71. #100 stays open (`Refs`); #101 not in scope
+- All other open issues (#12, #14, #15, #28–#39) are `hold`
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
