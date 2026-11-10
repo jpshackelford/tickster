@@ -2,6 +2,7 @@
 
 from rich.console import Console
 
+from src.cli_errors import print_error
 from src.repo.config import (
     UNNAMED_BOARD_PREFIX,
     add_repo,
@@ -30,13 +31,13 @@ def cmd_add(
         Exit code (0 for success)
     """
     if not repos:
-        console.print("[red]Error:[/] No repos specified")
+        print_error("No repos specified")
         return 1
 
     for repo in repos:
         # Basic validation
         if "/" not in repo:
-            console.print(f"[red]Error:[/] Invalid repo format: {repo} (expected owner/repo)")
+            print_error(f"Invalid repo format: {repo} (expected owner/repo)")
             return 1
 
     added = []
@@ -87,7 +88,7 @@ def cmd_remove(
         Exit code (0 for success)
     """
     if not repos:
-        console.print("[red]Error:[/] No repos specified")
+        print_error("No repos specified")
         return 1
 
     removed = []

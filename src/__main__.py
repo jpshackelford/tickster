@@ -51,6 +51,14 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
 EXIT_BROKEN_PIPE = 141
 
 
+def _raise_broken_pipe(_console: Console) -> None:
+    raise BrokenPipeError
+
+
+# Rich would end the process with exit 1 on a closed pipe; main() turns this into 141.
+Console.on_broken_pipe = _raise_broken_pipe  # pyright: ignore[reportAttributeAccessIssue]
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the CLI; a closed stdout (``| head``) ends quietly.
 

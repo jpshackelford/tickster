@@ -119,7 +119,9 @@ class TestPrListCommand:
         serve(monkeypatch, fake)
 
         assert pr_list.cmd_list(author="alice", repos=["owner/repo"], limit=10) == 1
-        assert "502 Bad Gateway" in capsys.readouterr().out
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "502 Bad Gateway" in captured.err
 
 
 class TestIssueAndReviewPaging:

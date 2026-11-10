@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).parent.parent
 
 
@@ -18,6 +20,27 @@ def test_closed_stdout_exits_quietly():
             stderr=subprocess.PIPE,
             text=True,
             cwd=REPO_ROOT,
+            timeout=60,
+        )
+    finally:
+        os.close(write_fd)
+
+    assert proc.stderr == ""
+    assert proc.returncode == 141
+
+
+@pytest.mark.parametrize("command", [["board", "macros"], ["snapshot", "list"], ["repo", "list"]])
+def test_closed_stdout_exits_141_for_commands_that_print_with_rich(command, tmp_path):
+    read_fd, write_fd = os.pipe()
+    os.close(read_fd)
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "src", *command],
+            stdout=write_fd,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=REPO_ROOT,
+            env={**os.environ, "HOME": str(tmp_path)},
             timeout=60,
         )
     finally:

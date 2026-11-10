@@ -9,6 +9,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from src.all_authors import all_authors_error
+from src.cli_errors import VERBOSE_HINT, print_error
 from src.connection_paging import TRUNCATION_MARKER
 from src.date_window import (
     DateWindow,
@@ -89,7 +90,7 @@ def cmd_list(
     """
     # Validate graph flag - only works with merged state
     if show_graph and (not states or "merged" not in states):
-        console.print("[red]Error:[/] --graph only works with --merged flag")
+        print_error("--graph only works with --merged flag")
         return 1
 
     reviewers_mode = "names" if reviewer_names else "counts" if show_reviewers else None
@@ -104,13 +105,13 @@ def cmd_list(
             refs=pr_refs,
         )
     except DateWindowError as e:
-        console.print(f"[red]Error:[/] {e}")
+        print_error(str(e))
         return 1
     date_qualifier = window.to_qualifier() if window else None
 
     if all_authors and reviewer:
-        console.print(
-            "[red]Error:[/] --all-authors cannot be combined with --reviewer: review-requested "
+        print_error(
+            "--all-authors cannot be combined with --reviewer: review-requested "
             "PRs already include every author. Drop one of them."
         )
         return 1
@@ -120,7 +121,7 @@ def cmd_list(
         if all_authors:
             error = all_authors_error(has_refs=bool(pr_refs), repos=target_repos, noun="PRs")
             if error:
-                console.print(f"[red]Error:[/] {error}")
+                print_error(error)
                 return 1
 
         with PRClient() as client:
@@ -230,10 +231,11 @@ def cmd_list(
 
             return 0
 
+    except BrokenPipeError:
+        raise
     except Exception as e:
         logger.debug("Full traceback:\n%s", traceback.format_exc())
-        console.print(f"[red]Error:[/] {e}")
-        console.print("[dim]Run with --verbose for full traceback[/]")
+        print_error(str(e), hint=VERBOSE_HINT)
         return 1
 
 

@@ -119,9 +119,10 @@ def test_explicit_refs_through_the_cli_are_rejected(
     monkeypatch.setattr(module, client_attr, NoNetworkClient)
     monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
     assert main([command, "list", *args, "--all-authors"]) == 1
-    out = capsys.readouterr().out
-    assert "--all-authors cannot be combined with explicit refs" in out
-    assert "drop --all-authors" in out
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--all-authors cannot be combined with explicit refs" in captured.err
+    assert "drop --all-authors" in captured.err
 
 
 @pytest.mark.parametrize("command", ["issue", "pr"])
@@ -130,9 +131,10 @@ def test_without_repos_is_an_error_and_sends_no_search(command, board_repos, mon
     board_repos.clear()
     monkeypatch.setattr(module, client_attr, NoNetworkClient)
     assert cmd_list(all_authors=True) == 1
-    out = capsys.readouterr().out
-    assert "--all-authors needs repos to search" in out
-    assert "--repo OWNER/REPO" in out
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--all-authors needs repos to search" in captured.err
+    assert "--repo OWNER/REPO" in captured.err
 
 
 def test_pr_all_authors_with_reviewer_is_an_error(
@@ -142,7 +144,7 @@ def test_pr_all_authors_with_reviewer_is_an_error(
 ):
     monkeypatch.setattr(pr_list, "PRClient", NoNetworkClient)
     assert pr_list.cmd_list(all_authors=True, reviewer="bob") == 1
-    assert "--all-authors cannot be combined with --reviewer" in capsys.readouterr().out
+    assert "--all-authors cannot be combined with --reviewer" in capsys.readouterr().err
 
 
 # --- search ------------------------------------------------------------------
