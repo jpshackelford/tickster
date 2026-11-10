@@ -75,14 +75,18 @@ def test_show_json_format_is_parseable(seed, capsys):  # noqa: ARG001
 
 def test_show_rejects_bad_ref(seed, capsys):  # noqa: ARG001
     rc = cli.cmd_show("bogus-no-slash")
+    captured = capsys.readouterr()
     assert rc == 2
-    assert "Error" in capsys.readouterr().out
+    assert captured.out == ""
+    assert captured.err.startswith("Error: ")
 
 
 def test_show_rejects_unknown_kind(seed, capsys):  # noqa: ARG001
     rc = cli.cmd_show("bogus/hourly")
+    captured = capsys.readouterr()
     assert rc == 2
-    assert "Error" in capsys.readouterr().out
+    assert captured.out == ""
+    assert captured.err.startswith("Error: ")
 
 
 def test_rm_removes_snapshots(seed, capsys):  # noqa: ARG001
@@ -96,7 +100,9 @@ def test_rm_removes_snapshots(seed, capsys):  # noqa: ARG001
 def test_rm_reports_missing(seed, capsys):  # noqa: ARG001
     rc = cli.cmd_rm(["pr/nope"])
     assert rc == 1
-    assert "not found" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "not found" in captured.err
 
 
 @pytest.mark.parametrize(
@@ -126,9 +132,10 @@ def test_diff_two_snapshots_renders_changes(seed, capsys):  # noqa: ARG001
 def test_diff_rejects_cross_kind(seed, capsys):  # noqa: ARG001
     store.save(make_snapshot(kind="issue", name="hourly", items=[]))
     rc = cli.cmd_diff("pr/hourly", "issue/hourly")
-    out = capsys.readouterr().out
+    captured = capsys.readouterr()
     assert rc == 2
-    assert "cannot diff across kinds" in out
+    assert captured.out == ""
+    assert "cannot diff across kinds" in captured.err
 
 
 def test_diff_json_errors_go_to_stderr(seed, capsys):  # noqa: ARG001
@@ -143,3 +150,41 @@ def test_diff_json_errors_go_to_stderr(seed, capsys):  # noqa: ARG001
     assert rc == 1
     assert captured.out == ""
     assert "Error" in captured.err
+
+
+def _corrupt(seed, name: str = "broken") -> str:  # noqa: ARG001
+    path = store.snapshots_dir() / f"pr-{name}.json"
+    path.write_text('{"kind": "pr", "name": "broken", "items": [')
+    return str(path)
+
+
+def test_show_corrupt_snapshot_is_one_error_line_on_stderr(seed, capsys):
+    path = _corrupt(seed)
+    assert cli.cmd_show("pr/broken", output_format="json") == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.count("\n") == 1
+    assert captured.err.startswith("Error: snapshot pr/broken cannot be read (")
+    assert path in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_list_with_a_corrupt_file_still_lists_the_others(seed, capsys, caplog):
+    _corrupt(seed)
+    assert cli.cmd_list() == 0
+    out = capsys.readouterr().out
+    assert "pr/hourly" in out and "pr/later" in out
+    assert [r.levelname for r in caplog.records] == ["WARNING"]
+
+
+def test_diff_with_a_corrupt_snapshot_is_an_error_on_stderr(seed, capsys):
+    _corrupt(seed)
+    assert cli.cmd_diff("pr/hourly", "pr/broken", output_format="json") == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "snapshot pr/broken cannot be read" in captured.err
+
+
+def test_diff_header_names_the_kind_of_both_snapshots(seed, capsys):  # noqa: ARG001
+    assert cli.cmd_diff("pr/hourly", "pr/later") == 0
+    assert "→ pr/later (" in capsys.readouterr().out.splitlines()[0]

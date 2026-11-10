@@ -107,7 +107,7 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
     if prev.name == curr.name:
         span = f"{prev.kind}/{prev.name}: {prev_when} → {curr_when}"
     else:
-        span = f"{prev.kind}/{prev.name} ({prev_when}) → {curr.name} ({curr_when})"
+        span = f"{prev.kind}/{prev.name} ({prev_when}) → {curr.kind}/{curr.name} ({curr_when})"
     header = (
         f"diff {span}  "
         f"([green]+{counts[ChangeKind.ADDED]}[/] new, "

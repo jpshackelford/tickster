@@ -31,6 +31,7 @@ from dataclasses import dataclass, replace
 
 from rich.console import Console
 
+from src.cli_errors import print_error
 from src.snapshot import diff as diff_module
 from src.snapshot import render as render_module
 from src.snapshot import store
@@ -151,6 +152,9 @@ class SnapshotPlan:
                 "treating all current rows as new.[/]"
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
+        except store.SnapshotFormatError as e:
+            print_error(str(e))
+            return 1
         result = diff_module.diff_snapshots(prev, curr)
         if self.resolve:
             if fetch_by_ref is None:

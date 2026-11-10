@@ -359,8 +359,7 @@ class Snapshot:
         if schema != SCHEMA_VERSION:
             raise ValueError(
                 f"unsupported snapshot schema version: {schema} "
-                f"(this build understands {SCHEMA_VERSION}); "
-                "delete the snapshot or upgrade/downgrade tkt"
+                f"(this build understands {SCHEMA_VERSION}); upgrade or downgrade tkt"
             )
         kind = data["kind"]
         if kind not in VALID_KINDS:
@@ -376,7 +375,7 @@ class Snapshot:
             name=data["name"],
             captured_at=data["captured_at"],
             scope=scope,
-            items=tuple(ItemSnapshot.from_dict(it) for it in data.get("items", [])),
+            items=tuple(ItemSnapshot.from_dict(it) for it in data["items"]),
             has_more=bool(data.get("has_more", False)),
         )
 

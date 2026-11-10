@@ -14,6 +14,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from src.cli_errors import err_console, print_error
 from src.snapshot import diff as diff_module
 from src.snapshot import render, store
 from src.snapshot.models import VALID_KINDS
@@ -62,12 +63,12 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
     try:
         kind, name = _parse_ref(ref)
     except ValueError as e:
-        console.print(f"[red]Error:[/] {e}")
+        print_error(str(e))
         return 2
     try:
         snap = store.load(kind, name)
-    except FileNotFoundError as e:
-        console.print(f"[red]Error:[/] {e}")
+    except (FileNotFoundError, store.SnapshotFormatError) as e:
+        print_error(str(e))
         return 1
 
     if output_format == "json":
@@ -106,13 +107,13 @@ def cmd_rm(refs: list[str]) -> int:
         try:
             kind, name = _parse_ref(ref)
         except ValueError as e:
-            console.print(f"[red]Error:[/] {e}")
+            print_error(str(e))
             exit_code = max(exit_code, 2)
             continue
         if store.delete(kind, name):
             console.print(f"removed {kind}/{name}")
         else:
-            console.print(f"[yellow]not found:[/] {kind}/{name}")
+            err_console.print(f"[yellow]not found:[/] {kind}/{name}")
             exit_code = max(exit_code, 1)
     return exit_code
 
@@ -126,21 +127,20 @@ def cmd_diff(
     detail: bool = False,
 ) -> int:
     """Diff two stored snapshots (`kind/name`)."""
-    err = Console(stderr=True) if output_format == "json" else console
     try:
         p_kind, p_name = _parse_ref(prev_ref)
         c_kind, c_name = _parse_ref(curr_ref)
     except ValueError as e:
-        err.print(f"[red]Error:[/] {e}")
+        print_error(str(e))
         return 2
     if p_kind != c_kind:
-        err.print(f"[red]Error:[/] cannot diff across kinds ({prev_ref} vs {curr_ref})")
+        print_error(f"cannot diff across kinds ({prev_ref} vs {curr_ref})")
         return 2
     try:
         prev = store.load(p_kind, p_name)
         curr = store.load(c_kind, c_name)
-    except FileNotFoundError as e:
-        err.print(f"[red]Error:[/] {e}")
+    except (FileNotFoundError, store.SnapshotFormatError) as e:
+        print_error(str(e))
         return 1
     result = diff_module.diff_snapshots(prev, curr)
     render.render_diff(
