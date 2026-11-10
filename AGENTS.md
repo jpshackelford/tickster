@@ -28,8 +28,9 @@ CI (`.github/workflows/ci.yml`) runs all four on every PR; all must be clean.
 - Report headers and markers are machine-checked through `.agents/tickster.toml`.
 - Attribution: any comment, issue, or PR body an agent posts must include
   _"created by an AI agent (OpenHands) on behalf of @jpshackelford"_.
-- Never push directly to `main`. Open a PR. The one exception: the orchestrator
-  commits `WORKLOG.md` to `main`.
+- Never push directly to `main`. Open a PR. The one exception: `WORKLOG.md`.
+  Commits to it go straight to `main`, never through a PR, and are typed
+  `chore(worklog):`. A `docs` type would appear in the release changelog.
 - The orchestrator and its workers read `.agents/resources/`. Scope is set with
   labels: work only on issues labelled `ready`, and never on ones labelled `hold`.
 - Keep this file short. Add new procedures as skills under
