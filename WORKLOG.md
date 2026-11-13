@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 12:30 UTC - Implementation worker
+
+- [Issue #141](https://github.com/jpshackelford/tickster/issues/141): print the effective `Filters:` line under `pr list` and `review` → [PR #171](https://github.com/jpshackelford/tickster/pull/171). CI green, marked ready for review. Follow-up to file: `pr list --reviewer` silently ignores `--author` / `--merged` / `--closed`.
+
 ### 2026-11-13 12:00 UTC - Implementation worker
 
 - [Issue #122](https://github.com/jpshackelford/tickster/issues/122): removed `--since-snapshot` from `pr show` and `issue show` → [PR #170](https://github.com/jpshackelford/tickster/pull/170). CI green, manual test posted, marked ready for review.
