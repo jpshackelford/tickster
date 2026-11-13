@@ -9,10 +9,18 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Sequence
+from typing import Any
 
 from dotenv import find_dotenv, load_dotenv
 from rich.console import Console
 
+from src.date_window import (
+    FIELD_FLAG_KINDS,
+    ISSUE_DATE_FIELDS,
+    field_flag,
+    field_flag_dest,
+)
 from src.show.models import DEFAULT_MAX_BODY
 
 # Search from the working directory; the default searches from this file's
@@ -46,6 +54,46 @@ def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
         choices=["created", "updated", "merged", "closed"],
         help="Date field to filter on (default: inferred from state); requires --since/--after/--before",
     )
+
+
+def _add_field_date_args(
+    parser: argparse.ArgumentParser, fields: Sequence[str], *, noun: str
+) -> None:
+    """Add --{field}-since/-after/-before flags that name the date they filter."""
+    group = parser.add_argument_group(
+        "Date filters by field",
+        "Each flag names the date it filters on. Use one field per query; "
+        "they cannot be mixed with --since/--after/--before/--date-field.",
+    )
+    for field in fields:
+        group.add_argument(
+            field_flag(field, "since"),
+            dest=field_flag_dest(field, "since"),
+            type=int,
+            metavar="DAYS",
+            help=f"Only {noun} {field} since the start of the UTC day N days ago (0 = today)",
+        )
+        group.add_argument(
+            field_flag(field, "after"),
+            dest=field_flag_dest(field, "after"),
+            metavar="YYYY-MM-DD",
+            help=f"Only {noun} {field} on/after this UTC date (inclusive)",
+        )
+        group.add_argument(
+            field_flag(field, "before"),
+            dest=field_flag_dest(field, "before"),
+            metavar="YYYY-MM-DD",
+            help=f"Only {noun} {field} on/before this UTC date (inclusive)",
+        )
+
+
+def _field_date_values(args: argparse.Namespace, fields: Sequence[str]) -> dict[str, Any]:
+    return {
+        dest: getattr(args, dest)
+        for field in fields
+        for kind in FIELD_FLAG_KINDS
+        for dest in (field_flag_dest(field, kind),)
+    }
 
 
 EXIT_BROKEN_PIPE = 141
@@ -854,6 +902,7 @@ Examples:
         help="Sort by recent activity instead of creation date",
     )
     _add_date_window_args(issue_list_parser)
+    _add_field_date_args(issue_list_parser, ISSUE_DATE_FIELDS, noun="issues")
     _add_snapshot_flags(issue_list_parser)
 
     # issue show
@@ -1366,6 +1415,7 @@ Examples:
                 after=args.after,
                 before=args.before,
                 date_field=args.date_field,
+                field_dates=_field_date_values(args, ISSUE_DATE_FIELDS),
             )
 
     # Handle snapshot command
