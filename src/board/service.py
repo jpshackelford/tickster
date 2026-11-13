@@ -266,7 +266,7 @@ def scan_repos(
     if not scan_repos_list:
         return result
 
-    lookback = since_days or config.scan_lookback_days
+    lookback = since_days if since_days is not None else config.scan_lookback_days
     since_date = datetime.now(tz=UTC) - timedelta(days=lookback)
 
     with GitHubClient() as client:

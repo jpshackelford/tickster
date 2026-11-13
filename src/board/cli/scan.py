@@ -111,7 +111,7 @@ def cmd_scan(
         return 1
 
     # Calculate date range
-    lookback = since_days or config.scan_lookback_days
+    lookback = since_days if since_days is not None else config.scan_lookback_days
     since_date = datetime.now(tz=UTC) - timedelta(days=lookback)
 
     print_info(f"User: {username}", dim=True)

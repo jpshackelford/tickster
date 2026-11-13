@@ -152,5 +152,5 @@ def test_other_commands_keep_their_own_time_flags(monkeypatch):
 
     assert main(["pr", "show", "o/r#7", "--since-time", "2026-11-05T10:00:00Z"]) == 0
     assert main(["pr", "changes", "o/r#7", "--since-sha", "deadbee"]) == 0
-    assert main(["board", "scan", "--since", "7"]) == 0
+    assert main(["board", "scan", "--updated-since", "7"]) == 0
     assert seen == {"show": "2026-11-05T10:00:00Z", "changes": "deadbee", "scan": 7}
