@@ -1419,6 +1419,49 @@ diffs against *this* hour. An empty result is still a snapshot: when the
 last item in scope closes, `--watch` reports it as a `-` row and saves an
 empty baseline.
 
+### Exit codes and `--exit-code`
+
+`--diff` and `--watch` exit 0 whether or not any row changed, so a script cannot tell a quiet
+tick from a busy one without reading the output. `--exit-code` on `tkt pr list`,
+`tkt issue list` and `tkt review` makes that a status, the way
+[`git diff --exit-code`](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---exit-code)
+does for a work tree:
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Success. With `--exit-code`: no row was added, changed or removed, or there are no rows |
+| 1 | Error, such as a bad token, no network, a bad baseline file or a failed save |
+| 2 | Usage error, such as `--exit-code` without `--diff` or `--watch`, or a scope mismatch |
+| 10 | With `--exit-code` only: at least one row was added (`+`), changed (`*`) or removed (`-`) |
+
+- `--exit-code` is a usage error (exit 2, empty stdout, no GitHub call) without `--diff` or `--watch`.
+- Exit 10 follows the same rules as exit 0: the diff is printed, then the baseline is saved
+  (`--watch`) or staged for `tkt snapshot ack` (`--diff`). stdout is the same with and without the flag.
+- Exit 1 and exit 2 win over 10. A scope mismatch still exits 2, and writes nothing.
+- A first run with no baseline and at least one row exits 10: every row is new.
+- Unchanged rows never count, even with `--diff-include-unchanged`.
+- Without `--exit-code` the exit codes are as before; most shells run `set -e` scripts
+  as if exit 10 were a failure, which is why the flag is opt-in.
+
+| | `git diff --exit-code` | `tkt … --diff NAME --exit-code` |
+| --- | --- | --- |
+| No changes | 0 | 0 |
+| Changes | 1 | 10 |
+| Error | 128, or another code above 1 | 1 |
+| Usage error | 129 | 2 |
+
+`tkt` uses 10 because 1 already means error and 2 already means usage error here. A caller can
+tell "something changed" from "something broke":
+
+```bash
+tkt pr list --board oh --watch hourly --exit-code --format json > tick.json
+case $? in
+  0)  ;;                    # quiet tick: do nothing
+  10) handle tick.json ;;   # something moved
+  *)  echo "tkt failed" >&2; exit 1 ;;
+esac
+```
+
 ### Staging a baseline with `--diff`
 
 A person at a terminal uses `--watch NAME`. A job uses `--diff NAME`, handles the

@@ -68,6 +68,7 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
+    exit_code: bool = False,
     events: str = EVENTS_BRIEF,
     max_body: int | None = None,
     field_dates: Mapping[str, int | str | None] | None = None,
@@ -192,6 +193,7 @@ def cmd_list(
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
                 resolve=diff_resolve,
+                exit_code=exit_code,
                 detail=show_detail,
                 show_steps=show_steps,
             )

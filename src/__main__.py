@@ -1458,6 +1458,7 @@ Examples:
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
+                exit_code=args.exit_code,
                 events=args.events or EVENTS_BRIEF,
                 max_body=args.max_body,
                 field_dates=_field_date_values(args, PR_DATE_FIELDS),
@@ -1500,6 +1501,7 @@ Examples:
             diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
             diff_resolve=args.diff_resolve,
+            exit_code=args.exit_code,
             field_dates=_field_date_values(args, REVIEW_DATE_FIELDS),
         )
 
@@ -1552,6 +1554,7 @@ Examples:
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
+                exit_code=args.exit_code,
                 field_dates=_field_date_values(args, ISSUE_DATE_FIELDS),
             )
 
@@ -1696,6 +1699,15 @@ def _add_snapshot_flags(parser) -> None:
             "instead of guessing. Costs one batched GitHub query per 20 gone rows."
         ),
     )
+    group.add_argument(
+        "--exit-code",
+        dest="exit_code",
+        action="store_true",
+        help=(
+            "With --diff / --watch, exit 10 when any row was added, changed or removed, "
+            "and 0 when nothing changed (like git diff --exit-code). Errors still exit 1 or 2."
+        ),
+    )
 
 
 def _add_diff_evidence_flags(parser) -> None:
@@ -1745,6 +1757,10 @@ def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Name
     ValueError, while CLI callers get argparse's standard error framing
     (program name, usage line, exit code 2) instead of a Python traceback.
     """
+    if getattr(args, "exit_code", False) and (
+        getattr(args, "watch_name", None) is None and getattr(args, "diff_name", None) is None
+    ):
+        parser.error("--exit-code needs --diff or --watch")
     if getattr(args, "watch_name", None) is None:
         return
     if getattr(args, "snapshot_name", None) is not None or (
