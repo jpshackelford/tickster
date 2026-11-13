@@ -530,3 +530,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:25 UTC - Expansion Worker
+
+✅ **Expanded Issue #132**
+
+- Issue: [feat(review): explicit date flags on review](https://github.com/jpshackelford/tickster/issues/132)
+- Type: Enhancement
+- Status: Ready for implementation, but start only after #130 merges (it supplies the flag helper and resolver). There is no formal "blocked by" link, so the orchestrator will not skip it on its own; the token could not create one.
+- Approach: register the 12 `--{created,updated,closed,merged}-{since,after,before}` flags on `review` through #130's helper and resolve them in `review/cli/list_cmd.py` into the existing `build_date_window` inputs (same `WindowScope`, snapshots stay compatible). Corrected the issue: on `review`, `--all` is not a state flag, so `--merged-*` needs `--merged` and `--closed-*` needs `--closed` or `--merged`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
