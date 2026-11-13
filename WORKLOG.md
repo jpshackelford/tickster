@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 12:00 UTC - Implementation worker
+
+- [Issue #122](https://github.com/jpshackelford/tickster/issues/122): removed `--since-snapshot` from `pr show` and `issue show` → [PR #170](https://github.com/jpshackelford/tickster/pull/170). CI green, manual test posted, marked ready for review.
+
 ### 2026-11-13 06:47 UTC - Orchestrator
 
 🚀 **Launched: 4 workers in parallel**
