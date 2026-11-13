@@ -1,0 +1,234 @@
+{
+  "jpshackelford/tickster#120": {
+    "number": 120,
+    "state": "OPEN",
+    "repository": {
+      "nameWithOwner": "jpshackelford/tickster"
+    },
+    "blockedBy": {
+      "totalCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "blocking": {
+      "totalCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "parent": null,
+    "milestone": null
+  },
+  "jpshackelford/tickster#123": {
+    "number": 123,
+    "state": "CLOSED",
+    "repository": {
+      "nameWithOwner": "jpshackelford/tickster"
+    },
+    "blockedBy": {
+      "totalCount": 1,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "MQ"
+      },
+      "nodes": [
+        {
+          "number": 121,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        }
+      ]
+    },
+    "blocking": {
+      "totalCount": 2,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "Mg"
+      },
+      "nodes": [
+        {
+          "number": 127,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 124,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        }
+      ]
+    },
+    "parent": {
+      "number": 120,
+      "repository": {
+        "nameWithOwner": "jpshackelford/tickster"
+      }
+    },
+    "milestone": null
+  },
+  "jpshackelford/tickster#124": {
+    "number": 124,
+    "state": "OPEN",
+    "repository": {
+      "nameWithOwner": "jpshackelford/tickster"
+    },
+    "blockedBy": {
+      "totalCount": 2,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "Mg"
+      },
+      "nodes": [
+        {
+          "number": 123,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 121,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        }
+      ]
+    },
+    "blocking": {
+      "totalCount": 1,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "MQ"
+      },
+      "nodes": [
+        {
+          "number": 127,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        }
+      ]
+    },
+    "parent": {
+      "number": 120,
+      "repository": {
+        "nameWithOwner": "jpshackelford/tickster"
+      }
+    },
+    "milestone": null
+  },
+  "jpshackelford/tickster#127": {
+    "number": 127,
+    "state": "OPEN",
+    "repository": {
+      "nameWithOwner": "jpshackelford/tickster"
+    },
+    "blockedBy": {
+      "totalCount": 6,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "Ng"
+      },
+      "nodes": [
+        {
+          "number": 126,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 125,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 124,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 123,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 122,
+          "state": "OPEN",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        },
+        {
+          "number": 121,
+          "state": "CLOSED",
+          "repository": {
+            "nameWithOwner": "jpshackelford/tickster"
+          }
+        }
+      ]
+    },
+    "blocking": {
+      "totalCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "parent": {
+      "number": 120,
+      "repository": {
+        "nameWithOwner": "jpshackelford/tickster"
+      }
+    },
+    "milestone": null
+  },
+  "astral-sh/uv#14524": {
+    "number": 14524,
+    "state": "CLOSED",
+    "repository": {
+      "nameWithOwner": "astral-sh/uv"
+    },
+    "blockedBy": {
+      "totalCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "blocking": {
+      "totalCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "parent": null,
+    "milestone": {
+      "title": "v0.8.0",
+      "dueOn": "2025-07-17T00:00:00Z"
+    }
+  }
+}

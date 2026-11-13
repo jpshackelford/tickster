@@ -10,6 +10,7 @@ from src.board.github_api import (
     get_github_username,
 )
 from src.connection_paging import ConnectionSpec, complete_connection
+from src.issue.dependencies import DEPENDENCY_FIELDS, ISSUE_BLOCKED_BY, ISSUE_BLOCKING
 from src.issue.models import IssueInfo, IssueListResult
 
 logger = logging.getLogger(__name__)
@@ -102,14 +103,17 @@ fragment IssueFields on Issue {{
     {ISSUE_LABELS.fragment_field()}
     {ISSUE_TIMELINE.fragment_field()}
     {CLOSING_PRS_FIELD}
+    {DEPENDENCY_FIELDS}
 }}
 """
 
 
 def complete_issue_connections(client: GitHubClient, issue_node: dict) -> None:
-    """Page through timeline events and labels past the first page."""
+    """Page through timeline events, labels and dependencies past the first page."""
     complete_connection(client, issue_node, ISSUE_TIMELINE)
     complete_connection(client, issue_node, ISSUE_LABELS)
+    complete_connection(client, issue_node, ISSUE_BLOCKED_BY)
+    complete_connection(client, issue_node, ISSUE_BLOCKING)
 
 
 class IssueClient:

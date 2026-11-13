@@ -22,6 +22,8 @@ PAGE_SIZES = {
     "reviewRequests": 20,
     "latestReviews": 20,
     "labels": 20,
+    "blockedBy": 50,
+    "blocking": 50,
 }
 FOLLOW_UP_SIZE = 100
 _FOLLOW_UP_FIELD = re.compile(r"on \w+ \{\s+(\w+)\(first")
@@ -45,7 +47,7 @@ def _first_pages(obj):
     for key, value in obj.items():
         if key in PAGE_SIZES and isinstance(value, dict) and "nodes" in value:
             paged = page(value["nodes"], None, PAGE_SIZES[key])
-            out[key] = {**paged, "nodes": _first_pages(paged["nodes"])}
+            out[key] = {**value, **paged, "nodes": _first_pages(paged["nodes"])}
         else:
             out[key] = _first_pages(value)
     return out

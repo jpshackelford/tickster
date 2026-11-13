@@ -9,8 +9,9 @@ both snapshots we compare the fields that drive the display and produce an
   plus `"activity"` when `last_activity` moved. PR rows also compare
   `head_sha`, `review_decision`, `merge_state` and `mergeable` (see
   `_compare_pr_detail`), `reviewers` when a reviewer's request or review
-  moved (the transitions are in `ItemDelta.reviewer_changes`) and `steps` when a
-  `--steps` status moved (the transitions are in `ItemDelta.step_changes`). History collapses
+  moved (the transitions are in `ItemDelta.reviewer_changes`), `steps` when a
+  `--steps` status moved (the transitions are in `ItemDelta.step_changes`) and
+  `open_blockers` when an issue's open blockers moved (`ItemDelta.blocker_note`). History collapses
   consecutive same-type events, so new comments or reviews can leave the
   string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
@@ -116,6 +117,9 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
         steps = _step_changes(p, c)
         if steps:
             changed += ("steps",)
+        blocker_note = _blocker_note(p, c)
+        if blocker_note:
+            changed += ("open_blockers",)
         tail = _new_history_tail(p.history, c.history)
         if changed:
             deltas.append(
@@ -128,6 +132,7 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
                     changed_fields=changed,
                     reviewer_changes=reviewers,
                     step_changes=steps,
+                    blocker_note=blocker_note,
                 )
             )
         else:
@@ -195,6 +200,24 @@ def _step_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
     if prev.steps is None or curr.steps is None:
         return ()
     return step_changes(prev.steps, curr.steps)
+
+
+def _blocker_note(prev: ItemSnapshot, curr: ItemSnapshot) -> str:
+    """`unblocked`, `blocked` or `blockers changed`; empty when the open blockers did not move.
+
+    Empty too when either snapshot predates the dependency facts. `blocking`, `parent`
+    and `milestone` are recorded but never mark a row: only a blocker change tells
+    a reader that an issue can now be started, or can no longer be.
+    """
+    if prev.open_blockers is None or curr.open_blockers is None:
+        return ""
+    if prev.open_blockers == curr.open_blockers:
+        return ""
+    if not curr.open_blockers:
+        return "unblocked"
+    if not prev.open_blockers:
+        return "blocked"
+    return "blockers changed"
 
 
 def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:

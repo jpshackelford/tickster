@@ -112,6 +112,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--all, -A` | Show all states (open + closed) |
 | `--limit, -n N` | Max issues to show (default: 100) |
 | `--title, -t` | Show issue titles |
+| `--deps` | Add `Blocked by` (open blockers, `--` for none) and `Blocks` (open issues this one blocks) columns. See [Issue dependencies](#issue-dependencies) |
 | `--activity, -s` | Sort by recent activity instead of creation date |
 | `--since DAYS` | Only issues since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only issues on/after this date (inclusive) |
@@ -126,6 +127,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 tkt issue list                              # your open issues
 tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
+tkt issue list --deps                       # which of my open issues are blocked
 tkt issue list octocat/hello-world#42       # a specific issue
 tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
 tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
@@ -177,7 +179,10 @@ timeline: 5 events, oldest first
 ```
 
 The header has the state, the [history string](#history-strings), author, dates,
-labels, assignees, and linked PRs. Each timeline line is
+labels, assignees, and linked PRs. When GitHub knows any
+[dependency facts](#issue-dependencies) for the issue, one more line follows:
+`blocked by: #121, #123  blocks: 1  parent: #120  milestone: v2`. It leaves out
+the parts that are empty and is missing when all four are. Each timeline line is
 `time char actor(class) text`; the `char` is the event's character in the
 history string (`-` when the history string leaves that event out) and `class`
 is the [actor class](#bot-detection) (`me`, `human`, `bot`, `agent`,
@@ -206,6 +211,10 @@ order. It has no `draft`, `ci`, `unresolved_threads`, `head`, `mergeable`,
 | `assignees` | Assignee logins |
 | `linked_pr` | One linked PR as `owner/repo#number`, or `null` if there is none. The same PR the [history string](#linked-prs) uses: the first merged one, else the first open one, else the first |
 | `linked_prs` | Every linked PR as `{"ref", "state"}`, with a lowercase `state` (`open`, `merged`, `closed`) |
+| `open_blockers` | Open issues that block this one, as sorted `owner/repo#number` refs; `[]` when none. One `?` for each blocker the token cannot read. See [Issue dependencies](#issue-dependencies) |
+| `blocking` | Number of open issues that this issue blocks |
+| `parent` | The parent issue as `owner/repo#number`, or `null` |
+| `milestone` | `{"title", "due_on"}` (`due_on` is UTC ISO-8601 or `null`), or `null` without a milestone |
 | `since` | The `--since` cutoff in UTC, `null` without one |
 | `timeline_truncated` | `true` when the item has more events than the fetch cap |
 | `events` | The timeline, oldest first |
@@ -1079,6 +1088,44 @@ instead of a Note.
   does not flag every row.
 - `tkt issue list` snapshots do not record these fields. `tkt review` snapshots
   record `mergeable` only, for the CI rule above.
+
+### Issue dependencies
+
+GitHub issues can be linked as "blocked by" and "blocking", can have a parent
+issue and can have a milestone. `tkt issue list`, `tkt issue show` and issue
+snapshots read all four from the query they already run, so a caller can tell
+whether an issue can be started without one request per issue. The only extra
+requests are for pages past the first 50 blockers or blocked issues (up to 500).
+
+| Field | Meaning |
+| --- | --- |
+| `open_blockers` | Issues that block this one and are not closed, as `owner/repo#number` refs sorted by repo, then number. A blocker in another repo has a state too. A blocker the token cannot read has none, so it counts as open and shows as `?`, one for each. An issue with only closed blockers has `[]` |
+| `blocking` | Number of open issues that this issue blocks |
+| `parent` | The parent issue as `owner/repo#number`, or `null` |
+| `milestone` | `{"title", "due_on"}` (`due_on` is UTC ISO-8601 or `null`), or `null` |
+
+They are in `tkt issue show --format json` and in every row of
+`tkt issue list --format json` (and of `tkt snapshot show issue/NAME --format
+json`). Issue snapshots always record them. A snapshot saved before they
+existed loads unchanged and saves back byte for byte, because the keys are left
+out when not recorded.
+
+`tkt issue list --deps` adds the `Blocked by` and `Blocks` columns to the table.
+Open blockers in the issue's own repo print as `#N`, others as `owner/repo#N`.
+The default table is unchanged.
+
+With `--diff` / `--watch`, a change in `open_blockers` marks the row `*`, puts
+`open_blockers` in `changed_fields` and adds a Note (`blocker_note` in the
+JSON):
+
+| Note | Meaning |
+| --- | --- |
+| `unblocked` | The issue had open blockers and has none now |
+| `blocked` | The issue had no open blockers and has some now |
+| `blockers changed` | The set of open blockers changed and is not empty on either side |
+
+A change in `blocking`, `parent` or `milestone` alone does not mark the row. A
+baseline saved before these fields existed is not compared until it is replaced.
 
 ### Reviewer state
 

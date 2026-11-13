@@ -8,6 +8,7 @@ from datetime import datetime
 from src.actors import classify_actor, iso_utc
 from src.board.github_api import GitHubClient
 from src.connection_paging import complete_connection, is_truncated
+from src.issue.dependencies import DEPENDENCY_FIELDS, ISSUE_BLOCKED_BY, ISSUE_BLOCKING
 from src.issue.github_api import CLOSING_PRS_FIELD, ISSUE_LABELS, ISSUE_TIMELINE
 from src.issue.history import (
     ClosingPr,
@@ -75,6 +76,7 @@ query($owner: String!, $name: String!, $number: Int!) {{
             {ISSUE_LABELS.fragment_field()}
             {ISSUE_SHOW_TIMELINE.fragment_field()}
             {CLOSING_PRS_FIELD}
+            {DEPENDENCY_FIELDS}
         }}
     }}
 }}
@@ -90,6 +92,8 @@ def fetch_issue_node(client: GitHubClient, repo: str, number: int) -> dict:
         raise ValueError(f"issue not found: {repo}#{number}")
     complete_connection(client, node, ISSUE_SHOW_TIMELINE)
     complete_connection(client, node, ISSUE_LABELS)
+    complete_connection(client, node, ISSUE_BLOCKED_BY)
+    complete_connection(client, node, ISSUE_BLOCKING)
     return node
 
 
@@ -224,6 +228,10 @@ def build_issue_show(node: dict, reference_user: str, max_body: int) -> Show:
         "assignees": [a["login"] for a in node["assignees"]["nodes"] if a],
         "linked_pr": info.linked_pr,
         "linked_prs": [{"ref": ref, "state": state.lower()} for ref, state in linked_prs.items()],
+        "open_blockers": info.open_blockers,
+        "blocking": info.blocking,
+        "parent": info.parent,
+        "milestone": info.milestone.to_dict() if info.milestone else None,
     }
     return Show(
         kind="issue",

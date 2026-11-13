@@ -123,6 +123,10 @@ def issue_node(timeline: list, **overrides) -> dict:
         "assignees": conn([login("bob")]),
         "labels": conn([{"name": "enhancement"}, {"name": "ready"}]),
         "timelineItems": conn(timeline),
+        "blockedBy": {"totalCount": 0, "nodes": []},
+        "blocking": {"totalCount": 0, "nodes": []},
+        "parent": None,
+        "milestone": None,
     }
     node.update(overrides)
     return node

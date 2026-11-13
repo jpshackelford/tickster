@@ -37,6 +37,21 @@ class TimelineEvent:
     actor_class: ActorClass = ActorClass.HUMAN
 
 
+@dataclass(frozen=True)
+class Milestone:
+    """An issue's milestone; ``due_on`` is UTC ISO-8601 or None."""
+
+    title: str
+    due_on: str | None = None
+
+    def to_dict(self) -> dict:
+        return {"title": self.title, "due_on": self.due_on}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Milestone":
+        return cls(title=data["title"], due_on=data.get("due_on"))
+
+
 @dataclass
 class IssueInfo:
     """Processed issue information for display."""
@@ -53,6 +68,10 @@ class IssueInfo:
     last_activity: datetime
     author: str
     events: list[HistoryEvent] = field(default_factory=list)  # one per history character
+    open_blockers: list[str] = field(default_factory=list)  # sorted refs; "?" = unreadable
+    blocking: int = 0  # open issues this one blocks
+    parent: str | None = None  # "owner/repo#123"
+    milestone: Milestone | None = None
 
     @property
     def age_seconds(self) -> float:

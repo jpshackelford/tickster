@@ -44,6 +44,10 @@ def issue_node(n: int) -> dict:
         "author": {"login": "alice"},
         "repository": {"nameWithOwner": "owner/repo"},
         "labels": {"nodes": []},
+        "blockedBy": {"totalCount": 0, "nodes": []},
+        "blocking": {"totalCount": 0, "nodes": []},
+        "parent": None,
+        "milestone": None,
         "timelineItems": {"nodes": []},
     }
 

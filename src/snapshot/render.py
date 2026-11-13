@@ -92,7 +92,8 @@ def render_diff(
         "head!/review!/merge!: PR head commit, review decision or merge state changed.  "
         "Per-reviewer notes: requested / ↻ re-requested / approved on head / "
         "review now on old head / request removed / review dismissed.  "
-        "Step notes: `step: old → new` (only with `pr list --steps`).[/]",
+        "Step notes: `step: old → new` (only with `pr list --steps`).  "
+        "Issue notes: unblocked / blocked / blockers changed (open blockers moved).[/]",
     )
 
 
@@ -308,6 +309,8 @@ def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
         notes.extend(_pr_detail_tags(d.changed_fields))
     notes.extend(d.reviewer_changes)
     notes.extend(d.step_changes)
+    if d.blocker_note:
+        notes.append(d.blocker_note)
     return f"[dim]{'; '.join(notes)}[/]" if notes else ""
 
 
