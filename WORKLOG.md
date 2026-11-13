@@ -13,71 +13,6 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 - [Issue #143](https://github.com/jpshackelford/tickster/issues/143): `issue list --help` Examples block (question-shaped recipes: no-PR, has-PR, updated-since, JSON), the no-PR recipe in the `tkt --help` epilog, option help that defines "linked" for `--no-pr` / `--has-pr` and names the `--format json` document, no-PR / has-PR / JSON recipes in the `doc/usage.md` Recipes section, parse tests, and the `single-command-eval` skill with an author dry run → [PR #185](https://github.com/jpshackelford/tickster/pull/185). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Not done: the fresh-agent eval runs (the LLM proxy rejected calls, "Request rejected by proxy policy", so only the author dry run is saved) and the `openhands-issues-and-prs` skill update (outside this repo); both are listed on the PR and on the issue. Note: the `Filters:` line does not name `--no-pr`; left alone as a behavior change. `GITHUB_TOKEN` got 403 on push and PR create, so the owner token was used.
 
-### 2026-11-13 14:20 UTC - Implementation worker
-
-- [Issue #150](https://github.com/jpshackelford/tickster/issues/150): `doc/usage.md` section "Which issues can I start now?" under `tkt issue list` (start-now command, one line per flag, waiting-list command, what the caller decides), the same two commands in the `issue list --help` epilog, and a test that they parse and name only real flags → [PR #178](https://github.com/jpshackelford/tickster/pull/178). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; could not create a repo, so the recipe was run against the private repo `jpshackelford/ga-test-01` (issues 1-5, PR 6, branch `fix-5`, `.agents/tickster.toml` with `[labels] rank` on `main`; issues 1 and 2 are closed, reopen them to repeat the chain); GitHub's search index lagged a few seconds after a close, and the doc says so; `GITHUB_TOKEN` got 403 on push, so the owner token was used.
-
-### 2026-11-13 14:05 UTC - Implementation worker
-
-- [Issue #157](https://github.com/jpshackelford/tickster/issues/157): the Steps column of `pr list --steps` shows `✓` for done and `·` for n/a (letters, `?` and `-` unchanged, still 7 cells); `STEPS_LEGEND` is built from `MARK_DONE` / `MARK_NA` and no longer says "dots"; `doc/usage.md` updated → [PR #176](https://github.com/jpshackelford/tickster/pull/176). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: `_mark` now handles every status explicitly (`assert_never`); `GITHUB_TOKEN` got 403 on push, so the owner token was used.
-
-### 2026-11-13 13:55 UTC - Implementation worker
-
-- [Issue #149](https://github.com/jpshackelford/tickster/issues/149): `[labels] rank` in the norms file (validated, shown by `norms show`) and `--sort rank` on `issue list` → [PR #175](https://github.com/jpshackelford/tickster/pull/175). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do; the repo's own `rank` takes effect only after merge, so the `-l ready --sort rank` run against `jpshackelford/tickster` has to wait for it. Notes: the issue had no technical-approach comment, so the description was the spec; a repo without `rank` is checked before any fetch (query repos, or the repos of explicit refs); the error text needed `rich.markup.escape` because `[labels]` read as markup. Unblocks #150.
-
-### 2026-11-13 13:40 UTC - Implementation worker
-
-- [Issue #126](https://github.com/jpshackelford/tickster/issues/126): `--exit-code` on `pr list`, `issue list` and `review` makes `--diff` / `--watch` exit 10 when a row was added, changed or removed → [PR #174](https://github.com/jpshackelford/tickster/pull/174). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` (two `--watch --exit-code` ticks, `echo $?`) is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; `doc/automation.md` still says `--watch` exits 0 and is left for #127; `GITHUB_TOKEN` got 403 on push and PR create, so the owner token was used.
-
-### 2026-11-13 12:27 UTC - Merge worker
-
-- [PR #173](https://github.com/jpshackelford/tickster/pull/173) squash-merged as `97b29da` (pinned to head `55ddf6c`): `History:` legend under `pr list`, `issue list` and `review`, shared `src/history_legend.py`, all-dots sentence in `STEPS_LEGEND`. CI green, 15 manual scenarios passed, bot review APPROVED. [Issue #155](https://github.com/jpshackelford/tickster/issues/155) closed. PR description updated with the manual test link. Unblocks #157. Note: `GITHUB_TOKEN` could not edit the PR or merge it (integration 403), so the owner token was used.
-
-### 2026-11-13 13:15 UTC - Implementation worker
-
-- [Issue #155](https://github.com/jpshackelford/tickster/issues/155): `History:` legend under `pr list`, `issue list` and `review`, one history-wording module (`src/history_legend.py`) shared with `show`, and an all-dots sentence in `STEPS_LEGEND` → [PR #173](https://github.com/jpshackelford/tickster/pull/173). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` still to do. Notes: the issue's acceptance criteria say `review` gets the legend but its Technical Approach says to leave it; I followed the criteria. `issue list` now prints `Filters:` after the legend, like `pr list`. Unblocks #157.
-
-### 2026-11-13 13:00 UTC - Implementation worker
-
-- [Issue #148](https://github.com/jpshackelford/tickster/issues/148): `--sort` on `issue list` (`number`, `created`, `updated`, `blocking`) → [PR #172](https://github.com/jpshackelford/tickster/pull/172). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do (only a smoke run so far). Note: `--sort -key` needs an argv rewrite to `--sort=-key` because argparse reads `-key` as a flag; `--sort` is mutually exclusive with `--activity`.
-
-### 2026-11-13 12:30 UTC - Implementation worker
-
-- [Issue #141](https://github.com/jpshackelford/tickster/issues/141): print the effective `Filters:` line under `pr list` and `review` → [PR #171](https://github.com/jpshackelford/tickster/pull/171). CI green, marked ready for review. Follow-up to file: `pr list --reviewer` silently ignores `--author` / `--merged` / `--closed`.
-
-### 2026-11-13 12:00 UTC - Implementation worker
-
-- [Issue #122](https://github.com/jpshackelford/tickster/issues/122): removed `--since-snapshot` from `pr show` and `issue show` → [PR #170](https://github.com/jpshackelford/tickster/pull/170). CI green, manual test posted, marked ready for review.
-
-### 2026-11-13 06:47 UTC - Orchestrator
-
-🚀 **Launched: 4 workers in parallel**
-
-- Testing: [PR #153](https://github.com/jpshackelford/tickster/pull/153) → [`d2b2a4a`](https://app.beta.staging.all-hands-testing.dev/conversations/d2b2a4af66cf4102868c5a52765e9e11); [PR #154](https://github.com/jpshackelford/tickster/pull/154) → [`fe715db`](https://app.beta.staging.all-hands-testing.dev/conversations/fe715dbdcd744c0292203bc4f3534bfe). Both WIP PRs have green CI and docs updated, no manual test results yet.
-- Expansion: [#141](https://github.com/jpshackelford/tickster/issues/141) → [`b8d57b0`](https://app.beta.staging.all-hands-testing.dev/conversations/b8d57b006df449a98aed826ae840079e); [#142](https://github.com/jpshackelford/tickster/issues/142) → [`b8508d2`](https://app.beta.staging.all-hands-testing.dev/conversations/b8508d254f26434399b501aac332871a)
-- Finished workers from last tick: `1833dca`, `8281b83`, `c5f4433`, `540fd1b`.
-- Slots: PR 2 busy, 0 free; expansion 2 busy, 0 free.
-
-**Active Workers:**
-
-| Conv ID | Type | Working On | Status |
-|---------|------|------------|--------|
-| `d2b2a4a` | testing | PR #153 | **NEW** |
-| `fe715db` | testing | PR #154 | **NEW** |
-| `b8d57b0` | expansion | Issue #141 | **NEW** |
-| `b8508d2` | expansion | Issue #142 | **NEW** |
-
-**Current State:**
-
-- [PR #153](https://github.com/jpshackelford/tickster/pull/153): `sV green ready`, review bot APPROVED, head `ca43e5c`; testing in flight
-- [PR #154](https://github.com/jpshackelford/tickster/pull/154): `s pending ready`, review bot running, head `2274710`; testing in flight
-- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched (release-please)
-- Ready issues queued: #131–#136, #139, #140, #145, #147, #122, #126; waiting on blockers: #124 (#123), #127, #137, #146, #148–#150
-- Needing expansion next: #143
-
-_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
-
----
 ### 2026-11-13 18:55 UTC - Orchestrator
 
 🔍 **Launched: Expansion Worker**
@@ -877,6 +812,28 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 - [PR #189](https://github.com/jpshackelford/tickster/pull/189) squash-merged at head `2884cb6` as `f2909b5`: `feat(list): show --no-pr and --has-pr in the Filters line`. Issue #187 closed.
 - PR description updated with the final state and a link to the manual test comment (11/11 PASS, 2618 tests).
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-13 23:36 UTC - Orchestrator
+
+✅ **All quiet**
+
+- [PR #188](https://github.com/jpshackelford/tickster/pull/188) and [PR #189](https://github.com/jpshackelford/tickster/pull/189) merged; issue #187 closed. Merge workers `09d14b7` and `42f273f` finished
+- No `ready` issues; none to expand (#138 is a tracking issue, #71 is `needs-split`, the rest are `hold`)
+- Archived entries older than 14:20 UTC to `WORKLOG_ARCHIVE_2026-11-13.md`
+- Slots: expansion 0 busy, 2 free (no candidates); PR 0 busy, 2 free (no ready issues)
+
+**Active Workers:**
+
+_None._
+
+**Current State:**
+
+- Open PRs: release [PR #119](https://github.com/jpshackelford/tickster/pull/119) only (release-please, untouched)
+- Ready issues: none; needing expansion: none
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
