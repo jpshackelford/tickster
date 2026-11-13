@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 14:20 UTC - Implementation worker
+
+- [Issue #150](https://github.com/jpshackelford/tickster/issues/150): `doc/usage.md` section "Which issues can I start now?" under `tkt issue list` (start-now command, one line per flag, waiting-list command, what the caller decides), the same two commands in the `issue list --help` epilog, and a test that they parse and name only real flags → [PR #178](https://github.com/jpshackelford/tickster/pull/178). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; could not create a repo, so the recipe was run against the private repo `jpshackelford/ga-test-01` (issues 1-5, PR 6, branch `fix-5`, `.agents/tickster.toml` with `[labels] rank` on `main`; issues 1 and 2 are closed, reopen them to repeat the chain); GitHub's search index lagged a few seconds after a close, and the doc says so; `GITHUB_TOKEN` got 403 on push, so the owner token was used.
+
 ### 2026-11-13 14:05 UTC - Implementation worker
 
 - [Issue #157](https://github.com/jpshackelford/tickster/issues/157): the Steps column of `pr list --steps` shows `✓` for done and `·` for n/a (letters, `?` and `-` unchanged, still 7 cells); `STEPS_LEGEND` is built from `MARK_DONE` / `MARK_NA` and no longer says "dots"; `doc/usage.md` updated → [PR #176](https://github.com/jpshackelford/tickster/pull/176). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: `_mark` now handles every status explicitly (`assert_never`); `GITHUB_TOKEN` got 403 on push, so the owner token was used.
