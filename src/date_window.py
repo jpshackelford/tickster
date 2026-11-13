@@ -15,6 +15,7 @@ from datetime import UTC, date, datetime, timedelta
 VALID_DATE_FIELDS = ("created", "updated", "merged", "closed")
 ISSUE_DATE_FIELDS = ("created", "updated", "closed")
 PR_DATE_FIELDS = VALID_DATE_FIELDS
+REVIEW_DATE_FIELDS = VALID_DATE_FIELDS
 FIELD_FLAG_KINDS = ("since", "after", "before")
 DEFAULT_FLAG_NAMES: Mapping[str, str] = {
     "since": "--since",
@@ -66,11 +67,13 @@ def _check_field_can_match(
     *,
     merged_ok: bool,
     typed_flag: str | None = None,
+    has_all_flag: bool = True,
 ) -> None:
     """Reject an explicit date field that the queried states can never have.
 
     ``typed_flag`` is the per-field flag the user typed (``--closed-since``);
-    without it the message names ``--date-field``.
+    without it the message names ``--date-field``. ``has_all_flag`` is False
+    where ``--all`` does not widen the states, so errors must not suggest it.
     """
     states_set = {s.lower() for s in (states or [])} or {"open"}
     state_text = "/".join(sorted(states_set))
@@ -80,13 +83,13 @@ def _check_field_can_match(
         )
     if field == "merged" and "merged" not in states_set:
         name = typed_flag or "--date-field merged"
-        remedy = "add --merged (or --all)" if typed_flag else "add --merged"
+        remedy = "add --merged (or --all)" if typed_flag and has_all_flag else "add --merged"
         raise DateWindowError(
             f"{name} only matches merged items, but the state filter is {state_text}: {remedy}"
         )
     if field == "closed" and not states_set & {"closed", "merged"}:
         name = typed_flag or "--date-field closed"
-        if not typed_flag:
+        if not typed_flag or not has_all_flag:
             remedy = "add --closed (or --merged)"
         elif merged_ok:
             remedy = "add --closed, --merged or --all"
@@ -140,6 +143,7 @@ def build_date_window(
     merged_ok: bool = True,
     now: datetime | None = None,
     flag_names: Mapping[str, str] | None = None,
+    has_all_flag: bool = True,
 ) -> DateWindow | None:
     """Build a DateWindow from the raw CLI options.
 
@@ -156,6 +160,8 @@ def build_date_window(
         flag_names: The flags the user typed, keyed ``since``/``after``/``before``,
             so errors name them. Set when the window came from per-field flags
             such as ``--created-since``; ``date_field`` is then explicit.
+        has_all_flag: False when ``--all`` does not widen the states (``review``),
+            so state errors don't suggest it.
 
     Returns:
         A DateWindow, or None when no window options were supplied.
@@ -200,6 +206,7 @@ def build_date_window(
             states,
             merged_ok=merged_ok,
             typed_flag=window_flags[0] if flag_names else None,
+            has_all_flag=has_all_flag,
         )
 
     after_date: date | None = None

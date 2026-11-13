@@ -59,11 +59,6 @@ class TestRegistration:
         assert exc.value.code == 2
         assert "--merged-since" in capsys.readouterr().err
 
-    def test_review_does_not_get_the_flags(self):
-        with pytest.raises(SystemExit) as exc:
-            main(["review", "--merged-since", "7"])
-        assert exc.value.code == 2
-
     def test_help_groups_the_flags_and_names_the_field(self, capsys):
         with pytest.raises(SystemExit) as exc:
             main(["pr", "list", "--help"])

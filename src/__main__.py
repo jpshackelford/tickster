@@ -19,6 +19,7 @@ from src.date_window import (
     FIELD_FLAG_KINDS,
     ISSUE_DATE_FIELDS,
     PR_DATE_FIELDS,
+    REVIEW_DATE_FIELDS,
     field_flag,
     field_flag_dest,
 )
@@ -802,6 +803,7 @@ Examples:
         help="Show closed (unmerged) PRs you've reviewed",
     )
     _add_date_window_args(review_parser)
+    _add_field_date_args(review_parser, REVIEW_DATE_FIELDS, noun="PRs")
     _add_snapshot_flags(review_parser)
 
     # issue command - issue history visualization
@@ -1369,6 +1371,7 @@ Examples:
             after=args.after,
             before=args.before,
             date_field=args.date_field,
+            field_dates=_field_date_values(args, REVIEW_DATE_FIELDS),
         )
 
     # Handle issue command
