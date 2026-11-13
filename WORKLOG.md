@@ -663,6 +663,16 @@ Expanding [#181](https://github.com/jpshackelford/tickster/issues/181): the diff
 - Ready: #143 (waiting on #181)
 - Needs expansion: #181 (in flight)
 
+### 2026-11-13 21:00 UTC - Expansion Worker
+
+✅ **Expanded Issue #181**
+
+- Issue: [feat(snapshot)!: the diff document uses the same rows and names](https://github.com/jpshackelford/tickster/issues/181)
+- Type: Enhancement
+- Status: Ready for implementation (`ready` label added)
+- Approach: #180 and #142 already gave rows, `changed_fields` and `schema: 2` the new names; what is left is the diff envelope. Rename `ItemDelta.key`→`ref` and `kind`→`change`, add the row `kind` to each delta, drop `kind` from top-level `prev` / `curr`, rename `"activity"` to `"last_activity"` in `changed_fields` (flagged as a judgment call), update ~55 test sites, add document-shape tests, and re-run the `doc/automation.md` and `doc/usage.md` examples.
+- Note: `GITHUB_TOKEN` cannot edit issues (403); used `JPSHACKELFORD_GITHUB_TOKEN`, which is for repos owned by jpshackelford.
+
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
