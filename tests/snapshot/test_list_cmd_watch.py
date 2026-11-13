@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 from rich.console import Console
 
+from src.__main__ import main
 from src.issue.cli import list_cmd as issue_list
 from src.issue.models import IssueInfo, IssueListResult, IssueState
 from src.pr.cli import list_cmd as pr_list
@@ -26,6 +27,7 @@ from src.review.cli import list_cmd as review_list
 from src.review.github_api import ReviewListResult
 from src.review.models import ReviewInfo, ReviewStatus
 from src.snapshot import store
+from src.snapshot.cli.commands import cmd_show as snapshot_cmd_show
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
 
@@ -405,7 +407,7 @@ def test_json_reason_is_limit_for_a_row_pushed_past_the_limit(
 
     fake_client.numbers = [3, 2]
     fake_client.has_more = True
-    assert cmd_list(watch_name="hourly", limit=2, diff_format="json") == 0
+    assert cmd_list(watch_name="hourly", limit=2, output_format="json") == 0
     deltas = json.loads(capsys.readouterr().out)["deltas"]
     assert {d["key"]: d["disappearance_reason"] for d in deltas if d["kind"] == "removed"} == {
         "o/r#1": "limit"
@@ -426,7 +428,7 @@ def test_diff_resolve_replaces_the_guess_with_the_current_state(
 
     fake_client.numbers = []
     fake_client.lookup = {1: "closed", 2: "open"}
-    assert cmd_list(watch_name="hourly", diff_resolve=True, diff_format="json") == 0
+    assert cmd_list(watch_name="hourly", diff_resolve=True, output_format="json") == 0
     deltas = json.loads(capsys.readouterr().out)["deltas"]
     assert {d["key"]: d["disappearance_reason"] for d in deltas} == {
         "o/r#1": "closed",
@@ -574,7 +576,7 @@ def test_failure_in_json_mode_keeps_stdout_empty_and_prints_error_on_stderr(
     caplog,
 ):
     _, cmd_list = COMMANDS[command]
-    assert cmd_list(watch_name="hourly", diff_format="json") == 1
+    assert cmd_list(watch_name="hourly", output_format="json") == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
@@ -611,7 +613,7 @@ def test_failed_save_leaves_the_json_document_alone_on_stdout(
     snapshots = store.snapshots_dir()
     snapshots.chmod(0o555)
     try:
-        assert cmd_list(watch_name="hourly", diff_format="json") == 1
+        assert cmd_list(watch_name="hourly", output_format="json") == 1
     finally:
         snapshots.chmod(0o755)
     captured = capsys.readouterr()
@@ -634,7 +636,7 @@ def test_corrupt_baseline_is_one_error_line_and_is_left_alone(
     path = store.snapshots_dir() / f"{kind}-hourly.json"
     path.write_text("{")
 
-    assert cmd_list(watch_name="hourly", diff_format="json") == 1
+    assert cmd_list(watch_name="hourly", output_format="json") == 1
 
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -706,7 +708,7 @@ def test_diff_reports_rows_again_until_acked(
     fake_client.numbers = [1, 2]
     for _ in range(2):
         capsys.readouterr()
-        assert cmd_list(diff_name="poll", diff_format="json") == 0
+        assert cmd_list(diff_name="poll", output_format="json") == 0
         assert _json_out(capsys)["counts"]["added"] == 1
 
     assert store.ack(kind, "poll")
@@ -714,7 +716,7 @@ def test_diff_reports_rows_again_until_acked(
     assert not store.has_pending(kind, "poll")
 
     capsys.readouterr()
-    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    assert cmd_list(diff_name="poll", output_format="json") == 0
     counts = _json_out(capsys)["counts"]
     assert counts["added"] == 0 and counts["changed"] == 0 and counts["removed"] == 0
 
@@ -748,7 +750,7 @@ def test_diff_json_reports_whether_the_baseline_was_found(
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
 
-    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    assert cmd_list(diff_name="poll", output_format="json") == 0
     captured = capsys.readouterr()
     doc = json.loads(captured.out)
     assert doc["baseline"] == "missing"
@@ -757,7 +759,7 @@ def test_diff_json_reports_whether_the_baseline_was_found(
     assert not store.exists(kind, "poll")
 
     assert store.ack(kind, "poll")
-    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    assert cmd_list(diff_name="poll", output_format="json") == 0
     assert _json_out(capsys)["baseline"] == "found"
 
 
@@ -819,3 +821,116 @@ def test_saving_another_name_keeps_the_pending_baseline(
     assert cmd_list(diff_name="poll") == 0
     assert cmd_list(snapshot_name="other") == 0
     assert store.has_pending(kind, "poll")
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_plain_json_list_prints_one_snapshot_document_and_nothing_else(
+    command,
+    tkt_home,
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [2, 1]
+    assert cmd_list(output_format="json") == 0
+    captured = capsys.readouterr()
+    doc = json.loads(captured.out)
+    assert captured.err == ""
+    assert doc["kind"] == kind
+    assert doc["name"] == ""
+    assert {"scope", "captured_at"} <= doc.keys()
+    assert [(i["repo"], i["number"]) for i in doc["items"]] == [("o/r", 2), ("o/r", 1)]
+    assert list(tkt_home.glob("snapshots/*")) == []
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_plain_json_list_equals_the_saved_snapshot_shown_as_json(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [3, 1]
+    assert cmd_list(snapshot_name="mine", output_format="json") == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["name"] == "mine"
+
+    assert snapshot_cmd_show(f"{kind}/mine", output_format="json") == 0
+    shown = json.loads(capsys.readouterr().out)
+    assert printed == shown
+
+    assert cmd_list(output_format="json") == 0
+    plain = json.loads(capsys.readouterr().out)
+    for doc in (plain, printed):
+        doc.pop("name")
+        doc.pop("captured_at")
+    assert plain == printed
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_plain_json_list_of_nothing_is_an_empty_document(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,  # noqa: ARG001
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    assert cmd_list(output_format="json") == 0
+    assert json.loads(capsys.readouterr().out)["items"] == []
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_table_output_without_snapshot_flags_has_no_json(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    _, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list() == 0
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(capsys.readouterr().out)
+
+
+OLD_FLAG = "--diff" + "-format"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["pr", "list", OLD_FLAG, "json"],
+        ["issue", "list", OLD_FLAG, "json"],
+        ["review", OLD_FLAG, "json"],
+    ],
+)
+def test_output_format_is_rejected_with_a_usage_error(argv, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(argv)
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "usage:" in err
+    assert OLD_FLAG in err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["pr", "list", "o/r#5", "--format", "json"],
+        ["issue", "list", "o/r#5", "--format", "json"],
+        ["review", "--reviewer", "octocat", "--format", "json"],
+    ],
+)
+def test_format_json_flag_reaches_the_list_command(
+    argv,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+    monkeypatch,
+):
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    fake_client.numbers = [5]
+    assert main(argv) == 0
+    doc = json.loads(capsys.readouterr().out)
+    assert [i["number"] for i in doc["items"]] == [5]

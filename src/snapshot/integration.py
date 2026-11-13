@@ -1,4 +1,4 @@
-"""Shared snapshot/diff/watch integration for list commands.
+"""Shared snapshot/diff/watch/JSON integration for list commands.
 
 The three list commands (`pr list`, `issue list`, `review`) all build a
 collection of info objects, print a table, and then exit. This module gives
@@ -12,7 +12,7 @@ Call sites look like:
         snapshot_name=snapshot_name,
         diff_name=diff_name,
         watch_name=watch_name,
-        output_format=diff_format,
+        output_format=output_format,
         show_unchanged=diff_show_unchanged,
         force=diff_force,
     )
@@ -26,6 +26,7 @@ snapshot is how `--watch` reports that the last item in scope went away.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
@@ -41,7 +42,7 @@ from src.snapshot.resolve import FetchByRef, resolve_removed
 
 @dataclass(frozen=True)
 class SnapshotPlan:
-    """Decoded intent from `--snapshot`, `--diff`, `--watch` flags."""
+    """Decoded intent from `--snapshot`, `--diff`, `--watch` and `--format` flags."""
 
     kind: str
     diff_name: str | None
@@ -74,7 +75,10 @@ class SnapshotPlan:
         detail: bool = False,
         resolve: bool = False,
     ) -> SnapshotPlan | None:
-        """Build a plan from parsed CLI arguments, or None if no snapshot work.
+        """Build a plan from parsed CLI arguments, or None if there is nothing to do.
+
+        `--format json` always yields a plan, so a plain list prints the
+        current result as the snapshot document.
 
         Mutual-exclusion rules:
 
@@ -97,7 +101,7 @@ class SnapshotPlan:
         else:
             diff = diff_name
             save = snapshot_name
-        if diff is None and save is None:
+        if diff is None and save is None and output_format != "json":
             return None
         return cls(
             kind=kind,
@@ -126,6 +130,10 @@ class SnapshotPlan:
         scope-mismatch error is safe to retry with `--diff-force`. A bare
         `--diff NAME` leaves the baseline alone and stages `curr` as the
         pending baseline for `tkt snapshot ack`.
+
+        Without a diff, `--format json` prints `curr` as a snapshot document
+        (the same one `tkt snapshot show --format json` prints) instead of
+        the table.
         """
         if self.wants_diff:
             rc = self.render_diff(curr, console, fetch_by_ref)
@@ -135,8 +143,12 @@ class SnapshotPlan:
                 elif self.diff_name is not None:
                     store.save_pending(replace(curr, name=self.diff_name))
             return rc
-        print_table()
-        self.save(curr)
+        if self.output_format == "json":
+            print(json.dumps(curr.to_dict(), indent=2))
+        else:
+            print_table()
+        if self.wants_save:
+            self.save(curr)
         return 0
 
     def render_diff(

@@ -53,7 +53,7 @@ def cmd_list(
     snapshot_name: str | None = None,
     diff_name: str | None = None,
     watch_name: str | None = None,
-    diff_format: str = "table",
+    output_format: str = "table",
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
@@ -164,7 +164,7 @@ def cmd_list(
                 snapshot_name=snapshot_name,
                 diff_name=diff_name,
                 watch_name=watch_name,
-                output_format=diff_format,
+                output_format=output_format,
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
                 resolve=diff_resolve,
@@ -183,7 +183,7 @@ def cmd_list(
                     limit=limit,
                     window=window,
                 )
-                save_name = plan.save_name or plan.diff_name or "snapshot"
+                save_name = plan.save_name or plan.diff_name or ""
                 curr_snapshot = snapshot_from_prs(
                     result.prs,
                     scope=scope,

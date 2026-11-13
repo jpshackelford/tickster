@@ -9,7 +9,7 @@ Current work is GitHub-only. Read the whole issue, including any **Scope** note 
 
 - Build on the current code. Don't implement the multi-provider refactor (#32, #33 and the rest of #38) as a step toward another issue.
 - Keep the default output of `tkt pr list`, `tkt issue list` and `tkt review` unchanged unless the issue says to change it. Put new columns behind a flag.
-- With `--format json` or `--diff-format json`, stdout must be valid JSON and nothing else. Send notices to stderr.
+- With `--format json` or `--format json`, stdout must be valid JSON and nothing else. Send notices to stderr.
 - Recorded GraphQL fixtures come from public repositories only. Never copy code or data from private repositories into this repo.
 - Update `doc/usage.md` and the legend for every user-visible change.
 - The PR title is a conventional commit (`feat(pr): …`, `fix(snapshot): …`). release-please builds the changelog from it.

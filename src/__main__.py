@@ -1265,7 +1265,7 @@ Examples:
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
-                diff_format=args.diff_format,
+                output_format=args.output_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
@@ -1308,7 +1308,7 @@ Examples:
             snapshot_name=_resolve_snapshot_name(args.snapshot_name),
             diff_name=args.diff_name,
             watch_name=args.watch_name,
-            diff_format=args.diff_format,
+            output_format=args.output_format,
             diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
             diff_resolve=args.diff_resolve,
@@ -1358,7 +1358,7 @@ Examples:
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,
-                diff_format=args.diff_format,
+                output_format=args.output_format,
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
@@ -1479,11 +1479,14 @@ def _add_snapshot_flags(parser) -> None:
         help="Shortcut: --diff NAME --snapshot NAME (one-shot hourly idiom).",
     )
     group.add_argument(
-        "--diff-format",
-        dest="diff_format",
+        "--format",
+        dest="output_format",
         choices=["table", "json"],
         default="table",
-        help="Format for --diff / --watch output (default: table).",
+        help=(
+            "Output format (default: table). json prints one document on stdout: "
+            "the diff with --diff / --watch, else the current result as a snapshot."
+        ),
     )
     group.add_argument(
         "--diff-include-unchanged",
