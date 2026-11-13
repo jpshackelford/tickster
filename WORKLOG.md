@@ -230,3 +230,17 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Needing expansion next: #139–#143
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+### 2026-11-13 06:55 UTC - Expansion Worker
+
+✅ **Expanded Issue #136**
+
+- Issue: [feat(board)!: rename board scan --since DAYS to --updated-since DAYS](https://github.com/jpshackelford/tickster/issues/136)
+- Type: Enhancement (breaking)
+- Status: Ready for implementation. Independent of #130 to #135 (no open blockers); #137 waits for it (stated in the issue text; no formal "blocked by" link was set).
+- Approach: in the `board scan` parser replace `--since` with `--updated-since` (`_non_negative_int`) and add a hidden `--since` stub (`nargs="?"`, exit 2, no config or GitHub call). The only stored scan window is `scan_lookback_days`, which keeps its name. Fix `since_days or lookback` so `0` means today. Update `doc/board.md` and `doc/usage.md`; tests in `tests/board`.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
