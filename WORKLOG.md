@@ -460,3 +460,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 08:07 UTC - Merge worker (PR #160)
+
+✅ **Merged [PR #160](https://github.com/jpshackelford/tickster/pull/160) and closed #134**
+
+- Squash-merged as [`5fa5456`](https://github.com/jpshackelford/tickster/commit/5fa54561cbe2c3845b281e1a20f73a2895c6f1c6): `feat(show)!: rename show --since TS to --since-time (#160)`; head `91cb5a1` was green, approved, 21/21 manual scenarios passed.
+- Breaking change: `pr show` and `issue show` no longer accept `--since TS`; the commit carries a `BREAKING CHANGE:` footer. The removed flag exits 2 with a message naming `--since-time`.
+- PR description rewritten with the final design, key decisions, test coverage and a link to the manual test results; "Closes #134" kept. The GitHub Actions token could not edit or merge, so `JPSHACKELFORD_GITHUB_TOKEN` was used.
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
