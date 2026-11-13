@@ -64,6 +64,7 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
+    exit_code: bool = False,
     field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List PRs needing review with status visualization.
@@ -161,6 +162,7 @@ def cmd_list(
                 show_unchanged=diff_show_unchanged,
                 force=diff_force,
                 resolve=diff_resolve,
+                exit_code=exit_code,
             )
             if plan is not None:
                 scope = SnapshotScope.from_review_args(

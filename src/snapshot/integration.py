@@ -36,10 +36,12 @@ from src.cli_errors import print_error
 from src.snapshot import diff as diff_module
 from src.snapshot import render as render_module
 from src.snapshot import store
-from src.snapshot.models import VALID_KINDS, DiffResult, Snapshot
+from src.snapshot.models import VALID_KINDS, ChangeKind, DiffResult, Snapshot
 from src.snapshot.resolve import FetchByRef, resolve_removed
 
 EnrichDiff = Callable[[DiffResult], DiffResult]
+
+EXIT_CHANGED = 10
 
 
 def _without_steps(snapshot: Snapshot) -> Snapshot:
@@ -59,6 +61,7 @@ class SnapshotPlan:
     detail: bool = False
     resolve: bool = False
     show_steps: bool = False  # `pr list --steps`: the table reports step moves
+    exit_code: bool = False  # `--exit-code`: a diff with a changed row exits EXIT_CHANGED
 
     @property
     def wants_diff(self) -> bool:
@@ -82,6 +85,7 @@ class SnapshotPlan:
         detail: bool = False,
         resolve: bool = False,
         show_steps: bool = False,
+        exit_code: bool = False,
     ) -> SnapshotPlan | None:
         """Build a plan from parsed CLI arguments, or None if there is nothing to do.
 
@@ -109,6 +113,8 @@ class SnapshotPlan:
         else:
             diff = diff_name
             save = snapshot_name
+        if exit_code and diff is None:
+            raise ValueError("--exit-code needs --diff or --watch")
         if diff is None and save is None and output_format != "json":
             return None
         return cls(
@@ -121,6 +127,7 @@ class SnapshotPlan:
             detail=detail,
             resolve=resolve,
             show_steps=show_steps,
+            exit_code=exit_code,
         )
 
     def execute(
@@ -137,7 +144,8 @@ class SnapshotPlan:
         `enrich` adds per-row evidence to a JSON diff.
 
         With a diff, the diff output replaces the normal table, and the
-        baseline is only overwritten when the diff succeeded so that a
+        baseline is only overwritten when the diff succeeded (exit 0, or exit
+        `EXIT_CHANGED` under `--exit-code`) so that a
         scope-mismatch error is safe to retry with `--diff-force`. A bare
         `--diff NAME` leaves the baseline alone and stages `curr` as the
         pending baseline for `tkt snapshot ack`.
@@ -148,7 +156,7 @@ class SnapshotPlan:
         """
         if self.wants_diff:
             rc = self.render_diff(curr, console, fetch_by_ref, enrich)
-            if rc == 0:
+            if rc in (0, EXIT_CHANGED):
                 if self.wants_save:
                     self.save(curr)
                 elif self.diff_name is not None:
@@ -169,7 +177,11 @@ class SnapshotPlan:
         fetch_by_ref: FetchByRef | None = None,
         enrich: EnrichDiff | None = None,
     ) -> int:
-        """Load the baseline, diff, render. Returns exit code."""
+        """Load the baseline, diff, render. Returns exit code.
+
+        With `exit_code` set, returns `EXIT_CHANGED` instead of 0 when any row
+        is added, changed or removed.
+        """
         if self.diff_name is None:
             raise RuntimeError("render_diff called without --diff / --watch")
         # In JSON mode stdout must hold only the document, so notices go to stderr.
@@ -220,6 +232,8 @@ class SnapshotPlan:
             output_format=self.output_format,
             detail=self.detail,
         )
+        if self.exit_code and any(d.kind is not ChangeKind.UNCHANGED for d in result.deltas):
+            return EXIT_CHANGED
         return 0
 
     def save(self, snapshot: Snapshot) -> None:
