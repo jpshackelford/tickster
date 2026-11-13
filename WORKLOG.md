@@ -432,3 +432,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 09:00 UTC - Expansion worker
+
+- Issue: [docs: make the one-command recipes discoverable and add the single-command eval](https://github.com/jpshackelford/tickster/issues/143)
+- Status: Expanded and labelled `ready`. It waits on #139, #140 and #142 (#130 closed with PR #154); I added the four formal "blocked by" relations, which were missing, so the orchestrator skips #143 until they close.
+- Approach: `issue list` help epilog plus root `Examples:` recipe, a parse test for the new epilog, option help text, Recipes entries in `doc/usage.md`, a written single-command eval with a saved transcript, and an update to the `openhands-issues-and-prs` skill (outside this repo).
+- Note: the JSON recipe and `--format` help depend on how #142 (`needs-info`, Option A vs B) is resolved; the comment says to do that part last. #143 should also wait on #137 (it creates the Recipes section); not added as a relation because it was not requested.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
