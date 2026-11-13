@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 13:15 UTC - Implementation worker
+
+- [Issue #155](https://github.com/jpshackelford/tickster/issues/155): `History:` legend under `pr list`, `issue list` and `review`, one history-wording module (`src/history_legend.py`) shared with `show`, and an all-dots sentence in `STEPS_LEGEND` → [PR #173](https://github.com/jpshackelford/tickster/pull/173). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` still to do. Notes: the issue's acceptance criteria say `review` gets the legend but its Technical Approach says to leave it; I followed the criteria. `issue list` now prints `Filters:` after the legend, like `pr list`. Unblocks #157.
+
 ### 2026-11-13 13:00 UTC - Implementation worker
 
 - [Issue #148](https://github.com/jpshackelford/tickster/issues/148): `--sort` on `issue list` (`number`, `created`, `updated`, `blocking`) → [PR #172](https://github.com/jpshackelford/tickster/pull/172). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do (only a smoke run so far). Note: `--sort -key` needs an argv rewrite to `--sort=-key` because argparse reads `-key` as a flag; `--sort` is mutually exclusive with `--activity`.
