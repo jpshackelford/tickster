@@ -144,9 +144,9 @@ def test_label_with_brackets_is_printed_literally(run):
     assert "label=[bug]" in line
 
 
-def test_line_sits_between_table_and_legend(run):
+def test_line_sits_under_the_table_and_its_legend(run):
     lines = run()
-    assert lines.index(DEFAULT_LINE) < next(
+    assert lines.index(DEFAULT_LINE) > next(
         i for i, ln in enumerate(lines) if ln.startswith("History:")
     )
     assert lines.index(DEFAULT_LINE) > next(i for i, ln in enumerate(lines) if "#1" in ln)

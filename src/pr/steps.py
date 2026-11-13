@@ -47,7 +47,8 @@ STEP_LETTERS = "rcfamtx"
 STEPS_LEGEND = (
     "Steps: r review, c fix CI, f review findings, a re-review, "
     "m manual test, t test findings, x retest. "
-    "UPPER needed, lower waiting, . done or n/a, ? unknown, - not configured."
+    "UPPER needed, lower waiting, . done or n/a, ? unknown, - not configured. "
+    f"All dots ({'.' * len(STEP_LETTERS)}) = every step done or n/a: nothing pending."
 )
 
 _ROLLUP_PENDING = frozenset({"PENDING", "EXPECTED"})

@@ -115,8 +115,11 @@ class TestFullStrings:
 
 class TestLegendsAndFragments:
     def test_legends_name_the_letter(self):
-        assert "s e v n = AI opened, review, approval, comment" in PR_LEGEND
-        assert "s n = AI opened, comment" in ISSUE_LEGEND
+        assert "s AI opened" in PR_LEGEND
+        assert "v AI approval" in PR_LEGEND
+        assert "e AI review" in PR_LEGEND
+        assert "s AI opened" in ISSUE_LEGEND
+        assert "n AI comment" in ISSUE_LEGEND
 
     def test_s_is_free_in_the_existing_tables(self):
         pr_letters = set("ohrace vnfmk".replace(" ", ""))
@@ -124,6 +127,7 @@ class TestLegendsAndFragments:
         assert "s" not in pr_letters | issue_letters
         legend_letters = re.findall(r"\b([a-zA-Z]) (?:opened|review|comment|labeled)", PR_LEGEND)
         assert "s" not in legend_letters
+        assert "s opened" not in PR_LEGEND
 
     @pytest.mark.parametrize("fragment", [PR_FIELDS_FRAGMENT, ISSUE_FIELDS_FRAGMENT])
     def test_list_fragments_fetch_the_body(self, fragment):

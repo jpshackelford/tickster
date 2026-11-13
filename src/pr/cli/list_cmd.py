@@ -22,7 +22,13 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_filters, print_fitted_table, print_note
+from src.list_table import (
+    add_shrinkable_column,
+    print_filters,
+    print_fitted_table,
+    print_history_legend,
+    print_note,
+)
 from src.pr.cli.graph import render_merged_graph
 from src.pr.cli.steps_cmd import collect_steps
 from src.pr.detail import merge_label, review_label, short_sha
@@ -383,6 +389,7 @@ def _print_pr_table(
         rows.append(row)
 
     print_fitted_table(console, table, rows, history_col=history_col)
+    print_history_legend(console, "pr", (pr.history for pr in prs))
     if reviewers:
         print_note(console, f"[dim]{escape(REVIEWER_LEGEND)}[/]")
     if steps is not None:

@@ -7,12 +7,14 @@ marks the 500-event cap. Here Repo, Title and Labels give up width first, then
 History is cropped by tickster itself and ends in `>`.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
+
+from src.history_legend import Kind, history_legend
 
 HISTORY_CROP_MARK = ">"
 HISTORY_MIN_WIDTH = 8
@@ -48,6 +50,14 @@ def print_note(console: Console, markup: str) -> None:
     the line is not wrapped, so piped output does not depend on `$COLUMNS`.
     """
     console.print(markup, soft_wrap=not console.is_terminal)
+
+
+def print_history_legend(
+    console: Console, kind: Kind, histories: Iterable[str], *, you: str = "you"
+) -> None:
+    """Print the `History:` legend for the characters in `histories`, if any is known."""
+    if legend := history_legend(kind, histories, you=you):
+        print_note(console, f"[dim]{escape(legend)}[/]")
 
 
 def filters_line(parts: Sequence[tuple[str, str]]) -> str:
