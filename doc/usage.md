@@ -327,7 +327,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
-| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. The legend says that all dots (`.......`) means every step is done or n/a, so nothing is pending. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. A done step is `✓` and an n/a step is `·`; the legend says that only those two (`✓✓✓✓✓✓✓`) means every step is done or n/a, so nothing is pending. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
 | `--events {brief,full,none}` | With `--diff` / `--watch` and `--format json`: how much of each added or changed PR's new timeline events the delta carries (default `brief`). See [Events and steps in a PR diff](#events-and-steps-in-a-pr-diff) |
 | `--max-body N` | With `--events brief`: cut each event body at `N` characters instead of 160 |
 | `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
@@ -655,9 +655,10 @@ not been written yet.
   compared, and a step missing from the baseline is skipped.
 - `tkt pr list --steps` shows one character per step, in this order: `r` review, `c` CI,
   `f` findings, `a` re-review, `m` manual test, `t` test findings, `x` retest. Uppercase is
-  `needed`, lowercase `waiting`, `.` done or `n/a`, `?` unknown, `-` not configured.
-  `R.F....` = review needed and findings to address; `....M--` = the manual test report is
-  missing. A report other than `manual_test` has no column; see it with `tkt pr steps`.
+  `needed`, lowercase `waiting`, `✓` done, `·` `n/a`, `?` unknown, `-` not configured.
+  `R·F····` = review needed and findings to address, the other five steps are `n/a` (for
+  example no re-review or report yet); `✓✓✓✓M--` = the first four steps are done and the
+  manual test report is missing. A report other than `manual_test` has no column; see it with `tkt pr steps`.
 - The exit code is 0 whatever the statuses are; errors (a PR that is not found) exit 1.
 - `--explain` adds, for each report step, the marker and how many comments it matched, the
   latest match (author, time, tested commit), `fail` and `impact_line` settings and what

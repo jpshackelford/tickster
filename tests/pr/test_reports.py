@@ -764,7 +764,7 @@ class TestCollectSteps:
         assert pr_list.cmd_list(show_steps=True) == 0
         out = capsys.readouterr().out
         assert "m manual test, t test findings, x retest." in out
-        assert "......X" in out
+        assert "✓✓✓✓✓✓X" in out
 
 
 class TestPRFiles:

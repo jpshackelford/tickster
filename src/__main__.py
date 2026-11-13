@@ -23,6 +23,7 @@ from src.date_window import (
     field_flag,
     field_flag_dest,
 )
+from src.pr.steps import MARK_DONE, MARK_NA
 from src.show.delta import BRIEF_BODY, EVENTS_BRIEF, EVENTS_FULL, EVENTS_MODES, EVENTS_NONE
 from src.show.models import DEFAULT_MAX_BODY
 
@@ -657,8 +658,8 @@ Examples:
         dest="show_steps",
         action="store_true",
         help="Add a Steps column, one character per step (review, CI, findings, re-review, "
-        "manual test, test findings, retest): UPPER needed, lower waiting, . done or n/a, "
-        "? unknown, - not configured. Only the table column: snapshots and --format json always "
+        f"manual test, test findings, retest): UPPER needed, lower waiting, {MARK_DONE} done, "
+        f"{MARK_NA} n/a, ? unknown, - not configured. Only the table column: snapshots and --format json always "
         "record the statuses; with --diff / --watch, --steps also reports step moves in the table",
     )
     _add_removed_date_flag_stubs(pr_list_parser, PR_DATE_FIELDS)

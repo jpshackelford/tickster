@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from rich.cells import cell_len
 from rich.console import Console
 
 from src.__main__ import main
@@ -413,19 +414,56 @@ class TestMarks:
     def results(self, *statuses: StepStatus):
         return tuple(StepResult(n, s) for n, s in zip(STEP_NAMES, statuses, strict=True))
 
-    def test_upper_needed_lower_waiting_dot_otherwise(self):
+    def test_upper_needed_lower_waiting_tick_done_dot_na(self):
         marks = steps_mark(self.results(NEEDED, WAITING, DONE, NA, NEEDED, WAITING, DONE))
-        assert marks == "Rc..Mt."
+        assert marks == "Rc✓·Mt✓"
 
     def test_unknown_and_not_configured(self):
         marks = steps_mark(
             self.results(UNKNOWN, StepStatus.NOT_CONFIGURED, NEEDED, WAITING, NEEDED, NA, NEEDED)
         )
-        assert marks == "?-FaM.X"
+        assert marks == "?-FaM·X"
+
+    @pytest.mark.parametrize(
+        ("status", "mark"),
+        [
+            (NEEDED, "R"),
+            (WAITING, "r"),
+            (DONE, "✓"),
+            (NA, "·"),
+            (UNKNOWN, "?"),
+            (StepStatus.NOT_CONFIGURED, "-"),
+        ],
+    )
+    def test_each_status_has_its_mark(self, status, mark):
+        assert steps_mark((StepResult(STEP_NAMES[0], status),)) == mark
+
+    def test_the_six_marks_of_one_step_are_distinct(self):
+        marks = [steps_mark((StepResult(STEP_NAMES[0], s),)) for s in StepStatus]
+        assert len(StepStatus) == 6
+        assert len(set(marks)) == 6
+
+    def test_seven_done_and_seven_na_are_seven_cells(self):
+        done = steps_mark(self.results(*[DONE] * len(STEP_NAMES)))
+        na = steps_mark(self.results(*[NA] * len(STEP_NAMES)))
+        assert (done, na) == ("✓" * 7, "·" * 7)
+        assert cell_len(done) == cell_len(na) == 7
+
+    def test_a_row_with_mostly_n_a_reads_at_a_glance(self):
+        marks = steps_mark(self.results(NA, WAITING, NA, NA, NEEDED, NA, NA))
+        assert marks == "·c··M··"
+
+    def test_statuses_and_changes_carry_names_not_glyphs(self):
+        results = self.results(DONE, NA, NEEDED, WAITING, UNKNOWN, DONE, NA)
+        statuses = step_statuses(results)
+        assert set(statuses.values()) == {"done", "n/a", "needed", "waiting", "unknown"}
+        assert step_changes({STEP_REVIEW: "done"}, {STEP_REVIEW: "needed"}) == (
+            "review the PR: done → needed",
+        )
 
     def test_a_report_beyond_manual_test_has_no_column(self):
         extra = (*self.results(*[DONE] * len(STEP_NAMES)), StepResult("docs review", NEEDED))
-        assert steps_mark(extra) == "......."
+        assert steps_mark(extra) == "✓" * 7
 
     def test_step_changes_name_old_and_new(self):
         prev = {STEP_REREVIEW: "done", STEP_CI: "needed", STEP_REVIEW: "done"}
@@ -658,7 +696,7 @@ class TestCmdSteps:
         monkeypatch.setattr("sys.stdin", io.StringIO(""))
         fake_client.prs = [stale_pr()]
         assert main(["pr", "list", "--steps"]) == 0
-        assert "...A" in capsys.readouterr().out
+        assert "✓✓✓A---" in capsys.readouterr().out
 
 
 class TestListColumn:
@@ -676,7 +714,7 @@ class TestListColumn:
         assert pr_list.cmd_list(show_steps=True) == 0
         out = capsys.readouterr().out
         assert "Steps" in out
-        assert "...A" in out
+        assert "✓✓✓A---" in out
         assert "Steps: r review, c fix CI, f review findings, a re-review, " in out
         assert "m manual test, t test findings, x retest." in out
 
@@ -689,7 +727,7 @@ class TestListColumn:
             )
         ]
         assert pr_list.cmd_list(show_steps=True) == 0
-        assert ".CFA" in capsys.readouterr().out
+        assert "✓CFA---" in capsys.readouterr().out
 
     def test_the_table_stays_within_80_columns_by_default(self, fake_client, capsys, monkeypatch):
         monkeypatch.setattr(pr_list, "console", Console(width=80, color_system=None))
