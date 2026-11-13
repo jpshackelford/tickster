@@ -717,16 +717,28 @@ tkt review [options]
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
 | `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
+| `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
+| `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only PRs created on/after, on/before this UTC date (inclusive) |
+| `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
+| `--closed-since DAYS`, `--closed-after YYYY-MM-DD`, `--closed-before YYYY-MM-DD` | The same, on the close date. Needs `--closed` or `--merged` (merged PRs are closed) |
+| `--merged-since DAYS`, `--merged-after YYYY-MM-DD`, `--merged-before YYYY-MM-DD` | The same, on the merge date. Needs `--merged` |
+
+The old `--since` / `--after` / `--before` / `--date-field` flags still work.
+`--all` / `-A` (include approved and on-hold PRs) is not a state flag: it does not satisfy the `--merged-*` or `--closed-*` checks.
 
 ```bash
 tkt review                                  # your actionable review queue
 tkt review --all --title                    # full queue with titles
 tkt review -X "dependabot[bot]"             # hide dependabot PRs
-tkt review --merged --since 7               # PRs you reviewed that merged this week
+tkt review --merged --merged-since 7        # PRs you reviewed that merged this week
+tkt review --created-since 14               # review requests on PRs opened in the last 2 weeks
+tkt review --closed --closed-since 7        # closed (unmerged) PRs you reviewed, closed this week
 ```
 
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`.
+`--since` / `--after` / `--before` / `--date-field`, and
+[Date flags by field](#date-flags-by-field) for the `--created-*` /
+`--updated-*` / `--closed-*` / `--merged-*` spelling.
 
 The output computes, for each PR, **what action you owe it** rather than dumping
 raw review state:
@@ -1388,8 +1400,8 @@ tkt review --merged --since 7                         # reviewed & merged this w
 ### Date flags by field
 
 `--since` filters on the *updated* date unless `--date-field` says otherwise, so
-`--since 14` does not mean "filed in the last 14 days". On `tkt issue list` and
-`tkt pr list`, flags that name the field remove the guess:
+`--since 14` does not mean "filed in the last 14 days". On `tkt issue list`,
+`tkt pr list` and `tkt review`, flags that name the field remove the guess:
 
 | Field | Days back (UTC day boundary) | Absolute (UTC date, inclusive) |
 | --- | --- | --- |
@@ -1398,9 +1410,8 @@ tkt review --merged --since 7                         # reviewed & merged this w
 | closed | `--closed-since N` | `--closed-after DATE`, `--closed-before DATE` |
 | merged (PRs only) | `--merged-since N` | `--merged-after DATE`, `--merged-before DATE` |
 
-`tkt pr list` offers all four fields. There is no `--merged-*` on
-`tkt issue list`: argparse rejects it as an unrecognized argument (exit 2).
-`tkt review` does not have the by-field flags yet.
+`tkt pr list` and `tkt review` offer all four fields. There is no `--merged-*`
+on `tkt issue list`: argparse rejects it as an unrecognized argument (exit 2).
 
 - The rules are the ones above, spelled per field: `--created-since 0` is
   today (UTC), a negative number or a bad date is an error naming the flag you
@@ -1416,6 +1427,11 @@ tkt review --merged --since 7                         # reviewed & merged this w
   needs `--closed` (on `tkt pr list` also `--merged`) or `--all`. The error
   names the flag you typed and the state flag to add, for example
   `--merged-since only matches merged items, but the state filter is open: add --merged (or --all)`.
+  On `tkt review`, `--all` means "include approved and on-hold PRs", not "all
+  states": its states come only from `--merged` and `--closed`, so `--merged-*`
+  needs `--merged`, `--closed-*` needs `--closed` or `--merged`, and the error
+  does not suggest `--all`, for example
+  `--closed-since only matches closed items, but the state filter is open: add --closed (or --merged)`.
 - Explicit refs cannot be narrowed by any date flag; the error names the flag
   you typed.
 - The `Window:` line and the empty-result message name the field as before.
