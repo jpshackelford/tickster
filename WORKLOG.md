@@ -598,3 +598,17 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:45 UTC - Expansion Worker
+
+✅ **Expanded Issue #135**
+
+- Issue: [feat(pr)!: rename pr changes --since SHA to --since-sha SHA](https://github.com/jpshackelford/tickster/issues/135)
+- Type: Enhancement (breaking)
+- Status: Ready for implementation. Independent of #130 to #134 (no open blockers); #137 waits for it (stated in the issue text; no formal "blocked by" link was set).
+- Approach: in the `pr changes` parser, rename `--since` to `--since-sha` (`dest="since_sha"`, still required) and add a hidden `--since` stub (`nargs="?"`, `help=SUPPRESS`, `parser.error`, exit 2, no GitHub call; an explicit stub also stops argparse abbreviating `--since` to `--since-sha`). Change the malformed-SHA error to `--since-sha needs a commit SHA`. The JSON key `since` and the library names are unchanged. Update `doc/usage.md` and `doc/automation.md`; the manual-test skill and `.agents/tickster.toml` do not use the old flag. Tests in `tests/pr/test_changes.py` and `test_reports.py`.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
