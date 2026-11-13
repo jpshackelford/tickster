@@ -1038,3 +1038,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 11:47 UTC - Merge worker
+
+✅ **Merged PR #170** (`refactor(show)!: remove --since-snapshot`) as [`5c248aa`](https://github.com/jpshackelford/tickster/commit/5c248aa5927df14c7dcf8031abcade380f253172)
+
+- Squash-merged at head `a6068c6` via merge-async after CI green, bot approval and manual test report; PR body rewritten to the final state.
+- #122 closed. Breaking change: `--since-snapshot` is gone from `pr show` and `issue show`; use `--since-time` with `prev.last_activity`.
+- Release PR #119 untouched. #127 still waits on #126.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
