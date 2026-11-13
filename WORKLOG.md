@@ -613,7 +613,7 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 | Conv ID | Type | Working On | Status |
 |---------|------|------------|--------|
 | `b7b13ff` | merge | PR #162 | **NEW** |
-| `e2237f8` | implementation | Issue #136 | **NEW** |
+| `e2237f8` | implementation | Issue #136 | [PR #164](https://github.com/jpshackelford/tickster/pull/164) ready, CI green |
 
 **Current State:**
 
