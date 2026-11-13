@@ -1307,3 +1307,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-13T12:57Z — PR #174 merged
+
+- [PR #174](https://github.com/jpshackelford/tickster/pull/174) squash-merged as `bafb8bf`, pinned to head `fe90e9a`: `--exit-code` for `--diff` / `--watch` exits 10 on change. CI green, bot APPROVED, manual test (21 cases) posted.
+- [Issue #126](https://github.com/jpshackelford/tickster/issues/126) closed. [#127](https://github.com/jpshackelford/tickster/issues/127) is unblocked.
+- [PR #175](https://github.com/jpshackelford/tickster/pull/175) still open and may now conflict in `doc/usage.md` and `src/__main__.py`; rebase and re-check gates before merge.
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
