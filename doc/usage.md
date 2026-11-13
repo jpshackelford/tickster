@@ -351,17 +351,19 @@ Answer "has the code changed in a way that matters since commit X?", for example
 to decide whether a manual test report posted against X still holds.
 
 ```bash
-tkt pr changes OWNER/REPO#NUM --since SHA [--format text|json]
+tkt pr changes OWNER/REPO#NUM --since-sha SHA [--format text|json]
     [--ignore-path GLOB ...] [--min-changed-lines N] [--explain]
 ```
 
 | Option | Description |
 | --- | --- |
-| `--since SHA` | Required. The commit to compare from: a commit SHA of 7 to 40 hex characters, in either case. A branch name or tag is rejected, because a branch tip moves and the verdict could not be repeated; resolve it to a SHA first |
+| `--since-sha SHA` | Required. The commit to compare from: a commit SHA of 7 to 40 hex characters, in either case. A branch name or tag is rejected, because a branch tip moves and the verdict could not be repeated; resolve it to a SHA first |
 | `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
 | `--ignore-path GLOB` | Drop changed files matching `GLOB` (repeatable; `*` stays in one path segment, `**` crosses segments). Replaces the norms file's `ignore_paths` |
 | `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant. `0` counts as given and replaces the norms file's value |
 | `--explain` | After the verdict, print one `why:` line per setting with its value and source |
+
+`--since` was removed in 2.0: it exits 2 and names `--since-sha`.
 
 Where the settings come from: per setting, a flag beats `[commits]`
 (`ignore_paths`, `min_changed_lines`) in the repo's `.agents/tickster.toml`, which
@@ -385,7 +387,7 @@ in) and per file
 `--min-changed-lines`, `.agents/tickster.toml` or `default (no norms file)`).
 
 ```text
-$ tkt pr changes OWNER/REPO#NUM --since SHA --explain
+$ tkt pr changes OWNER/REPO#NUM --since-sha SHA --explain
 ...
 significant: no (all 1 changed files match ignore_paths)
   why: ignore_paths = [doc/**] (.agents/tickster.toml)
@@ -393,7 +395,7 @@ significant: no (all 1 changed files match ignore_paths)
 ```
 
 ```text
-$ tkt pr changes jpshackelford/tickster#60 --since 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
+$ tkt pr changes jpshackelford/tickster#60 --since-sha 75d1faa --ignore-path 'doc/**' --ignore-path '**/*.md'
 jpshackelford/tickster#60 75d1faa..742dbea 1 commits 4 files +104 -4
 significant: yes (4 files, 108 changed lines)
 commit  742dbea --      openhands-agent fix(issue): default 'issue list' to open issues
@@ -432,8 +434,8 @@ Notes:
 - A pipe closed by the reader (`tkt pr changes ... | head -1`) ends quietly with
   exit code 141, without a traceback.
 - The exit code is 0 whether or not the change is significant; errors exit 1.
-  A malformed `--since` (not 7 to 40 hex characters, so also any branch or tag)
-  exits 2 with `Error: --since needs a commit SHA` on stderr, empty stdout, and
+  A malformed `--since-sha` (not 7 to 40 hex characters, so also any branch or tag)
+  exits 2 with `Error: --since-sha needs a commit SHA` on stderr, empty stdout, and
   no GitHub call.
 - The command is also a library function, `src.pr.changes.pr_changes`.
 
@@ -504,7 +506,7 @@ configured`.
 | `address test findings` | The latest report matches `fail` | The latest report does not match `fail` (a report with no `fail` pattern never fails) | No report |
 | `retest after a fix` | The report is older than the head, a [significant change](#tkt-pr-changes) happened since the tested commit, and nothing waives it | The report is on the head, or no significant change since the tested commit, or it is waived | No report |
 
-A significant change is judged as in `tkt pr changes --since <tested commit>`, with the
+A significant change is judged as in `tkt pr changes --since-sha <tested commit>`, with the
 repo's `[commits] ignore_paths` and `min_changed_lines`. So a docs-only push leaves
 `retest after a fix` at `done`, and a push that touches code makes it `needed`.
 

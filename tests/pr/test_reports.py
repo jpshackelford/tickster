@@ -875,7 +875,15 @@ class TestChangesParity:
 
         monkeypatch.setattr(changes_cmd, "ChangesClient", fake.client)
         code = main(
-            ["pr", "changes", "jpshackelford/tickster#62", "--since", BFF03B3, "--format", "json"]
+            [
+                "pr",
+                "changes",
+                "jpshackelford/tickster#62",
+                "--since-sha",
+                BFF03B3,
+                "--format",
+                "json",
+            ]
         )
         via_changes = json.loads(capsys.readouterr().out)
 

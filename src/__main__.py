@@ -717,7 +717,7 @@ Examples:
     pr_changes_parser = pr_subparsers.add_parser(
         "changes",
         help="Show what changed in a PR since a commit, and whether it matters",
-        description="List the commits and files between --since and the PR's head, "
+        description="List the commits and files between --since-sha and the PR's head, "
         "and report whether the change is significant. Settings not given as flags come "
         "from [commits] in the repo's .agents/tickster.toml.",
     )
@@ -727,11 +727,17 @@ Examples:
         help="PR reference (owner/repo#number or GitHub PR URL)",
     )
     pr_changes_parser.add_argument(
-        "--since",
+        "--since-sha",
+        dest="since_sha",
         required=True,
         metavar="SHA",
         help="Commit SHA (7-40 hex characters) to compare from, for example the commit a "
         "test report was posted against; branches and tags are rejected",
+    )
+    pr_changes_parser.add_argument(
+        "--since",
+        action=_RemovedFlag,
+        message=lambda _v: "--since was removed on pr changes: use --since-sha SHA",
     )
     pr_changes_parser.add_argument(
         "--format",
@@ -1303,7 +1309,7 @@ Examples:
         if args.pr_command == "changes":
             return pr_cmd_changes(
                 ref=args.ref,
-                since=args.since,
+                since=args.since_sha,
                 output_format=args.output_format,
                 ignore_paths=args.ignore_paths,
                 min_changed_lines=args.min_changed_lines,

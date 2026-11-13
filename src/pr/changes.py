@@ -33,7 +33,7 @@ SOURCE_FLAG_MIN_CHANGED_LINES = "--min-changed-lines"
 
 
 class InvalidSince(ValueError):
-    """``--since`` is not a commit SHA."""
+    """``--since-sha`` is not a commit SHA."""
 
 
 @dataclass(frozen=True)
@@ -316,7 +316,7 @@ def parse_since(since: str) -> str:
     Branches and tags are rejected on purpose: a moving ref makes the verdict unrepeatable.
     """
     if not SHA_RE.fullmatch(since):
-        raise InvalidSince("--since needs a commit SHA")
+        raise InvalidSince("--since-sha needs a commit SHA")
     return since.lower()
 
 
