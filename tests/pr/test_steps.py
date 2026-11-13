@@ -768,7 +768,122 @@ class TestSnapshots:
         assert "request re-review: done → needed" in capsys.readouterr().out
         assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
 
-    def test_watch_without_steps_records_none(self, fake_client):
+    def test_watch_without_steps_still_records_the_statuses(self, fake_client):
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(watch_name="w") == 0
-        assert store.load("pr", "w").items[0].steps is None
+        assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
+
+    def test_snapshot_without_steps_records_the_statuses(self, fake_client):
+        fake_client.prs = [stale_pr()]
+        assert pr_list.cmd_list(snapshot_name="s") == 0
+        assert store.load("pr", "s").items[0].steps[STEP_REREVIEW] == "needed"
+
+
+class TestStepsAlwaysRecorded:
+    """`--steps` is only the table column; snapshots and JSON always carry the statuses."""
+
+    def test_json_has_steps_for_every_item_without_steps_flag(self, fake_client, capsys):
+        fake_client.prs = [stale_pr(), pr_info(number=2)]
+        assert pr_list.cmd_list(output_format="json") == 0
+        items = json.loads(capsys.readouterr().out)["items"]
+        assert [it["key"] for it in items] == ["o/r#1", "o/r#2"]
+        assert items[0]["steps"][STEP_REREVIEW] == "needed"
+        assert all(set(it["steps"]) == {*STEP_NAMES, *MANUAL_TEST_STEPS} for it in items)
+
+    def test_json_keeps_stdout_clean_and_hides_the_column(self, fake_client, capsys):
+        fake_client.prs = [stale_pr()]
+        assert pr_list.cmd_list(output_format="json") == 0
+        captured = capsys.readouterr()
+        json.loads(captured.out)
+        assert "Steps:" not in captured.out and captured.err == ""
+
+    def test_watch_json_records_the_statuses_in_the_saved_snapshot(self, fake_client, capsys):
+        fake_client.prs = [stale_pr()]
+        assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
+        capsys.readouterr()
+        assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
+
+    def test_a_step_move_shows_in_watch_json_without_steps_flag(self, fake_client, capsys):
+        fake_client.prs = [pr_info((reviewed("enyst", "COMMENTED", HEAD),))]
+        assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
+        capsys.readouterr()
+        fake_client.prs = [stale_pr()]
+        assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
+        [delta] = [
+            d for d in json.loads(capsys.readouterr().out)["deltas"] if d["kind"] == "changed"
+        ]
+        assert delta["step_changes"] == ["request re-review: done → needed"]
+        assert "steps" in delta["changed_fields"]
+
+    def test_watch_table_without_steps_ignores_a_step_move(self, fake_client, capsys):
+        fake_client.prs = [pr_info(checks_state="SUCCESS")]
+        assert pr_list.cmd_list(watch_name="w") == 0
+        capsys.readouterr()
+        fake_client.prs = [pr_info(checks_state="FAILURE")]
+        assert pr_list.cmd_list(watch_name="w") == 0
+        out = capsys.readouterr().out
+        assert "+0 new, *0 changed, -0 gone, 1 unchanged" in out
+        assert "fix CI" not in out
+        assert store.load("pr", "w").items[0].steps[STEP_CI] == "needed"
+
+    def test_watch_table_with_steps_still_reports_the_move(self, fake_client, capsys):
+        fake_client.prs = [pr_info(checks_state="SUCCESS")]
+        assert pr_list.cmd_list(watch_name="w", show_steps=True) == 0
+        capsys.readouterr()
+        fake_client.prs = [pr_info(checks_state="FAILURE")]
+        assert pr_list.cmd_list(watch_name="w", show_steps=True) == 0
+        out = capsys.readouterr().out
+        assert "*1 changed" in out and "fix CI: done → needed" in out
+
+    def test_a_baseline_without_steps_is_not_compared(self, fake_client, capsys):
+        store.save(snapshot_of(stale_pr(), with_steps=False))
+        fake_client.prs = [stale_pr()]
+        assert pr_list.cmd_list(diff_name="s", output_format="json") == 0
+        [delta] = json.loads(capsys.readouterr().out)["deltas"]
+        assert delta["kind"] == "unchanged"
+
+    def test_the_cli_help_calls_steps_the_table_column(self, capsys):
+        with pytest.raises(SystemExit):
+            main(["pr", "list", "--help"])
+        help_text = " ".join(capsys.readouterr().out.split())
+        assert "Only the table column" in help_text
+        assert "Snapshots record the statuses" not in help_text
+
+
+class TestStepCalls:
+    @pytest.fixture
+    def ignoring_codecov(self):
+        norms_store.set_loader(lambda _repo: Norms(ci=CI(ignore_checks=("codecov/*",))))
+        FakeChecksClient.contexts = [CheckContext("test", OUTCOME_PASSED)]
+
+    @pytest.mark.usefixtures("ignoring_codecov")
+    def test_plain_table_makes_no_step_calls(self, fake_client, capsys):
+        fake_client.prs = [pr_info(checks_state="FAILURE")]
+        assert pr_list.cmd_list() == 0
+        assert FakeChecksClient.calls == []
+        assert "Steps" not in capsys.readouterr().out
+
+    @pytest.mark.usefixtures("ignoring_codecov")
+    @pytest.mark.parametrize(
+        "flags",
+        [
+            {"output_format": "json"},
+            {"snapshot_name": "s"},
+            {"watch_name": "s"},
+            {"diff_name": "s"},
+        ],
+    )
+    def test_snapshot_diff_and_json_evaluate_the_steps(self, fake_client, flags):
+        store.save(snapshot_of(pr_info(), with_steps=False))
+        fake_client.prs = [pr_info(checks_state="FAILURE")]
+        assert pr_list.cmd_list(**flags) == 0
+        assert FakeChecksClient.calls == [("o/r", 1)]
+
+    def test_json_without_norms_makes_no_extra_calls(self, fake_client, monkeypatch):
+        def forbidden(*_args: Any, **_kw: Any) -> None:
+            raise AssertionError("a repo with no norms needs no extra GitHub call")
+
+        monkeypatch.setattr(steps_cmd, "ChangesClient", forbidden)
+        fake_client.prs = [stale_pr(checks_state="FAILURE"), pr_info(number=2)]
+        assert pr_list.cmd_list(output_format="json") == 0
+        assert FakeChecksClient.calls == []

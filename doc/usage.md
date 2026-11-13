@@ -228,7 +228,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
-| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. Snapshots record the statuses, so `--diff` / `--watch` report transitions |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -514,10 +514,13 @@ not been written yet.
 - Not detected: findings left in a review summary or a plain comment instead of a thread.
 - `fail` and `impact_line` patterns, like `marker`, read only the first 200 characters of a
   comment ([`tkt norms`](#tkt-norms)). Put a report's verdict near the top.
-- With `--diff` / `--watch` on `tkt pr list --steps`, a step that moved marks the row `*`
-  and the Note (and `step_changes` in the JSON) says how: `request re-review: done →
-  needed`. Every step is recorded, including other reports' steps. A baseline saved without
-  `--steps` is not compared, and a step missing from the baseline is skipped.
+- `tkt pr list` records the statuses in every snapshot (`--snapshot`, `--watch`) and in
+  `--format json`, with or without `--steps`; `--steps` only adds the table column. With
+  `--diff` / `--watch` and `--format json`, a step that moved is in `step_changes` and
+  `changed_fields` (`steps`): `request re-review: done → needed`. In the diff table the
+  move marks the row `*` and adds that Note only with `--steps`. Every step is recorded,
+  including other reports' steps. A baseline saved before this (no recorded steps) is not
+  compared, and a step missing from the baseline is skipped.
 - `tkt pr list --steps` shows one character per step, in this order: `r` review, `c` CI,
   `f` findings, `a` re-review, `m` manual test, `t` test findings, `x` retest. Uppercase is
   `needed`, lowercase `waiting`, `.` done or `n/a`, `?` unknown, `-` not configured.
@@ -1020,6 +1023,16 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 ```
 
 A Note with several parts (history rewritten, `head!` tags, reviewer changes, step changes) joins them with `; `.
+
+### Step changes
+
+`tkt pr list` always records each PR's [step](#tkt-pr-steps) statuses in a snapshot
+(`--snapshot`, `--watch`) and prints them in `--format json`; `--steps` only adds the table
+column. In `--format json` a diff lists a step that moved in `step_changes` and `steps` in
+`changed_fields`. The diff table reports the move (the `*` mark and a Note such as
+`request re-review: done → needed`) only with `--steps`. Evaluating steps costs no extra
+request for a repo without a [norms](#tkt-norms) file; a plain table without `--steps`,
+snapshot, diff or JSON evaluates nothing.
 
 ### Head, review and merge changes
 

@@ -542,7 +542,8 @@ Examples:
         action="store_true",
         help="Add a Steps column, one character per step (review, CI, findings, re-review, "
         "manual test, test findings, retest): UPPER needed, lower waiting, . done or n/a, "
-        "? unknown, - not configured. Snapshots record the statuses",
+        "? unknown, - not configured. Only the table column: snapshots and --format json always "
+        "record the statuses; with --diff / --watch, --steps also reports step moves in the table",
     )
     _add_date_window_args(pr_list_parser)
     _add_snapshot_flags(pr_list_parser)

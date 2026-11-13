@@ -92,7 +92,7 @@ def render_diff(
         "head!/review!/merge!: PR head commit, review decision or merge state changed.  "
         "Per-reviewer notes: requested / ↻ re-requested / approved on head / "
         "review now on old head / request removed / review dismissed.  "
-        "Step notes: `step: old → new` (`pr list --steps`).[/]",
+        "Step notes: `step: old → new` (only with `pr list --steps`).[/]",
     )
 
 
