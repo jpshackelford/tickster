@@ -1,6 +1,7 @@
 """Tests for `tkt pr show`: header, timeline, threads, pushes, --since, --max-body."""
 
 import json
+import re
 from dataclasses import replace
 from unittest.mock import patch
 
@@ -305,7 +306,7 @@ class TestJson:
 
 class TestSince:
     def test_only_newer_events(self, show):
-        _, out, _ = show(busy_pr(), "--since", "2026-11-05T13:00:00Z")
+        _, out, _ = show(busy_pr(), "--since-time", "2026-11-05T13:00:00Z")
 
         events = [line for line in out.splitlines() if line.startswith("2026-")]
         assert [line.split()[1] for line in events] == ["C", "N", "C"]
@@ -313,12 +314,12 @@ class TestSince:
         assert "reviewers: bob(human)" in out  # the header is always there
 
     def test_since_is_exclusive(self, show):
-        _, out, _ = show(busy_pr(), "--since", "2026-11-05T13:50:00Z")
+        _, out, _ = show(busy_pr(), "--since-time", "2026-11-05T13:50:00Z")
 
         assert "no new events since 2026-11-05T13:50:00Z" in out
 
     def test_no_new_events_still_prints_header(self, show):
-        code, out, _ = show(busy_pr(), "--since", "2026-12-01T00:00:00Z")
+        code, out, _ = show(busy_pr(), "--since-time", "2026-12-01T00:00:00Z")
 
         lines = out.splitlines()
         assert code == 0
@@ -327,7 +328,7 @@ class TestSince:
         assert not any(line.startswith("2026-") for line in lines)
 
     def test_no_new_events_in_json_is_an_empty_list(self, show):
-        _, out, _ = show(busy_pr(), "--since", "2026-12-01", "--format", "json")
+        _, out, _ = show(busy_pr(), "--since-time", "2026-12-01", "--format", "json")
 
         data = json.loads(out)
         assert data["events"] == []
@@ -335,7 +336,7 @@ class TestSince:
         assert data["head"] == HEAD
 
     def test_a_new_thread_reply_keeps_its_old_review_as_context(self, show):
-        _, out, _ = show(busy_pr(), "--since", "2026-11-05T11:15:00Z")
+        _, out, _ = show(busy_pr(), "--since-time", "2026-11-05T11:15:00Z")
 
         lines = out.splitlines()
         i = next(n for n, line in enumerate(lines) if "requested changes on c1c1c1c" in line)
@@ -393,14 +394,58 @@ class TestSince:
         assert "KIND/NAME" in err
 
     def test_bad_time_is_an_error(self, show):
-        code, _, err = show(busy_pr(), "--since", "yesterday")
+        code, _, err = show(busy_pr(), "--since-time", "yesterday")
 
         assert code == 1
         assert "invalid time 'yesterday'" in err
 
     def test_since_and_since_snapshot_cannot_be_combined(self, show):
         with pytest.raises(SystemExit):
-            show(busy_pr(), "--since", "2026-11-05", "--since-snapshot", "pr/tick")
+            show(busy_pr(), "--since-time", "2026-11-05", "--since-snapshot", "pr/tick")
+
+
+class TestRemovedSince:
+    """`--since` on show is a hidden stub that points at `--since-time`."""
+
+    MESSAGE = "--since was removed on show: use --since-time TS"
+
+    @pytest.mark.parametrize(
+        "argv",
+        [["--since", "2026-11-05T10:00:00Z"], ["--since=2026-11-05T10:00:00Z"], ["--since"]],
+        ids=["separate", "equals", "bare"],
+    )
+    def test_fails_at_parse_time_with_no_github_call(self, argv, capsys):
+        with patch("src.show.cli.GitHubClient") as client, pytest.raises(SystemExit) as exc:
+            main(["pr", "show", "o/r#7", *argv])
+
+        captured = capsys.readouterr()
+        assert exc.value.code == 2
+        assert captured.out == ""
+        assert f"tkt pr show: error: {self.MESSAGE}" in captured.err
+        client.assert_not_called()
+
+    def test_wins_over_the_snapshot_exclusion_error(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "show", "o/r#7", "--since", "T", "--since-snapshot", "pr/tick"])
+
+        assert exc.value.code == 2
+        assert self.MESSAGE in capsys.readouterr().err
+
+    def test_prefixes_of_the_new_flags_still_resolve(self, show):
+        code, out, _ = show(busy_pr(), "--since-t", "2026-12-01T00:00:00Z")
+
+        assert code == 0
+        assert "no new events since 2026-12-01T00:00:00Z" in out
+
+    def test_help_lists_the_new_flags_and_hides_the_stub(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "show", "--help"])
+
+        out = capsys.readouterr().out
+        assert exc.value.code == 0
+        assert "--since-time TS" in out
+        assert "--since-snapshot KIND/NAME" in out
+        assert not re.search(r"--since(\s|$)", out)
 
 
 class TestMaxBody:

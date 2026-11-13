@@ -1,6 +1,7 @@
 """Tests for `tkt issue show`."""
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -314,13 +315,13 @@ class TestJson:
 
 class TestSince:
     def test_only_newer_events(self, show):
-        _, out, _ = show(busy_issue(), "--since", "2026-11-05T11:30:00Z")
+        _, out, _ = show(busy_issue(), "--since-time", "2026-11-05T11:30:00Z")
 
         events = [line for line in out.splitlines() if line.startswith("2026-")]
         assert [line.split()[1] for line in events] == ["c", "x"]
 
     def test_no_new_events_prints_header_and_message(self, show):
-        code, out, _ = show(busy_issue(), "--since", "2026-11-06T00:00:00Z")
+        code, out, _ = show(busy_issue(), "--since-time", "2026-11-06T00:00:00Z")
 
         lines = out.splitlines()
         assert code == 0
@@ -473,3 +474,47 @@ class TestDependencies:
         data = json.loads(out)
         assert len(data["open_blockers"]) == 130
         assert "?" not in data["open_blockers"]
+
+
+class TestRemovedSince:
+    """`--since` on show is a hidden stub that points at `--since-time`."""
+
+    MESSAGE = "--since was removed on show: use --since-time TS"
+
+    @pytest.mark.parametrize(
+        "argv",
+        [["--since", "2026-11-05T10:00:00Z"], ["--since=2026-11-05T10:00:00Z"], ["--since"]],
+        ids=["separate", "equals", "bare"],
+    )
+    def test_fails_at_parse_time_with_no_github_call(self, argv, capsys):
+        with patch("src.show.cli.GitHubClient") as client, pytest.raises(SystemExit) as exc:
+            main(["issue", "show", "o/r#40", *argv])
+
+        captured = capsys.readouterr()
+        assert exc.value.code == 2
+        assert captured.out == ""
+        assert f"tkt issue show: error: {self.MESSAGE}" in captured.err
+        client.assert_not_called()
+
+    def test_wins_over_the_snapshot_exclusion_error(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["issue", "show", "o/r#40", "--since", "T", "--since-snapshot", "issue/tick"])
+
+        assert exc.value.code == 2
+        assert self.MESSAGE in capsys.readouterr().err
+
+    def test_prefixes_of_the_new_flags_still_resolve(self, show):
+        code, out, _ = show(busy_issue(), "--since-t", "2026-12-01T00:00:00Z")
+
+        assert code == 0
+        assert "no new events since 2026-12-01T00:00:00Z" in out
+
+    def test_help_lists_the_new_flags_and_hides_the_stub(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["issue", "show", "--help"])
+
+        out = capsys.readouterr().out
+        assert exc.value.code == 0
+        assert "--since-time TS" in out
+        assert "--since-snapshot KIND/NAME" in out
+        assert not re.search(r"--since(\s|$)", out)

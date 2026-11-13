@@ -62,7 +62,7 @@ def cmd_show(
     *,
     kind: Literal["pr", "issue"],
     ref: str,
-    since: str | None = None,
+    since_time: str | None = None,
     since_snapshot: str | None = None,
     max_body: int = DEFAULT_MAX_BODY,
     output_format: Format = "text",
@@ -71,8 +71,8 @@ def cmd_show(
     try:
         repo, number = parse_pr_ref(ref) if kind == "pr" else parse_issue_ref(ref)
         cutoff = None
-        if since is not None:
-            cutoff = parse_time(since)
+        if since_time is not None:
+            cutoff = parse_time(since_time)
         elif since_snapshot is not None:
             cutoff = snapshot_last_activity(kind, since_snapshot, repo, number)
 
