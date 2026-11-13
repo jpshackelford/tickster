@@ -12,7 +12,6 @@ from src.board import config as board_config
 from src.norms import store as norms_store
 from src.norms.schema import parse_norms
 from src.show.pr import PR_SHOW_TIMELINE
-from src.snapshot import store as snapshot_store
 from tests.show.builders import (
     C1,
     C2,
@@ -28,8 +27,8 @@ from tests.show.builders import (
     ts,
 )
 from tests.show.fake_github import FakeGitHub
-from tests.snapshot.conftest import make_item, make_snapshot
 
+REMOVED_FLAG = "--since-" + "snapshot"
 NORMS = parse_norms("""\
 schema = 1
 
@@ -345,63 +344,11 @@ class TestSince:
             "    2026-11-05T11:30:00Z alice(me): done",
         ]
 
-    def test_since_snapshot_uses_the_stored_last_activity(self, show):
-        item = make_item(key="o/r#7", last_activity="2026-11-05T13:35:00Z")
-        snapshot_store.save(make_snapshot(kind="pr", name="tick", items=[item]))
-
-        _, out, _ = show(busy_pr(), "--since-snapshot", "pr/tick")
-
-        events = [line for line in out.splitlines() if line.startswith("2026-")]
-        assert [line.split()[1] for line in events] == ["N", "C"]
-        assert "timeline since 2026-11-05T13:35:00Z" in out
-
-    def test_since_snapshot_accepts_a_review_snapshot(self, show):
-        item = make_item(key="o/r#7", last_activity="2026-11-05T13:35:00Z")
-        snapshot_store.save(make_snapshot(kind="review", name="queue", items=[item]))
-
-        code, out, _ = show(busy_pr(), "--since-snapshot", "review/queue")
-
-        assert code == 0
-        assert "timeline since 2026-11-05T13:35:00Z: 2 events" in out
-
-    def test_since_snapshot_without_a_row_for_the_item_is_an_error(self, show):
-        snapshot_store.save(make_snapshot(kind="pr", name="tick", items=[make_item(key="o/r#99")]))
-
-        code, out, err = show(busy_pr(), "--since-snapshot", "pr/tick")
-
-        assert code == 1
-        assert out == ""
-        assert "snapshot pr/tick has no row for o/r#7" in err
-
-    def test_since_snapshot_of_another_kind_is_an_error(self, show):
-        snapshot_store.save(make_snapshot(kind="issue", name="tick", items=[]))
-
-        code, _, err = show(busy_pr(), "--since-snapshot", "issue/tick")
-
-        assert code == 1
-        assert "`pr show` reads a pr or review snapshot, not issue" in err
-
-    def test_missing_snapshot_is_an_error(self, show):
-        code, _, err = show(busy_pr(), "--since-snapshot", "pr/nope")
-
-        assert code == 1
-        assert "snapshot not found: pr/nope" in err
-
-    def test_snapshot_ref_needs_a_kind(self, show):
-        code, _, err = show(busy_pr(), "--since-snapshot", "tick")
-
-        assert code == 1
-        assert "KIND/NAME" in err
-
     def test_bad_time_is_an_error(self, show):
         code, _, err = show(busy_pr(), "--since-time", "yesterday")
 
         assert code == 1
         assert "invalid time 'yesterday'" in err
-
-    def test_since_and_since_snapshot_cannot_be_combined(self, show):
-        with pytest.raises(SystemExit):
-            show(busy_pr(), "--since-time", "2026-11-05", "--since-snapshot", "pr/tick")
 
 
 class TestRemovedSince:
@@ -424,12 +371,15 @@ class TestRemovedSince:
         assert f"tkt pr show: error: {self.MESSAGE}" in captured.err
         client.assert_not_called()
 
-    def test_wins_over_the_snapshot_exclusion_error(self, capsys):
-        with pytest.raises(SystemExit) as exc:
-            main(["pr", "show", "o/r#7", "--since", "T", "--since-snapshot", "pr/tick"])
+    def test_removed_flag_is_rejected_at_parse_time(self, capsys):
+        with patch("src.show.cli.GitHubClient") as client, pytest.raises(SystemExit) as exc:
+            main(["pr", "show", "o/r#7", REMOVED_FLAG, "pr/x"])
 
+        captured = capsys.readouterr()
         assert exc.value.code == 2
-        assert self.MESSAGE in capsys.readouterr().err
+        assert captured.out == ""
+        assert f"unrecognized arguments: {REMOVED_FLAG} pr/x" in captured.err
+        client.assert_not_called()
 
     def test_prefixes_of_the_new_flags_still_resolve(self, show):
         code, out, _ = show(busy_pr(), "--since-t", "2026-12-01T00:00:00Z")
@@ -444,7 +394,7 @@ class TestRemovedSince:
         out = capsys.readouterr().out
         assert exc.value.code == 0
         assert "--since-time TS" in out
-        assert "--since-snapshot KIND/NAME" in out
+        assert REMOVED_FLAG not in out
         assert not re.search(r"--since(\s|$)", out)
 
 
