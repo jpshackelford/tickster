@@ -560,6 +560,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched (release-please)
 - Ready, `priority:medium`: #132–#136, #147, #124 (queued once a PR slot frees). #146, #148 unblock when #158 merges.
 
+### 2026-11-13 07:30 UTC - Merge worker
+
+- PR: [feat(list): explicit date flags on pr list](https://github.com/jpshackelford/tickster/pull/156), squash-merged as `22d0352`. Head `558ae9d` and CI were unchanged before the merge; the manual test (all PASS) and the automated review (APPROVED) covered that head.
+- Issue: #131 closed by the merge.
+- Done: the 12 `--{created,updated,closed,merged}-{since,after,before}` flags on `tkt pr list`, with state checks and errors that name the typed flag. `doc/usage.md` is updated. Old flags work unchanged and give the same snapshot scope.
+- Note: `GITHUB_TOKEN` could not edit the PR; used `JPSHACKELFORD_GITHUB_TOKEN` for the description edit and the merge.
+
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
