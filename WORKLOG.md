@@ -269,3 +269,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:35 UTC - Merge Worker
+
+✅ **Merged [PR #152](https://github.com/jpshackelford/tickster/pull/152)** (squash, `b5fa055`); closed #121
+
+- `main` had moved: #151 merged while this PR waited, and three files conflicted (`src/snapshot/integration.py`, `doc/usage.md`, `tests/snapshot/test_list_cmd_watch.py`). Rebased keeping both PRs' intent, and posted a PR comment about it.
+- Re-ran pytest (1823), ruff, basedpyright on the rebased head `75bce5f`; CI green before merging.
+- Updated the PR description to the final state; commit keeps `!` / `BREAKING CHANGE` and `Closes #121`. #121 verified closed.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
