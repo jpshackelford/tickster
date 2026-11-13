@@ -112,6 +112,8 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--not-label LABEL` | Leave out issues that have this label (case-insensitive). Repeat to leave out issues with any of several labels; commas are not special. Combines with `-l`; a label in both returns nothing. Not with explicit refs |
 | `--no-pr` | Only issues with no linked PR (the `PR` column shows `--`), by the definition in [Linked PRs](#linked-prs). Closed issues are included only with `--closed` or `--all`. Not with `--has-pr` or explicit refs |
 | `--has-pr` | Only issues with at least one linked PR, in any state (open, merged or closed). Not with `--no-pr` or explicit refs |
+| `--unblocked` | Only issues with no open blocker. A closed blocker does not count. See [Issue dependencies](#issue-dependencies). Not with `--blocked` or explicit refs |
+| `--blocked` | Only issues with at least one open blocker. A blocker you cannot read counts as open (`?`). Not with `--unblocked` or explicit refs |
 | `--open, -O` | Show open issues (default) |
 | `--closed, -C` | Show closed issues |
 | `--all, -A` | Show all states (open + closed) |
@@ -132,6 +134,8 @@ tkt issue list --deps                       # which of my open issues are blocke
 tkt issue list --repo octocat/hello-world --all-authors -l ready --not-label hold   # ready, not on hold
 tkt issue list --all --no-pr --title        # issues nobody has opened a PR for
 tkt issue list --has-pr                     # my open issues that already have a PR
+tkt issue list --repo octocat/hello-world --all-authors -l ready --unblocked   # ready and startable now
+tkt issue list --blocked --deps             # my open issues that are waiting, and on what
 tkt issue list octocat/hello-world#42       # a specific issue
 tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
 tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
@@ -139,13 +143,15 @@ tkt issue list --all --closed-after 2026-11-01 --closed-before 2026-11-07   # cl
 tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's open issues
 ```
 
-`--no-pr` and `--has-pr` filter after the search, so `--limit` counts matching
-issues, not issues fetched. When more matching issues exist, the footer says
+`--no-pr`, `--has-pr`, `--blocked` and `--unblocked` filter after the search, so
+`--limit` counts matching issues, not issues fetched. When more matching issues exist, the footer says
 `Showing N matching issues (more available; raise --limit)`; it gives no total,
 since GitHub's count includes issues the filter drops. When the search ran out
 of issues, there is no footer. Under `--no-pr`, an issue leaves a `--diff` or
 `--watch` when a PR links to it, and the Note says so (see
-[Why a row is gone](#why-a-row-is-gone)).
+[Why a row is gone](#why-a-row-is-gone)). Under `--blocked`, an issue leaves
+when its last open blocker closes; `--diff-resolve` then reports it as
+`still open`.
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
@@ -175,6 +181,7 @@ Filters: author=octocat (you) · state=open · repos=all GitHub · label=any · 
 | `repos` | `--repo` values, the board's repos (comma-joined), or `all GitHub` |
 | `label` | `any`, or the `-l` values: repeated flags joined with ` & ` (AND), commas shown as `\|` (OR). `-l bug,stale -l urgent` prints `label=bug\|stale & urgent` |
 | `not-label` | Only with `--not-label`: the labels, comma-joined |
+| `blocked` | Only with `--blocked` (`yes`) or `--unblocked` (`no`) |
 | `limit` | `--limit` (default 100) |
 
 With explicit refs the line is `Filters: refs=N`, since refs ignore the other
@@ -1128,7 +1135,7 @@ is the same dense table you already read, with two added visual channels:
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
-(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, limit). Exact capture
+(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, limit). Exact capture
 times are in `tkt snapshot show` and `--format json`.
 
 ```
@@ -1216,6 +1223,12 @@ out when not recorded.
 `tkt issue list --deps` adds the `Blocked by` and `Blocks` columns to the table.
 Open blockers in the issue's own repo print as `#N`, others as `owner/repo#N`.
 The default table is unchanged.
+
+`tkt issue list --unblocked` keeps the issues whose `open_blockers` is empty, and
+`--blocked` the rest, so the two together list every issue once. Use `--unblocked`
+to find issues you can start now. A blocker you cannot read counts as open, so
+the issue is listed by `--blocked`. A dependency cycle leaves every issue in it
+blocked. Neither flag works with explicit refs.
 
 With `--diff` / `--watch`, a change in `open_blockers` marks the row `*`, puts
 `open_blockers` in `changed_fields` and adds a Note (`blocker_note` in the
@@ -1418,7 +1431,7 @@ tkt pr list --diff poll --format json --events none       # steps only, no timel
 ### Scope matching
 
 The query filter set (board, author or `--all-authors`, reviewer, repos, explicit
-`owner/repo#N` refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--all`, limit, and the
+`owner/repo#N` refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, `--all`, limit, and the
 [date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
@@ -1427,7 +1440,8 @@ sets, so their order doesn't matter. The window is recorded as typed, so `--crea
 matches `--created-since 14` on any later day, while `--created-since 14` against
 `--created-since 3`, `--updated-since 14` or no window at all is a scope change; the error
 (or the `window:` line under the summary) names both windows. A changed PR filter is named the
-same way, on a `pr filter: none → no-pr` line. If the
+same way, on a `pr filter: none → no-pr` line, and a changed blocked filter on a
+`blocked filter: none → blocked` line. If the
 current query's scope doesn't match the
 snapshot's scope, the diff refuses to render in either table or JSON mode
 and exits 2 without touching the baseline, so you can rerun with

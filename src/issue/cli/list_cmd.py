@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from src.all_authors import all_authors_error
+from src.blocked_filter import blocked_filter_error
 from src.cli_errors import VERBOSE_HINT, print_error
 from src.date_window import (
     ISSUE_DATE_FIELDS,
@@ -47,6 +48,7 @@ def cmd_list(
     labels: list[str] | None = None,
     not_labels: list[str] | None = None,
     pr_filter: str | None = None,
+    blocked_filter: str | None = None,
     board_name: str | None = None,
     limit: int = 100,
     show_title: bool = False,
@@ -72,6 +74,8 @@ def cmd_list(
         labels: Filter by labels (comma-separated = OR, multiple = AND)
         not_labels: Leave out issues that have any of these labels (not with refs)
         pr_filter: "no-pr" or "has-pr": keep issues without or with a linked PR (not with refs)
+        blocked_filter: "unblocked" or "blocked": keep issues without or with an open
+            blocker (not with refs)
         board_name: Board to get repos from (default: default board)
         limit: Maximum number of issues to show
         show_title: Include issue titles in output
@@ -114,6 +118,10 @@ def cmd_list(
         print_error(error)
         return 1
 
+    if error := blocked_filter_error(blocked_filter, has_refs=bool(issue_refs)):
+        print_error(error)
+        return 1
+
     try:
         target_repos = None if issue_refs else _get_repos(repos, board_name)
         if all_authors:
@@ -143,6 +151,7 @@ def cmd_list(
                     repos=target_repos,
                     labels=labels,
                     not_labels=not_labels,
+                    blocked_filter=blocked_filter,
                     limit=limit,
                 )
                 result = client.list_issues_by_author(
@@ -155,6 +164,7 @@ def cmd_list(
                     date_qualifier=date_qualifier,
                     not_labels=not_labels,
                     pr_filter=pr_filter,
+                    blocked_filter=blocked_filter,
                 )
 
             plan = SnapshotPlan.from_args(
@@ -178,6 +188,7 @@ def cmd_list(
                     labels=labels,
                     not_labels=not_labels,
                     pr_filter=pr_filter,
+                    blocked_filter=blocked_filter,
                     limit=limit,
                     window=window,
                 )
@@ -216,7 +227,7 @@ def cmd_list(
                     "Blocks: open issues this one blocks[/]",
                 )
 
-            if result.has_more and pr_filter:
+            if result.has_more and (pr_filter or blocked_filter):
                 print_note(
                     console,
                     f"\n[dim]Showing {len(result.issues)} matching issues "
@@ -249,13 +260,14 @@ def _issue_filters(
     repos: Sequence[str] | None,
     labels: Sequence[str] | None,
     not_labels: Sequence[str] | None,
+    blocked_filter: str | None,
     limit: int,
 ) -> list[tuple[str, str]]:
     """The effective filters of a query listing, in display order.
 
     `author` is the resolved login (`None` = every author); `is_me` marks a login that
     came from the default or `me`. Repeated labels are AND (` & `), commas inside one
-    are OR (`|`). `not-label` appears only when given.
+    are OR (`|`). `not-label` and `blocked` appear only when given.
     """
     author_text = "all authors" if author is None else author + (" (you)" if is_me else "")
     label_text = " & ".join(label.replace(",", "|") for label in labels) if labels else "any"
@@ -267,6 +279,8 @@ def _issue_filters(
     ]
     if not_labels:
         parts.append(("not-label", ",".join(not_labels)))
+    if blocked_filter:
+        parts.append(("blocked", "yes" if blocked_filter == "blocked" else "no"))
     parts.append(("limit", str(limit)))
     return parts
 
