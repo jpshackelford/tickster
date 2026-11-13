@@ -750,3 +750,29 @@ Merging [PR #186](https://github.com/jpshackelford/tickster/pull/186): docs: say
 - Needs expansion: none (#179, #138, #129 are tracking issues; #71 is `needs-split`); all other open issues are `hold`
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-13 23:05 UTC - Orchestrator
+
+🛠 **Launched: Implementation Worker**
+
+Implementing [#187](https://github.com/jpshackelford/tickster/issues/187): name `--no-pr` / `--has-pr` in the Filters: line
+- `ready`, no open blockers; a human removed `hold`; I added `priority:medium` (small polish, low complexity; owner token, `GITHUB_TOKEN` can't label)
+- [PR #186](https://github.com/jpshackelford/tickster/pull/186) merged 22:48 UTC; merge worker `fca5ab6` finished
+- Conversation: [`ecd0ec9`](https://app.beta.staging.all-hands-testing.dev/conversations/ecd0ec9a688446d985b0fb8a1cbef8a6)
+- Slots: expansion 0 busy, 2 free (no candidates); PR 1 busy, 1 free (no other `ready` issue)
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `ecd0ec9` | implementation | Issue #187 | **NEW** |
+
+**Current State:**
+
+- Only open PR is release [PR #119](https://github.com/jpshackelford/tickster/pull/119) (release-please, untouched)
+- Ready issues: #187 (`priority:medium`, in flight)
+- Needs expansion: none (#179, #138, #129 are tracking issues; #71 is `needs-split`); all other open issues are `hold`
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
