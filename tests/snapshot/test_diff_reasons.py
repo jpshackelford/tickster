@@ -24,9 +24,9 @@ def _items(*numbers: int, **kwargs) -> list[ItemSnapshot]:
 
 def _reasons(prev: Snapshot, curr: Snapshot) -> dict[str, str | None]:
     return {
-        d.key: d.disappearance_reason
+        d.ref: d.disappearance_reason
         for d in diff_snapshots(prev, curr).deltas
-        if d.kind is ChangeKind.REMOVED
+        if d.change is ChangeKind.REMOVED
     }
 
 
@@ -108,7 +108,7 @@ class TestResolveRemoved:
             return [_Info("o/r", 1, _State.MERGED), _Info("o/r", 2, _State.OPEN)]
 
         resolved = resolve_removed(self._gone(1, 2, 3), fetch)
-        assert {d.key: d.disappearance_reason for d in resolved.deltas} == {
+        assert {d.ref: d.disappearance_reason for d in resolved.deltas} == {
             "o/r#1": "merged",
             "o/r#2": "still-open",
             "o/r#3": "not-found",
@@ -133,8 +133,8 @@ class TestResolveRemoved:
             return [_Info("o/r", 1, _State.CLOSED)]
 
         resolved = resolve_removed(diff, fetch)
-        assert [d.kind for d in resolved.deltas] == [d.kind for d in diff.deltas]
-        assert {d.key: d.disappearance_reason for d in resolved.deltas if d.curr is None} == {
+        assert [d.change for d in resolved.deltas] == [d.change for d in diff.deltas]
+        assert {d.ref: d.disappearance_reason for d in resolved.deltas if d.curr is None} == {
             "o/r#1": "closed"
         }
 
@@ -175,7 +175,7 @@ class TestMergeabilityWarmUp:
         prev = _pr(mergeable="UNKNOWN", merge_state="UNKNOWN", ci="green")
         curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci="conflict")
         [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[curr])).deltas
-        assert delta.kind is ChangeKind.UNCHANGED
+        assert delta.change is ChangeKind.UNCHANGED
 
     def test_a_real_conflict_between_known_states_is_still_flagged(self):
         prev = _pr(ci="green")

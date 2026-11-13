@@ -72,7 +72,7 @@ def render_diff(
         raise ValueError(f"unknown diff output format: {output_format!r}")
 
     _print_summary(diff, console=console)
-    deltas = [d for d in diff.deltas if show_unchanged or d.kind is not ChangeKind.UNCHANGED]
+    deltas = [d for d in diff.deltas if show_unchanged or d.change is not ChangeKind.UNCHANGED]
     if not deltas:
         print_note(console, "[dim]No changes.[/]")
         return
@@ -194,7 +194,7 @@ def _print_pr_like_table(
     for d in deltas:
         item = d.display_item
         row = [
-            _KIND_GLYPH[d.kind],
+            _KIND_GLYPH[d.change],
             item.repo,
             f"#{item.number}",
             _render_history(item.history, d),
@@ -246,7 +246,7 @@ def _print_issue_table(deltas: list[ItemDelta], *, console: Console) -> None:
         item = d.display_item
         rows.append(
             [
-                _KIND_GLYPH[d.kind],
+                _KIND_GLYPH[d.change],
                 item.repo,
                 f"#{item.number}",
                 _render_history(item.history, d),
@@ -268,9 +268,9 @@ def _render_history(history: str, d: ItemDelta) -> str:
     them as text and not as markup openers.
     """
     tail = d.new_history_tail
-    if not tail or d.kind is ChangeKind.REMOVED:
+    if not tail or d.change is ChangeKind.REMOVED:
         return history
-    if d.kind is ChangeKind.ADDED:
+    if d.change is ChangeKind.ADDED:
         return f"[bold magenta]\\[{history}][/]"
     if tail == history:
         # history-rewritten: whole string is "new"
@@ -297,7 +297,7 @@ def _render_thread_count(count: int, d: ItemDelta) -> str:
 
 
 def _render_last_activity(iso_timestamp: str, d: ItemDelta) -> str:
-    return _render_field(relative_time(iso_timestamp), "activity" in d.changed_fields)
+    return _render_field(relative_time(iso_timestamp), "last_activity" in d.changed_fields)
 
 
 def _render_linked_pr(linked_pr: str | None) -> str:
@@ -330,7 +330,7 @@ def relative_time(iso_timestamp: str) -> str:
 
 
 def _render_note(d: ItemDelta, *, show_pr_detail: bool = False) -> str:
-    if d.kind is ChangeKind.REMOVED:
+    if d.change is ChangeKind.REMOVED:
         label = _REMOVAL_LABEL.get(d.disappearance_reason or "", "?")
         return f"[dim]{label}[/]"
     notes: list[str] = []

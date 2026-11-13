@@ -424,7 +424,7 @@ def test_json_reason_is_limit_for_a_row_pushed_past_the_limit(
     fake_client.has_more = True
     assert cmd_list(watch_name="hourly", limit=2, output_format="json") == 0
     deltas = json.loads(capsys.readouterr().out)["deltas"]
-    assert {d["key"]: d["disappearance_reason"] for d in deltas if d["kind"] == "removed"} == {
+    assert {d["ref"]: d["disappearance_reason"] for d in deltas if d["change"] == "removed"} == {
         "o/r#1": "limit"
     }
 
@@ -445,7 +445,7 @@ def test_diff_resolve_replaces_the_guess_with_the_current_state(
     fake_client.lookup = {1: "closed", 2: "open"}
     assert cmd_list(watch_name="hourly", diff_resolve=True, output_format="json") == 0
     deltas = json.loads(capsys.readouterr().out)["deltas"]
-    assert {d["key"]: d["disappearance_reason"] for d in deltas} == {
+    assert {d["ref"]: d["disappearance_reason"] for d in deltas} == {
         "o/r#1": "closed",
         "o/r#2": "still-open",
         "o/r#3": "not-found",
@@ -691,7 +691,7 @@ def test_diff_against_a_schema_1_baseline_discards_it_and_reports_it_missing(
     if output_format == "json":
         document = json.loads(captured.out)
         assert document["baseline"] == "missing"
-        assert [d["kind"] for d in document["deltas"]] == ["added"]
+        assert [d["change"] for d in document["deltas"]] == ["added"]
         assert f"No snapshot {kind}/poll found" in captured.err
     else:
         assert f"No snapshot {kind}/poll found" in captured.out
@@ -1052,3 +1052,25 @@ def test_diff_and_json_print_no_filters_line(
     out = capsys.readouterr().out
     assert "Filters:" not in out
     json.loads(out)
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_json_without_a_baseline_marks_every_row_added_with_its_kind(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1, 2]
+
+    assert cmd_list(diff_name="never-saved", output_format="json") == 0
+
+    document = json.loads(capsys.readouterr().out)
+    assert document["baseline"] == "missing"
+    assert [(d["ref"], d["kind"], d["change"]) for d in document["deltas"]] == [
+        ("o/r#1", kind, "added"),
+        ("o/r#2", kind, "added"),
+    ]
+    assert all(d["prev"] is None and d["curr"]["kind"] == kind for d in document["deltas"])
+    assert set(document["prev"]) == set(document["curr"]) == {"name", "captured_at", "scope_hash"}

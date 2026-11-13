@@ -115,7 +115,7 @@ def _baseline(prs, capsys, timeline, *numbers: int) -> None:
 
 
 def _delta(doc: dict, kind: str) -> dict:
-    [delta] = [d for d in doc["deltas"] if d["kind"] == kind]
+    [delta] = [d for d in doc["deltas"] if d["change"] == kind]
     return delta
 
 
@@ -179,7 +179,7 @@ class TestChangedRow:
         delta = _delta(_watch(capsys), "changed")
 
         assert delta["new_history_tail"] == "C"
-        assert delta["changed_fields"] == ["history", "activity"]
+        assert delta["changed_fields"] == ["history", "last_activity"]
         assert delta["prev"]["last_activity"] == BASELINE_ISO
         assert delta["curr"]["history"] == "oAC"
 
@@ -273,7 +273,7 @@ class TestOtherRows:
 
         doc = _watch(capsys)
 
-        assert [d["kind"] for d in doc["deltas"]] == ["removed", "unchanged"]
+        assert [d["change"] for d in doc["deltas"]] == ["removed", "unchanged"]
         assert timeline.requests == []
         for delta in doc["deltas"]:
             assert not {"events_since", "events_truncated", "steps"} & delta.keys()
@@ -284,7 +284,7 @@ class TestOtherRows:
 
         doc = _watch(capsys)
 
-        assert {d["key"]: d["kind"] for d in doc["deltas"]} == {
+        assert {d["ref"]: d["change"] for d in doc["deltas"]} == {
             "o/r#4": "added",
             "o/r#2": "changed",
             "o/r#3": "removed",

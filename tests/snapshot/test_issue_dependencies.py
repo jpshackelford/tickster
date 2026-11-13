@@ -96,7 +96,7 @@ class TestDiff:
 
         [delta] = diff_snapshots(prev, curr).deltas
 
-        assert delta.kind is ChangeKind.CHANGED
+        assert delta.change is ChangeKind.CHANGED
         assert delta.changed_fields == ("open_blockers",)
         assert delta.blocker_note == "unblocked"
 
@@ -130,7 +130,7 @@ class TestDiff:
 
         [delta] = diff_snapshots(prev, curr).deltas
 
-        assert delta.kind is ChangeKind.UNCHANGED
+        assert delta.change is ChangeKind.UNCHANGED
         assert delta.changed_fields == ()
 
     def test_json_diff_names_the_field_and_the_note(self):

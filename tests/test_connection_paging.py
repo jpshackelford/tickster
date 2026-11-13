@@ -303,10 +303,10 @@ class TestSnapshotDiff:
 
         [delta] = diff_snapshots(before, after).deltas
 
-        assert delta.kind is ChangeKind.CHANGED
+        assert delta.change is ChangeKind.CHANGED
         assert delta.new_history_tail == "C"
         assert "history" in delta.changed_fields
-        assert "activity" in delta.changed_fields
+        assert "last_activity" in delta.changed_fields
 
 
 class TestReview:

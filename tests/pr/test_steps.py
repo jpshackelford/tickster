@@ -779,17 +779,17 @@ class TestSnapshots:
     def test_diff_reports_the_transition(self):
         done = pr_info((reviewed("enyst", "COMMENTED", HEAD),))
         delta = only_delta(snapshot_of(done), snapshot_of(stale_pr()))
-        assert delta.kind.value == "changed"
+        assert delta.change.value == "changed"
         assert delta.step_changes == ("request re-review: done → needed",)
         assert "step_status" in delta.changed_fields
 
     def test_unchanged_statuses_do_not_flag_the_row(self):
         delta = only_delta(snapshot_of(stale_pr()), snapshot_of(stale_pr()))
-        assert delta.kind.value == "unchanged" and delta.step_changes == ()
+        assert delta.change.value == "unchanged" and delta.step_changes == ()
 
     def test_a_snapshot_without_steps_is_not_compared(self):
         delta = only_delta(snapshot_of(stale_pr(), with_steps=False), snapshot_of(stale_pr()))
-        assert delta.kind.value == "unchanged"
+        assert delta.change.value == "unchanged"
 
     def test_json_lists_transitions_only_when_present(self):
         done = pr_info((reviewed("enyst", "COMMENTED", HEAD),))
@@ -857,7 +857,7 @@ class TestStepsAlwaysRecorded:
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
         [delta] = [
-            d for d in json.loads(capsys.readouterr().out)["deltas"] if d["kind"] == "changed"
+            d for d in json.loads(capsys.readouterr().out)["deltas"] if d["change"] == "changed"
         ]
         assert delta["step_changes"] == ["request re-review: done → needed"]
         assert "step_status" in delta["changed_fields"]
@@ -887,7 +887,7 @@ class TestStepsAlwaysRecorded:
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(diff_name="s", output_format="json") == 0
         [delta] = json.loads(capsys.readouterr().out)["deltas"]
-        assert delta["kind"] == "unchanged"
+        assert delta["change"] == "unchanged"
 
     def test_the_cli_help_calls_steps_the_table_column(self, capsys):
         with pytest.raises(SystemExit):

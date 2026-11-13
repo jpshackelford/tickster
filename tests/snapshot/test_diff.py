@@ -23,10 +23,10 @@ def test_added_item_marked_added_with_full_history_as_tail():
         ]
     )
     result = diff_snapshots(prev, curr)
-    by_key = {d.key: d for d in result.deltas}
-    assert by_key["a/b#2"].kind is ChangeKind.ADDED
+    by_key = {d.ref: d for d in result.deltas}
+    assert by_key["a/b#2"].change is ChangeKind.ADDED
     assert by_key["a/b#2"].new_history_tail == "oCr"
-    assert by_key["a/b#1"].kind is ChangeKind.UNCHANGED
+    assert by_key["a/b#1"].change is ChangeKind.UNCHANGED
 
 
 def test_removed_item_marked_removed_with_reason():
@@ -34,7 +34,7 @@ def test_removed_item_marked_removed_with_reason():
     curr = make_snapshot(items=[])
     result = diff_snapshots(prev, curr)
     delta = result.deltas[0]
-    assert delta.kind is ChangeKind.REMOVED
+    assert delta.change is ChangeKind.REMOVED
     # Prev was open and curr still has an open-including scope → closed-or-gone
     assert delta.disappearance_reason == "closed-or-gone"
 
@@ -59,7 +59,7 @@ def test_history_grew_tail_is_only_new_characters():
     curr = make_snapshot(items=[make_item(ref="a/b#1", history="oRfAfR")])
     result = diff_snapshots(prev, curr)
     delta = result.deltas[0]
-    assert delta.kind is ChangeKind.CHANGED
+    assert delta.change is ChangeKind.CHANGED
     assert delta.new_history_tail == "fR"
     assert "history" in delta.changed_fields
     assert "history-rewritten" not in delta.changed_fields
@@ -69,7 +69,7 @@ def test_history_rewritten_flagged_when_prev_not_prefix_of_curr():
     prev = make_snapshot(items=[make_item(ref="a/b#1", history="oCxr")])
     curr = make_snapshot(items=[make_item(ref="a/b#1", history="oLx")])
     delta = diff_snapshots(prev, curr).deltas[0]
-    assert delta.kind is ChangeKind.CHANGED
+    assert delta.change is ChangeKind.CHANGED
     assert "history-rewritten" in delta.changed_fields
     # Fallback: whole curr.history surfaces as the tail so the renderer
     # brackets the entire string.
@@ -80,14 +80,14 @@ def test_label_set_equality_ignores_order():
     prev = make_snapshot(items=[make_item(ref="a/b#1", labels=("bug", "p1"))])
     curr = make_snapshot(items=[make_item(ref="a/b#1", labels=("p1", "bug"))])
     delta = diff_snapshots(prev, curr).deltas[0]
-    assert delta.kind is ChangeKind.UNCHANGED
+    assert delta.change is ChangeKind.UNCHANGED
 
 
 def test_ci_change_detected():
     prev = make_snapshot(items=[make_item(ref="a/b#1", ci="green")])
     curr = make_snapshot(items=[make_item(ref="a/b#1", ci="red")])
     delta = diff_snapshots(prev, curr).deltas[0]
-    assert delta.kind is ChangeKind.CHANGED
+    assert delta.change is ChangeKind.CHANGED
     assert "ci" in delta.changed_fields
 
 
@@ -136,8 +136,8 @@ def test_replies_folded_into_unchanged_history_are_reported_as_activity():
         make_snapshot(kind="issue", items=[curr_item]),
     )
     delta = result.deltas[0]
-    assert delta.kind is ChangeKind.CHANGED
-    assert delta.changed_fields == ("activity",)
+    assert delta.change is ChangeKind.CHANGED
+    assert delta.changed_fields == ("last_activity",)
     assert delta.new_history_tail == ""
     assert result.counts[ChangeKind.UNCHANGED] == 0
 
@@ -147,14 +147,14 @@ def test_history_growth_also_reports_activity():
     curr = make_snapshot(
         items=[make_item(ref="a/b#1", history="oCr", last_activity="2026-10-01T09:00:00Z")]
     )
-    assert diff_snapshots(prev, curr).deltas[0].changed_fields == ("history", "activity")
+    assert diff_snapshots(prev, curr).deltas[0].changed_fields == ("history", "last_activity")
 
 
 def test_item_read_back_from_its_json_is_unchanged_against_fresh_run():
     on_disk = json.loads(json.dumps(make_item(ref="a/b#1").to_dict()))
     prev = make_snapshot(items=[ItemSnapshot.from_dict(on_disk)])
     curr = make_snapshot(items=[make_item(ref="a/b#1")])
-    assert diff_snapshots(prev, curr).deltas[0].kind is ChangeKind.UNCHANGED
+    assert diff_snapshots(prev, curr).deltas[0].change is ChangeKind.UNCHANGED
 
 
 def test_cross_kind_diff_rejected():
@@ -202,7 +202,7 @@ def test_deltas_sorted_added_changed_removed_unchanged():
         ]
     )
     deltas = diff_snapshots(prev, curr).deltas
-    kinds = [d.kind for d in deltas]
+    kinds = [d.change for d in deltas]
     # Everything added comes first, then changed, then removed, then unchanged
     added = [i for i, k in enumerate(kinds) if k is ChangeKind.ADDED]
     changed = [i for i, k in enumerate(kinds) if k is ChangeKind.CHANGED]
@@ -246,8 +246,8 @@ def test_diff_result_json_skips_bodies_for_unchanged_deltas():
         ]
     )
     deltas = diff_snapshots(prev, curr).to_dict()["deltas"]
-    by_key = {d["key"]: d for d in deltas}
-    assert by_key["a/b#1"]["kind"] == "unchanged"
+    by_key = {d["ref"]: d for d in deltas}
+    assert by_key["a/b#1"]["change"] == "unchanged"
     assert by_key["a/b#1"]["prev"] is None
     assert by_key["a/b#1"]["curr"] is None
     # Changed deltas still carry bodies.

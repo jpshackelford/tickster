@@ -47,10 +47,10 @@ def add_pr_evidence(
     row has no earlier state, so it gets the whole timeline. Removed and
     unchanged rows are left as they are and cost no call.
     """
-    wanted = [d for d in result.deltas if d.kind in _WITH_EVIDENCE]
+    wanted = [d for d in result.deltas if d.change in _WITH_EVIDENCE]
     shows = _fetch_shows(wanted, body_limit(events, max_body)) if events != EVENTS_NONE else {}
     deltas = tuple(
-        _with_evidence(d, steps, shows.get(d.key)) if d.kind in _WITH_EVIDENCE else d
+        _with_evidence(d, steps, shows.get(d.ref)) if d.change in _WITH_EVIDENCE else d
         for d in result.deltas
     )
     return replace(result, deltas=deltas)
@@ -68,14 +68,14 @@ def _fetch_shows(wanted: list[ItemDelta], max_body: int) -> dict[str, Show]:
             show = build_pr_show(fetch_pr_node(client, repo, int(number)), reference_user, max_body)
             if delta.prev is not None:
                 show.apply_since(parse_time(delta.prev.last_activity))
-            shows[delta.key] = show
+            shows[delta.ref] = show
     return shows
 
 
 def _with_evidence(
     delta: ItemDelta, steps: Mapping[str, tuple[StepResult, ...]], show: Show | None
 ) -> ItemDelta:
-    evidence = replace(delta, steps=tuple(r.to_dict() for r in steps[delta.key]))
+    evidence = replace(delta, steps=tuple(r.to_dict() for r in steps[delta.ref]))
     if show is None:
         return evidence
     return replace(

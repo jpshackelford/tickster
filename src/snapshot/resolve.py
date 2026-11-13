@@ -38,7 +38,7 @@ def resolve_removed(diff: DiffResult, fetch: FetchByRef) -> DiffResult:
     filters no longer match it) or `not-found`. Under a `--no-pr` scope an open
     issue that now has a linked PR is `pr-linked`. Makes no call when no row is gone.
     """
-    gone = [d.key for d in diff.deltas if d.kind is ChangeKind.REMOVED]
+    gone = [d.ref for d in diff.deltas if d.change is ChangeKind.REMOVED]
     if not gone:
         return diff
     no_pr_scope = diff.curr.scope.pr_filter == "no-pr"
@@ -50,8 +50,8 @@ def resolve_removed(diff: DiffResult, fetch: FetchByRef) -> DiffResult:
             REASON_PR_LINKED if linked and item.state.value == "open" else item.state.value
         )
     deltas = tuple(
-        replace(d, disappearance_reason=_reason(states.get(d.key.lower())))
-        if d.kind is ChangeKind.REMOVED
+        replace(d, disappearance_reason=_reason(states.get(d.ref.lower())))
+        if d.change is ChangeKind.REMOVED
         else d
         for d in diff.deltas
     )

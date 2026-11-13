@@ -1232,7 +1232,22 @@ of the snapshot file and the `prev` / `curr` of a diff delta. It now uses the na
   or a reviewer move that it never saw before.
 
 `changed_fields` in a diff uses the same names, so a scripted filter on the old head, CI or
-steps name has to change to `head`, `ci` and `step_status`.
+steps name has to change to `head`, `ci` and `step_status`. The 1.x entry `activity` is now
+`last_activity`.
+
+**Diff JSON.** `--diff` and `--watch` with `--format json`, and `tkt snapshot diff --format
+json`, print a document with the names of the list document ([Diff
+JSON](#diff-json)). In each delta:
+
+- `key` is `ref`.
+- The old `kind` (`added`, `changed`, `removed` or `unchanged`) is now `change`.
+- `kind` is new and is the kind of the row: `issue`, `pr` or `review`, as in a list row. It is
+  there for all four changes.
+- The top-level `prev` and `curr` have `name`, `captured_at` and `scope_hash`, and no `kind`.
+
+A script that reads `.deltas[].key` or `.deltas[].kind` has to change: `jq 'select(.kind ==
+"changed")'` is `select(.change == "changed")`, and `.key` is `.ref`. A script that is not
+changed keeps running, but `.kind == "changed"` never matches.
 
 The `since` key in `tkt pr show --format json`, `tkt issue show --format json` and
 `tkt pr changes --format json` did not change.
@@ -1294,7 +1309,7 @@ is the same dense table you already read, with two added visual channels:
   (e.g. `5m ago!`) with no bracketed history means new events arrived
   but collapsed into the existing string (consecutive duplicates
   collapse), e.g. replies after your comment. In `--format json`
-  this is `"activity"` in `changed_fields`.
+  this is `"last_activity"` in `changed_fields`.
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
@@ -1331,7 +1346,8 @@ value for the same fact, in `--format json`.
 
 `url` is `https://github.com/OWNER/REPO/issues/N` for an issue and
 `https://github.com/OWNER/REPO/pull/N` for a PR or a review. `changed_fields` in a diff names
-row fields (and `activity` for `last_activity`).
+row fields, such as `last_activity`, plus the marker `history-rewritten`
+([Diff JSON](#diff-json)).
 
 ### Step changes
 
@@ -1588,7 +1604,39 @@ read it as a snapshot.
 With `--format json`, the document has a top-level `"baseline"`: `"found"`
 or `"missing"`. When it is `"missing"`, the rows are all `added`, and the notice
 `No snapshot … found` goes to stderr. A job can treat a first run differently
-without parsing stderr.
+without parsing stderr. Test `baseline`, not `prev.captured_at`: with no baseline,
+`prev.captured_at` is the time of the run.
+
+### Diff JSON
+
+With `--diff` or `--watch` and `--format json`, stdout is one document. Its top level is
+`schema` (2), `prev` and `curr` (each with `name`, `captured_at` and `scope_hash`),
+`baseline`, `scope_matches`, `counts` and `deltas`. A delta names a row as a list row does:
+
+| Field | Meaning |
+| --- | --- |
+| `ref` | `owner/repo#N`, as `ref` in `items` |
+| `kind` | The row kind: `issue`, `pr` or `review`. Set for every change, `unchanged` included |
+| `change` | `added`, `changed`, `removed` or `unchanged` |
+| `new_history_tail` | The characters appended to the [history string](#history-strings) |
+| `changed_fields` | Row field names, such as `ci`, `draft`, `head`, `step_status` and `last_activity`, plus `history-rewritten`. That one is a marker, not a row field: the new history does not start with the old one |
+| `disappearance_reason` | For `removed` ([Why a row is gone](#why-a-row-is-gone)), else `null` |
+| `prev`, `curr` | The row before and after, with the fields of a row of that `kind` ([Row fields](#row-fields)). `prev` is `null` for `added`, `curr` is `null` for `removed`, and both are `null` for `unchanged` |
+
+The optional fields (`reviewer_changes`, `step_changes`, `blocker_note`, `events_since`,
+`events_truncated`, `steps`) are present as before. The diff table, its notes and the `Δ`
+column are the same as before.
+
+```bash
+tkt pr list jpshackelford/tickster#60 --diff demo --format json | jq -r '.deltas[] | [.ref, .kind, .change] | @tsv'
+```
+
+```text
+jpshackelford/tickster#60pradded
+```
+
+With no baseline `demo`, the notice `No snapshot pr/demo found; treating all current rows as new.`
+goes to stderr.
 
 
 ### `--format json` on list commands
@@ -1650,8 +1698,8 @@ With `--diff` or `--watch` and `--format json`, `tkt pr list` adds two fields to
 | `steps` | What `tkt pr steps --format json` prints for the PR: a list of `step`, `status` and `evidence`. Snapshots keep only the statuses, so evidence is in the diff output only |
 
 `removed` and `unchanged` deltas have none of these fields and cost no GitHub call. The other
-delta fields (`new_history_tail`, `changed_fields`, `prev`, `curr`, `step_changes`,
-`reviewer_changes`) are as before. `issue list` and `review` are unchanged.
+delta fields (`ref`, `kind`, `change`, `new_history_tail`, `changed_fields`, `prev`, `curr`,
+`step_changes`, `reviewer_changes`) are described in [Diff JSON](#diff-json). `issue list` and `review` are unchanged.
 
 `--events` and `--max-body` set the size:
 
