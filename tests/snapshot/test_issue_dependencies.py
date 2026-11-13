@@ -227,6 +227,9 @@ class TestListTable:
             def __exit__(self, *_):
                 return None
 
+            def get_current_user(self) -> str:
+                return "octocat"
+
             def list_issues_by_author(self, *_, **__):
                 return IssueListResult(issues=TestListTable.ISSUES)
 
@@ -258,6 +261,9 @@ class TestListJson:
             def __exit__(self, *_):
                 return None
 
+            def get_current_user(self) -> str:
+                return "octocat"
+
             def list_issues_by_author(self, *_, **__):
                 return IssueListResult(issues=[info, issue_info(2)])
 
@@ -284,6 +290,9 @@ class TestListJson:
 
             def __exit__(self, *_):
                 return None
+
+            def get_current_user(self) -> str:
+                return "octocat"
 
             def list_issues_by_author(self, *_, **__):
                 return IssueListResult(issues=issues)

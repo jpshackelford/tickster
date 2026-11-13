@@ -157,6 +157,9 @@ class RecordingClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_issues_by_author(self, author: str | None, **kw: Any) -> IssueListResult:  # noqa: ARG002
         self.not_labels_seen.append(kw["not_labels"])
         issue = IssueInfo(

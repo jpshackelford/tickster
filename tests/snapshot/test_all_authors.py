@@ -35,6 +35,9 @@ class RecordingClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_issues_by_author(self, author: str | None, **kw: Any) -> IssueListResult:
         self.calls.append((author, kw["repos"]))
         issue = IssueInfo(
@@ -177,7 +180,7 @@ def test_default_is_still_the_current_user(
 ):
     _, _, cmd_list, _ = COMMANDS[command]
     assert cmd_list() == 0
-    assert RecordingClient.calls == [("me", ["o/r"])]
+    assert RecordingClient.calls == [("octocat" if command == "issue" else "me", ["o/r"])]
 
 
 # --- snapshots ---------------------------------------------------------------
