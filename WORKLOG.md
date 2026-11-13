@@ -392,3 +392,29 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - [Issue #180](https://github.com/jpshackelford/tickster/issues/180): one row model and one on-disk schema. `ROW_FIELDS` / `item_url` in the new `src/snapshot/rows.py` drive `ItemSnapshot.to_dict` and a strict `from_dict`; rows use the `show` names (`ref`, `ci`, `draft`, `head`, `unresolved_threads`, `step_status`), drop `events`, add `kind`, `url`, `created_at` and `closed_at`; `SCHEMA_VERSION` is 2 and an unreadable snapshot or pending file is deleted with one stderr notice and treated as missing; the compat code is removed; `issue show` gets `closed_at`, `pr show` gets `labels`; `doc/usage.md` lists the row fields once and "Upgrading to 2.0" describes the break → [PR #182](https://github.com/jpshackelford/tickster/pull/182). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: `review` rows now carry the PR fields, so `review --diff` reports pushes, draft changes and reviewer moves it never saw before (called out in the PR); the "Upgrading to 2.0" text names the renamed keys in words rather than the old backticked names, so the docs guard stays true; `GITHUB_TOKEN` got 403 on push and `gh`, so the owner token was used. Unblocks #142 and #181.
 
 ---
+
+### 2026-11-13 19:37 UTC - Orchestrator
+
+🚀 **Launched: Testing Worker**
+
+Testing [PR #182](https://github.com/jpshackelford/tickster/pull/182): one row model and one on-disk schema (#180)
+- Implementation worker `2927456` finished. CI green (PR Review check still running), docs updated in `doc/usage.md`, no manual test results yet
+- Conversation: [`47d100a`](https://app.beta.staging.all-hands-testing.dev/conversations/47d100a404fb4554acd22f2894a64e45)
+- Slots: PR 1 busy, 1 free (no unblocked ready issue); expansion 0 busy, 2 free (#142, #181 wait on #180; #143 on #142, #180, #181)
+
+**Active Workers:**
+
+| Conv ID | Type | Working On | Status |
+|---------|------|------------|--------|
+| `47d100a` | testing | PR #182 | **NEW** |
+
+**Current State:**
+
+- [PR #182](https://github.com/jpshackelford/tickster/pull/182): head `a3b4603`, `ready`, CI green, no reviews yet — testing in flight
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) open (release-please, untouched)
+- Ready: #143 (waiting on #142, #180, #181)
+- Needs expansion: #142, #181 (waiting on #180)
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
