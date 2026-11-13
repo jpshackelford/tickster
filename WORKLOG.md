@@ -332,3 +332,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 07:40 UTC - Merge worker
+
+- PR: [feat(issue): record dependency facts on every issue](https://github.com/jpshackelford/tickster/pull/158), squash-merged as `0bce9f1`. Head `6407207` and CI were unchanged before the merge. The manual test (15 pass, 0 fail, 1 not run) and the automated review (Good) covered that head.
+- Issue: #145 closed by the merge. #146 and #148 were blocked by #145; check their blockers on the next tick.
+- Done: `open_blockers`, `blocking`, `parent` and `milestone` on every issue, read from the GraphQL query tkt already runs. They are in `issue show`, `issue list --format json` and issue snapshots. `issue list --deps` adds `Blocked by` and `Blocks` columns. Diff and watch note `unblocked`, `blocked` or `blockers changed`. Old snapshots load and save byte for byte. `doc/usage.md` is updated.
+- Not tested: the scratch-repo "close the real blocker" scenario from #145, because the token cannot create repos. `--watch` notes were tested with a hand-edited baseline.
+- Note: `GITHUB_TOKEN` could not edit the PR; used `JPSHACKELFORD_GITHUB_TOKEN` for the description edit and the merge. Release PR #119 untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
