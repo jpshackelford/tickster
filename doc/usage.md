@@ -162,6 +162,30 @@ See [Date-window filtering](#date-window-filtering) for the shared semantics of
 [Date flags by field](#date-flags-by-field) for the `--created-*` /
 `--updated-*` / `--closed-*` spelling.
 
+### Effective filters line
+
+A plain `tkt issue list` prints one `Filters:` line under the table, before the
+legend, naming every filter in effect, defaults included. An empty result prints
+`No issues found.` and then the same line, so you can see what was searched.
+
+```
+Filters: author=octocat (you) · state=open · repos=all GitHub · label=any · limit=100
+```
+
+| Field | Value |
+| --- | --- |
+| `author` | The login, with `(you)` when it is the current user (the default or `me`); `all authors` with `--all-authors` |
+| `state` | `open`, `closed` or `open+closed` |
+| `repos` | `--repo` values, the board's repos (comma-joined), or `all GitHub` |
+| `label` | `any`, or the `-l` values: repeated flags joined with ` & ` (AND), commas shown as `\|` (OR). `-l bug,stale -l urgent` prints `label=bug\|stale & urgent` |
+| `not-label` | Only with `--not-label`: the labels, comma-joined |
+| `limit` | `--limit` (default 100) |
+
+With explicit refs the line is `Filters: refs=N`, since refs ignore the other
+filters. The line does not repeat the date window; that stays on the `Window:`
+line. `--diff`, `--watch`, `--snapshot` and `--format json` do not print it.
+When stdout is not a terminal the line is never wrapped.
+
 ### `tkt issue show`
 
 Read one issue: a header and its timeline, oldest first, with the text of the
@@ -1426,7 +1450,9 @@ Semantics:
   `merged:`, a `--closed`-only listing on `closed:`, and everything else on
   `updated:`. Pass `--date-field` to override (for example, filter merged PRs by
   when they were `created`).
-- **The window is reported.** A listing that used a window ends with a
+- **The window is reported.** (`tkt issue list` also prints a separate
+  [`Filters:` line](#effective-filters-line); it does not repeat the window.)
+  A listing that used a window ends with a
   `Window: merged ≥ 2026-09-26 (UTC)` line, and an empty result names it too
   (`No PRs found (merged ≥ 2026-09-26, UTC).`), so a window that is narrower
   than you meant is visible rather than silent.
@@ -1667,7 +1693,8 @@ API returns `github-actions[bot]`. List such accounts in `[actors] bots`, or in
 A login in `[actors] agent_logins` is an AI actor instead, even if it ends in `[bot]`.
 
 `tkt issue list` also prints a one-line legend beneath the table, so the
-encoding is self-documenting at the terminal.
+encoding is self-documenting at the terminal. A `Filters:` line sits between
+the table and the legend ([details](#effective-filters-line)).
 
 ## Piping refs from stdin
 

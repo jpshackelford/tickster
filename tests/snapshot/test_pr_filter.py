@@ -58,6 +58,9 @@ class FakeClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_issues_by_author(self, author: str | None, **kw: Any) -> IssueListResult:  # noqa: ARG002
         self.seen.append(kw)
         issues = [_issue(n) for n in (1, 2) if n not in self.linked]

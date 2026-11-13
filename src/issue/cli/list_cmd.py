@@ -2,7 +2,7 @@
 
 import logging
 import traceback
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from rich import box
 from rich.console import Console
@@ -22,7 +22,12 @@ from src.date_window import (
 from src.issue.dependencies import short_ref
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
-from src.list_table import add_shrinkable_column, print_fitted_table, print_note
+from src.list_table import (
+    add_shrinkable_column,
+    print_filters,
+    print_fitted_table,
+    print_note,
+)
 from src.pr_filter import pr_filter_error
 from src.snapshot.convert import snapshot_from_issues
 from src.snapshot.integration import SnapshotPlan
@@ -118,13 +123,28 @@ def cmd_list(
                 return 1
 
         with IssueClient() as client:
-            # Determine which use case we're handling
+            filters: list[tuple[str, str]]
             if issue_refs:
-                # Specific issues by reference
                 result = client.get_issues_by_ref(issue_refs)
+                filters = [("refs", str(len(issue_refs)))]
             else:
-                # Issues by author (default: current user; None = any author)
-                target_author = None if all_authors else (author or "me")
+                # Resolve "me" here so the Filters line can show the login
+                is_me = not all_authors and author in (None, "me")
+                if all_authors:
+                    target_author = None
+                elif is_me:
+                    target_author = client.get_current_user()
+                else:
+                    target_author = author
+                filters = _issue_filters(
+                    author=target_author,
+                    is_me=is_me,
+                    states=states,
+                    repos=target_repos,
+                    labels=labels,
+                    not_labels=not_labels,
+                    limit=limit,
+                )
                 result = client.list_issues_by_author(
                     target_author,
                     repos=target_repos,
@@ -177,6 +197,7 @@ def cmd_list(
             _print_issue_table(
                 result.issues, show_title=show_title, show_deps=show_deps, window=window
             )
+            print_filters(console, filters)
             if not result.issues:
                 return 0
 
@@ -218,6 +239,36 @@ def cmd_list(
         logger.debug("Full traceback:\n%s", traceback.format_exc())
         print_error(str(e), hint=VERBOSE_HINT)
         return 1
+
+
+def _issue_filters(
+    *,
+    author: str | None,
+    is_me: bool,
+    states: Sequence[str],
+    repos: Sequence[str] | None,
+    labels: Sequence[str] | None,
+    not_labels: Sequence[str] | None,
+    limit: int,
+) -> list[tuple[str, str]]:
+    """The effective filters of a query listing, in display order.
+
+    `author` is the resolved login (`None` = every author); `is_me` marks a login that
+    came from the default or `me`. Repeated labels are AND (` & `), commas inside one
+    are OR (`|`). `not-label` appears only when given.
+    """
+    author_text = "all authors" if author is None else author + (" (you)" if is_me else "")
+    label_text = " & ".join(label.replace(",", "|") for label in labels) if labels else "any"
+    parts = [
+        ("author", author_text),
+        ("state", "+".join(states)),
+        ("repos", ",".join(repos) if repos else "all GitHub"),
+        ("label", label_text),
+    ]
+    if not_labels:
+        parts.append(("not-label", ",".join(not_labels)))
+    parts.append(("limit", str(limit)))
+    return parts
 
 
 def _get_repos(

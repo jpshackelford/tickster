@@ -112,6 +112,9 @@ class FakeClient:
         found = self._by_ref(refs)
         return PRListResult(prs=[replace(_pr(n), state=PRState(s)) for n, s in found.items()])
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_issues_by_author(self, *_: Any, **__: Any) -> IssueListResult:
         return IssueListResult(issues=[_issue(n) for n in self.numbers], has_more=self.has_more)
 
@@ -522,7 +525,9 @@ def test_piped_empty_result_line_does_not_depend_on_width(command, fake_client, 
         assert _run_with_console(command, console, monkeypatch) == 0
         outs.append(buf.getvalue())
     assert outs[0] == outs[1]
-    assert len(outs[0].splitlines()) == 1
+    lines = outs[0].splitlines()
+    assert len(lines) == (2 if command == "issue" else 1)
+    assert lines[-1].startswith("Filters: ") == (command == "issue")
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -928,3 +933,37 @@ def test_format_json_flag_reaches_the_list_command(
     assert main(argv) == 0
     doc = json.loads(capsys.readouterr().out)
     assert [i["number"] for i in doc["items"]] == [5]
+
+
+@pytest.mark.parametrize("flags", [{"snapshot_name": "s"}, {"watch_name": "s"}])
+def test_issue_snapshot_and_watch_print_no_filters_line(
+    flags,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    fake_client.numbers = [1]
+    assert issue_list.cmd_list(**flags) == 0
+    assert "Filters:" not in capsys.readouterr().out
+
+
+def test_issue_diff_prints_no_filters_line(
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    fake_client.numbers = [1]
+    assert issue_list.cmd_list(snapshot_name="base") == 0
+    fake_client.numbers = [1, 2]
+    capsys.readouterr()
+    assert issue_list.cmd_list(diff_name="base") == 0
+    out = capsys.readouterr().out
+    assert "#2" in out
+    assert "Filters:" not in out
+
+
+@pytest.mark.parametrize("command", ["pr", "review"])
+def test_pr_and_review_lists_print_no_filters_line(command, fake_client, capsys):
+    fake_client.numbers = [1]
+    assert COMMANDS[command][1]() == 0
+    assert "Filters:" not in capsys.readouterr().out

@@ -10,6 +10,7 @@ History is cropped by tickster itself and ends in `>`.
 from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
@@ -47,6 +48,16 @@ def print_note(console: Console, markup: str) -> None:
     the line is not wrapped, so piped output does not depend on `$COLUMNS`.
     """
     console.print(markup, soft_wrap=not console.is_terminal)
+
+
+def filters_line(parts: Sequence[tuple[str, str]]) -> str:
+    """The `Filters:` note text: `key=value` pairs joined by ` · `."""
+    return "Filters: " + " · ".join(f"{key}={value}" for key, value in parts)
+
+
+def print_filters(console: Console, parts: Sequence[tuple[str, str]]) -> None:
+    """Print the effective filters of a listing as one dim note line."""
+    print_note(console, f"[dim]{escape(filters_line(parts))}[/]")
 
 
 def print_fitted_table(
