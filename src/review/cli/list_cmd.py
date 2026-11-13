@@ -2,7 +2,7 @@
 
 import logging
 import traceback
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from rich import box
 from rich.console import Console
@@ -17,7 +17,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_fitted_table, print_note
+from src.list_table import add_shrinkable_column, print_filters, print_fitted_table, print_note
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo
 from src.review.github_api import ReviewClient
@@ -180,6 +180,19 @@ def cmd_list(
                 )
 
             print_table()
+            print_filters(
+                console,
+                _review_filters(
+                    reviewer=resolved_reviewer,
+                    is_me=reviewer is None,
+                    author=author,
+                    exclude_authors=exclude_authors,
+                    include_all=all_reviews,
+                    states=states,
+                    repos=target_repos,
+                    limit=limit,
+                ),
+            )
             if not result.reviews:
                 return 0
 
@@ -209,6 +222,37 @@ def cmd_list(
         logger.debug("Full traceback:\n%s", traceback.format_exc())
         print_error(str(e), hint=VERBOSE_HINT)
         return 1
+
+
+def _review_filters(
+    *,
+    reviewer: str,
+    is_me: bool,
+    author: str | None,
+    exclude_authors: Sequence[str] | None,
+    include_all: bool,
+    states: Sequence[str] | None,
+    repos: Sequence[str] | None,
+    limit: int,
+) -> list[tuple[str, str]]:
+    """The effective filters of a review listing, in display order.
+
+    `reviewer` is the resolved login; `is_me` marks the default (the current user).
+    `author` and `exclude` appear only when set. `show` is `all` with `--all`
+    (approved and hold PRs included), else `actionable`.
+    """
+    parts = [("reviewer", reviewer + (" (you)" if is_me else ""))]
+    if author:
+        parts.append(("author", author))
+    if exclude_authors:
+        parts.append(("exclude", ",".join(exclude_authors)))
+    parts += [
+        ("show", "all" if include_all else "actionable"),
+        ("state", "+".join(states or ["open"])),
+        ("repos", ",".join(repos) if repos else "all GitHub"),
+        ("limit", str(limit)),
+    ]
+    return parts
 
 
 def _get_repos(

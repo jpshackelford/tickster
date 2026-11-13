@@ -526,8 +526,8 @@ def test_piped_empty_result_line_does_not_depend_on_width(command, fake_client, 
         outs.append(buf.getvalue())
     assert outs[0] == outs[1]
     lines = outs[0].splitlines()
-    assert len(lines) == (2 if command == "issue" else 1)
-    assert lines[-1].startswith("Filters: ") == (command == "issue")
+    assert len(lines) == 2
+    assert lines[-1].startswith("Filters: ")
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -963,7 +963,41 @@ def test_issue_diff_prints_no_filters_line(
 
 
 @pytest.mark.parametrize("command", ["pr", "review"])
-def test_pr_and_review_lists_print_no_filters_line(command, fake_client, capsys):
+def test_pr_and_review_lists_print_a_filters_line(command, fake_client, capsys):
     fake_client.numbers = [1]
     assert COMMANDS[command][1]() == 0
+    assert capsys.readouterr().out.count("Filters: ") == 1
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+@pytest.mark.parametrize("flags", [{"snapshot_name": "s"}, {"watch_name": "s"}])
+def test_snapshot_and_watch_print_no_filters_line(
+    command,
+    flags,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    fake_client.numbers = [1]
+    assert COMMANDS[command][1](**flags) == 0
     assert "Filters:" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("command", ["pr", "review"])
+def test_diff_and_json_print_no_filters_line(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    cmd_list = COMMANDS[command][1]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="base") == 0
+    fake_client.numbers = [1, 2]
+    capsys.readouterr()
+    assert cmd_list(diff_name="base") == 0
+    assert "Filters:" not in capsys.readouterr().out
+    assert cmd_list(output_format="json") == 0
+    out = capsys.readouterr().out
+    assert "Filters:" not in out
+    json.loads(out)

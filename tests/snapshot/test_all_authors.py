@@ -180,7 +180,7 @@ def test_default_is_still_the_current_user(
 ):
     _, _, cmd_list, _ = COMMANDS[command]
     assert cmd_list() == 0
-    assert RecordingClient.calls == [("octocat" if command == "issue" else "me", ["o/r"])]
+    assert RecordingClient.calls == [("octocat", ["o/r"])]
 
 
 # --- snapshots ---------------------------------------------------------------

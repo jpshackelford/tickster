@@ -2,7 +2,7 @@
 
 import logging
 import traceback
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 
 from rich import box
@@ -22,7 +22,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_fitted_table, print_note
+from src.list_table import add_shrinkable_column, print_filters, print_fitted_table, print_note
 from src.pr.cli.graph import render_merged_graph
 from src.pr.cli.steps_cmd import collect_steps
 from src.pr.detail import merge_label, review_label, short_sha
@@ -134,32 +134,43 @@ def cmd_list(
                 return 1
 
         with PRClient() as client:
-            # Determine which use case we're handling
+            filters: list[tuple[str, str]]
             if pr_refs:
                 # Use case 3: Arbitrary PR list
                 result = client.get_prs_by_ref(pr_refs)
+                filters = [("refs", str(len(pr_refs)))]
             elif reviewer:
                 # Use case 2: PRs requesting review
-                result = client.list_prs_for_reviewer(
-                    reviewer,
+                # Resolve "me" here so the Filters line can show the login
+                is_me = reviewer == "me"
+                target_reviewer = client.get_current_user() if is_me else reviewer
+                filters = _pr_filters(
+                    reviewer=target_reviewer,
+                    is_me=is_me,
+                    states=states,
                     repos=target_repos,
                     limit=limit,
-                    date_qualifier=date_qualifier,
                 )
-            elif author:
-                # Use case 1 & 4: PRs by author
-                result = client.list_prs_by_author(
-                    author,
+                result = client.list_prs_for_reviewer(
+                    target_reviewer,
                     repos=target_repos,
-                    states=states,
                     limit=limit,
                     date_qualifier=date_qualifier,
                 )
             else:
-                # Default: current user's PRs from default board's repos
+                # Use case 1 & 4: PRs by author; default is the current user
                 # (None = every author's, with --all-authors)
+                is_me = author in (None, "me") and not all_authors
+                target_author = client.get_current_user() if is_me else author
+                filters = _pr_filters(
+                    author=target_author,
+                    is_me=is_me,
+                    states=states,
+                    repos=target_repos,
+                    limit=limit,
+                )
                 result = client.list_prs_by_author(
-                    None if all_authors else "me",
+                    target_author,
                     repos=target_repos,
                     states=states,
                     limit=limit,
@@ -234,6 +245,7 @@ def cmd_list(
                 steps=steps_column,
                 window=window,
             )
+            print_filters(console, filters)
 
             if result.has_more:
                 print_note(
@@ -251,6 +263,36 @@ def cmd_list(
         logger.debug("Full traceback:\n%s", traceback.format_exc())
         print_error(str(e), hint=VERBOSE_HINT)
         return 1
+
+
+def _pr_filters(
+    *,
+    states: Sequence[str] | None,
+    repos: Sequence[str] | None,
+    limit: int,
+    is_me: bool,
+    author: str | None = None,
+    reviewer: str | None = None,
+) -> list[tuple[str, str]]:
+    """The effective filters of a query listing, in display order.
+
+    With `reviewer` the search is `is:open review-requested:USER`, so the line shows
+    `reviewer=` and `state=open` whatever `states` says. Otherwise `author` is the
+    resolved login (`None` = every author). `is_me` marks a login that came from the
+    default or `me`.
+    """
+    if reviewer is not None:
+        who = ("reviewer", reviewer + (" (you)" if is_me else ""))
+        state_text = "open"
+    else:
+        who = ("author", "all authors" if author is None else author + (" (you)" if is_me else ""))
+        state_text = "+".join(states) if states else "open+merged+closed"
+    return [
+        who,
+        ("state", state_text),
+        ("repos", ",".join(repos) if repos else "all GitHub"),
+        ("limit", str(limit)),
+    ]
 
 
 def _get_repos(
