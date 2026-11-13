@@ -5,9 +5,12 @@ from datetime import UTC, datetime
 import pytest
 
 from src.date_window import (
+    ISSUE_DATE_FIELDS,
     DateWindowError,
     build_date_window,
+    field_flag,
     resolve_date_field,
+    resolve_field_flags,
 )
 
 # Fixed reference time for deterministic --since calculations.
@@ -188,3 +191,196 @@ class TestDescribeAndSinceDays:
     def test_describe_interval(self):
         window = build_date_window(["open"], after="2026-08-01", before="2026-08-31")
         assert window is not None and window.describe() == "updated 2026-08-01..2026-08-31"
+
+
+def _typed_names(field: str) -> dict[str, str]:
+    return {kind: field_flag(field, kind) for kind in ("since", "after", "before")}
+
+
+class TestFlagNames:
+    def test_old_messages_are_unchanged(self):
+        with pytest.raises(DateWindowError) as since_after:
+            build_date_window(["open"], since_days=7, after="2026-08-01")
+        assert str(since_after.value) == "--since cannot be combined with --after/--before"
+        with pytest.raises(DateWindowError) as negative:
+            build_date_window(["open"], since_days=-1, now=NOW)
+        assert str(negative.value) == "--since must be a non-negative number of days"
+        with pytest.raises(DateWindowError) as reversed_bounds:
+            build_date_window(["open"], after="2026-09-01", before="2026-08-01")
+        assert str(reversed_bounds.value) == "--after date must not be later than --before date"
+        with pytest.raises(DateWindowError) as bad_date:
+            build_date_window(["open"], after="08/01/2026")
+        assert str(bad_date.value) == "Invalid date '08/01/2026': expected YYYY-MM-DD format"
+
+    def test_since_with_bound_names_typed_flags(self):
+        with pytest.raises(DateWindowError) as err:
+            build_date_window(
+                ["open"],
+                since_days=3,
+                after="2026-08-01",
+                date_field="created",
+                flag_names=_typed_names("created"),
+            )
+        assert str(err.value) == "--created-since cannot be combined with --created-after"
+
+    def test_since_with_both_bounds_names_both(self):
+        with pytest.raises(DateWindowError, match=r"--created-after/--created-before"):
+            build_date_window(
+                ["open"],
+                since_days=3,
+                after="2026-08-01",
+                before="2026-08-02",
+                date_field="created",
+                flag_names=_typed_names("created"),
+            )
+
+    def test_negative_since_names_typed_flag(self):
+        with pytest.raises(DateWindowError, match=r"^--created-since must be a non-negative"):
+            build_date_window(
+                ["open"],
+                since_days=-1,
+                date_field="created",
+                flag_names=_typed_names("created"),
+            )
+
+    def test_invalid_date_names_typed_flag(self):
+        with pytest.raises(DateWindowError, match=r"'2026-13-40' for --created-after"):
+            build_date_window(
+                ["open"],
+                after="2026-13-40",
+                date_field="created",
+                flag_names=_typed_names("created"),
+            )
+        with pytest.raises(DateWindowError, match=r"'nope' for --created-before"):
+            build_date_window(
+                ["open"],
+                before="nope",
+                date_field="created",
+                flag_names=_typed_names("created"),
+            )
+
+    def test_reversed_bounds_name_both_typed_flags(self):
+        with pytest.raises(
+            DateWindowError, match=r"--updated-after date must not be later than --updated-before"
+        ):
+            build_date_window(
+                ["open"],
+                after="2026-09-01",
+                before="2026-08-01",
+                date_field="updated",
+                flag_names=_typed_names("updated"),
+            )
+
+    def test_refs_error_names_only_typed_flags(self):
+        with pytest.raises(DateWindowError, match=r"^--created-since cannot narrow explicit refs"):
+            build_date_window(
+                ["open"],
+                since_days=14,
+                date_field="created",
+                refs=["o/r#1"],
+                flag_names=_typed_names("created"),
+            )
+
+    def test_closed_field_with_open_state_names_typed_flag(self):
+        with pytest.raises(DateWindowError, match=r"^--closed-since only matches closed items"):
+            build_date_window(
+                ["open"],
+                since_days=7,
+                date_field="closed",
+                flag_names=_typed_names("closed"),
+            )
+        with pytest.raises(DateWindowError, match=r"^--closed-before only matches closed items"):
+            build_date_window(
+                None,
+                before="2026-08-01",
+                date_field="closed",
+                flag_names=_typed_names("closed"),
+            )
+
+    def test_closed_field_with_closed_state_ok(self):
+        window = build_date_window(
+            ["closed"],
+            since_days=7,
+            date_field="closed",
+            now=NOW,
+            flag_names=_typed_names("closed"),
+        )
+        assert window is not None
+        assert window.to_qualifier() == "closed:>=2026-09-01"
+
+
+class TestResolveFieldFlags:
+    def test_no_new_flags_returns_old_values_untouched(self):
+        resolved = resolve_field_flags(
+            ISSUE_DATE_FIELDS, {}, since_days=14, after="2026-08-01", date_field="created"
+        )
+        assert (resolved.since_days, resolved.after, resolved.before) == (14, "2026-08-01", None)
+        assert resolved.date_field == "created"
+        assert resolved.flag_names is None
+
+    def test_none_values_count_as_unset(self):
+        values = {"created_since": None, "closed_after": None}
+        resolved = resolve_field_flags(ISSUE_DATE_FIELDS, values)
+        assert resolved.flag_names is None
+        assert resolved.date_field is None
+
+    @pytest.mark.parametrize("field", ISSUE_DATE_FIELDS)
+    def test_since_maps_to_its_own_field(self, field):
+        resolved = resolve_field_flags(ISSUE_DATE_FIELDS, {f"{field}_since": 5})
+        assert resolved.date_field == field
+        assert resolved.since_days == 5
+        assert resolved.after is None
+        assert resolved.before is None
+        assert resolved.flag_names == _typed_names(field)
+
+    @pytest.mark.parametrize("field", ISSUE_DATE_FIELDS)
+    def test_bounds_map_to_their_own_field(self, field):
+        values = {f"{field}_after": "2026-08-01", f"{field}_before": "2026-08-31"}
+        resolved = resolve_field_flags(ISSUE_DATE_FIELDS, values)
+        assert resolved.date_field == field
+        assert (resolved.after, resolved.before) == ("2026-08-01", "2026-08-31")
+        assert resolved.since_days is None
+
+    def test_since_zero_is_a_typed_flag(self):
+        resolved = resolve_field_flags(ISSUE_DATE_FIELDS, {"created_since": 0})
+        assert resolved.since_days == 0
+        assert resolved.date_field == "created"
+
+    def test_mixing_with_old_flag_names_both(self):
+        with pytest.raises(
+            DateWindowError, match=r"--created-since cannot be combined with --since"
+        ):
+            resolve_field_flags(ISSUE_DATE_FIELDS, {"created_since": 3}, since_days=3)
+
+    @pytest.mark.parametrize(
+        ("old", "flag"),
+        [
+            ({"after": "2026-08-01"}, "--after"),
+            ({"before": "2026-08-01"}, "--before"),
+            ({"date_field": "created"}, "--date-field"),
+        ],
+    )
+    def test_mixing_with_each_old_flag(self, old, flag):
+        with pytest.raises(DateWindowError, match=rf"--closed-after .*{flag}"):
+            resolve_field_flags(ISSUE_DATE_FIELDS, {"closed_after": "2026-08-01"}, **old)
+
+    def test_two_fields_name_one_flag_per_field(self):
+        values = {"created_since": 14, "updated_since": 2}
+        with pytest.raises(
+            DateWindowError, match=r"--created-since and --updated-since .*one date field"
+        ):
+            resolve_field_flags(ISSUE_DATE_FIELDS, values)
+
+    def test_two_fields_with_several_flags_still_name_one_each(self):
+        values = {
+            "created_after": "2026-08-01",
+            "created_before": "2026-08-02",
+            "closed_before": "2026-08-03",
+        }
+        with pytest.raises(DateWindowError) as err:
+            resolve_field_flags(ISSUE_DATE_FIELDS, values)
+        assert str(err.value).startswith("--created-after and --closed-before ")
+
+    def test_fields_without_flags_are_ignored(self):
+        resolved = resolve_field_flags(("created",), {"updated_since": 3})
+        assert resolved.flag_names is None

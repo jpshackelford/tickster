@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+from collections.abc import Mapping
 
 from rich import box
 from rich.console import Console
@@ -10,9 +11,11 @@ from rich.table import Table
 from src.all_authors import all_authors_error
 from src.cli_errors import VERBOSE_HINT, print_error
 from src.date_window import (
+    ISSUE_DATE_FIELDS,
     DateWindow,
     DateWindowError,
     build_date_window,
+    resolve_field_flags,
     window_line,
     window_suffix,
 )
@@ -50,6 +53,7 @@ def cmd_list(
     after: str | None = None,
     before: str | None = None,
     date_field: str | None = None,
+    field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List issues with history visualization.
 
@@ -68,20 +72,30 @@ def cmd_list(
         after: Only include issues on/after this date (YYYY-MM-DD)
         before: Only include issues on/before this date (YYYY-MM-DD)
         date_field: Search date field to filter on (created/updated/closed)
+        field_dates: Per-field flag values keyed by dest, e.g. ``created_since``
 
     Returns:
         Exit code (0 for success)
     """
     states = states or ["open"]
     try:
-        window = build_date_window(
-            states,
+        resolved = resolve_field_flags(
+            ISSUE_DATE_FIELDS,
+            field_dates or {},
             since_days=since_days,
             after=after,
             before=before,
             date_field=date_field,
+        )
+        window = build_date_window(
+            states,
+            since_days=resolved.since_days,
+            after=resolved.after,
+            before=resolved.before,
+            date_field=resolved.date_field,
             refs=issue_refs,
             merged_ok=False,
+            flag_names=resolved.flag_names,
         )
     except DateWindowError as e:
         print_error(str(e))

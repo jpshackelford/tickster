@@ -117,13 +117,19 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--after YYYY-MM-DD` | Only issues on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only issues on/before this date (inclusive) |
 | `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
+| `--created-since DAYS` | Only issues created since the start of the UTC day N days ago (`0` = today) |
+| `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only issues created on/after, on/before this UTC date (inclusive) |
+| `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
+| `--closed-since DAYS`, `--closed-after YYYY-MM-DD`, `--closed-before YYYY-MM-DD` | The same, on the close date. Needs `--closed` or `--all` |
 
 ```bash
 tkt issue list                              # your open issues
 tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list octocat/hello-world#42       # a specific issue
-tkt issue list --since 14                    # issues touched in the last 2 weeks
+tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
+tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
+tkt issue list --all --closed-after 2026-11-01 --closed-before 2026-11-07   # closed that week
 tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's open issues
 ```
 
@@ -136,7 +142,9 @@ with `name` set to the `--snapshot` name or `""`. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`.
+`--since` / `--after` / `--before` / `--date-field`, and
+[Date flags by field](#date-flags-by-field) for the `--created-*` /
+`--updated-*` / `--closed-*` spelling.
 
 ### `tkt issue show`
 
@@ -1309,6 +1317,9 @@ no-ops:
 | `--date-field merged` without `--merged` | Only merged items have a merge date, so nothing can match. |
 | `--date-field closed` without `--closed` (or `--merged`) | Open items have no close date. |
 | `--date-field merged` on `tkt issue list` | Issues are never merged. |
+| A [by-field flag](#date-flags-by-field) mixed with `--since`/`--after`/`--before`/`--date-field` | Use one spelling per invocation. |
+| By-field flags for two different fields (`--created-since 14 --updated-since 2`) | One date field per query; the snapshot scope stores one window. |
+| `--closed-since`/`--closed-after`/`--closed-before` without `--closed` or `--all` | Open items have no close date. |
 
 ```bash
 tkt pr list --author ak684 --merged --since 14        # merged in the last 2 weeks
@@ -1316,6 +1327,37 @@ tkt issue list --after 2026-08-01 --before 2026-08-31 # opened/updated in August
 tkt pr list --merged --date-field created --since 30  # merged, created in last 30d
 tkt review --merged --since 7                         # reviewed & merged this week
 ```
+
+### Date flags by field
+
+`--since` filters on the *updated* date unless `--date-field` says otherwise, so
+`--since 14` does not mean "filed in the last 14 days". On `tkt issue list`,
+flags that name the field remove the guess:
+
+| Field | Days back (UTC day boundary) | Absolute (UTC date, inclusive) |
+| --- | --- | --- |
+| created | `--created-since N` | `--created-after DATE`, `--created-before DATE` |
+| updated | `--updated-since N` | `--updated-after DATE`, `--updated-before DATE` |
+| closed | `--closed-since N` | `--closed-after DATE`, `--closed-before DATE` |
+
+There is no `--merged-*` on `tkt issue list`: argparse rejects it as an
+unrecognized argument (exit 2). `tkt pr list` and `tkt review` do not have the
+by-field flags yet.
+
+- The rules are the ones above, spelled per field: `--created-since 0` is
+  today (UTC), a negative number or a bad date is an error naming the flag you
+  typed, and `--F-since` cannot be combined with `--F-after`/`--F-before` of the
+  same field.
+- One date field per query. `--created-since 14 --updated-since 2` is an error
+  naming both flags.
+- The old flags keep working but cannot be mixed with the new ones in one
+  invocation.
+- The field is always the one in the flag name; it is never inferred from the
+  state. `--closed-*` needs `--closed` or `--all`, as `--date-field closed` does.
+- The `Window:` line and the empty-result message name the field as before.
+- A window typed either way records the same snapshot scope, so
+  `--since 14 --date-field created --snapshot a` and
+  `--created-since 14 --diff a` compare without a scope mismatch.
 
 ---
 
