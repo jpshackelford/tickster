@@ -224,30 +224,7 @@ new event._
 
 Use `--format json` in a script ([fields](usage.md#tkt-pr-show)).
 
-**Do not use `--since-snapshot` after `--watch`.** `--watch` has just overwritten the
-baseline, so `--since-snapshot pr/NAME` points at now and finds nothing:
-
-```text
-$ tkt pr show jpshackelford/tickster#60 --since-snapshot pr/doc-first --max-body 40
-…
-no new events since 2026-11-05T10:45:37Z
-```
-
-_Trimmed: the header lines, ending at the one line that matters. Run after the second
-poll above._
-
-Two ways to read new text work. Use the first.
-
-1. **`--watch`, then `show --since-time prev.last_activity`** (the loop above). One query
-   decides what moved, and the baseline you act on is the one you saved.
-2. **`--diff NAME`, then `show --since-snapshot pr/NAME`, then `--snapshot NAME`.**
-   `--diff` reads without saving. The baseline advances only at the last command,
-   so a crash in between loses nothing, but an event that lands between the diff
-   and the snapshot is saved without ever being read.
-
-`show --since-snapshot` fails with `snapshot pr/NAME has no row for REF` when the
-snapshot does not hold the PR, which is the case on the first poll. Read the diff
-first and call `show` only for `added` or `changed` rows.
+Call `show` only for `added` or `changed` rows.
 
 Save `poll.json` before you process it. If the script dies after `--watch`, the
 baseline has moved and the next run will not report those rows again.
@@ -386,7 +363,7 @@ Each claim below was checked by running the command.
 | Command | stdout | stderr | Exit code |
 | --- | --- | --- | --- |
 | `tkt pr list … --watch NAME --format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …`, and errors | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed. Any other failure, such as a bad token or no network, exits 1 with the `Error:` line on stderr and empty stdout. If only the save fails, stdout still holds the document and the exit code is 1 |
-| `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref, a bad time, an unknown snapshot or a snapshot with no row for the PR exits 1. `--since-time` with `--since-snapshot` exits 2 |
+| `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref or a bad time exits 1 |
 | `tkt pr steps REF… --format json` | One JSON document | Notices and errors | 0 whatever the statuses. A PR that is not found exits 1, with empty stdout |
 | `tkt pr changes REF --since-sha SHA --format json` | One JSON document | Errors | 0 whether or not the change is significant. A PR that is not found exits 1. A `--since-sha` that is not a 7 to 40 character hex SHA, so also a branch or a tag, exits 2, with no GitHub call |
 

@@ -196,7 +196,7 @@ opening post and each comment. Use it after `tkt issue list` shows an issue you
 need to read.
 
 ```bash
-tkt issue show OWNER/REPO#NUM [--since-time TS | --since-snapshot KIND/NAME]
+tkt issue show OWNER/REPO#NUM [--since-time TS]
     [--max-body N] [--format text|json]
 ```
 
@@ -256,7 +256,7 @@ order. It has no `draft`, `ci`, `unresolved_threads`, `head`, `mergeable`,
 | `blocking` | Number of open issues that this issue blocks |
 | `parent` | The parent issue as `owner/repo#number`, or `null` |
 | `milestone` | `{"title", "due_on"}` (`due_on` is UTC ISO-8601 or `null`), or `null` without a milestone |
-| `since` | The cutoff in UTC that `--since-time` or `--since-snapshot` set, `null` without one. The key keeps this name; it did not change with the flag |
+| `since` | The cutoff in UTC that `--since-time` set, `null` without one. The key keeps this name; it did not change with the flag |
 | `timeline_truncated` | `true` when the item has more events than the fetch cap |
 | `events` | The timeline, oldest first |
 
@@ -606,14 +606,13 @@ reviews and review threads. Use it after `tkt pr list` or `tkt review` shows a P
 you need to read, or from a polling loop to read only what is new.
 
 ```bash
-tkt pr show OWNER/REPO#NUM [--since-time TS | --since-snapshot KIND/NAME]
+tkt pr show OWNER/REPO#NUM [--since-time TS]
     [--max-body N] [--format text|json]
 ```
 
 | Option | Description |
 | --- | --- |
 | `--since-time TS` | Only events after this ISO-8601 time, e.g. `2026-11-05T10:00:00Z`. A date or a time with no zone is UTC |
-| `--since-snapshot KIND/NAME` | Only events after the `last_activity` the named [snapshot](#snapshots--diffs) stored for this item. Use `pr/NAME` or `review/NAME` for a PR (`issue/NAME` for an issue). Errors if the snapshot has no row for the item. Cannot be combined with `--since-time` |
 | `--max-body N` | Trim each comment, review or thread-comment body to its first `N` characters (default: 600, `0` = no trimming). `N` counts the body only; a trimmed body ends with an extra `…(K more chars)` suffix |
 | `--format` | `text` (default) or `json`; with `json`, stdout is only the JSON document |
 
@@ -659,15 +658,13 @@ Timeline lines are `time char actor(class) text`, as in
 Each body is flattened to one line, so a long comment cannot break the
 line-per-event layout.
 
-`--since-time` and `--since-snapshot` keep events strictly after the cutoff, and keep
+`--since-time` keeps events strictly after the cutoff, and keeps
 an older review if one of its thread comments is newer. With nothing new, the
 output is the header and `no new events since <time>`. The cutoff is printed in
-UTC. Together with a snapshot saved by `--watch` or `--snapshot`, this reads
-only what changed since the last poll:
+UTC. To read only what changed since the last poll, use the `prev.last_activity`
+of the changed row in the [diff](#snapshots--diffs) JSON as the cutoff:
 
 ```bash
-tkt pr list jpshackelford/tickster#60 --snapshot hourly   # save a snapshot (pr/hourly)
-tkt pr show jpshackelford/tickster#60 --since-snapshot pr/hourly
 tkt pr show jpshackelford/tickster#60 --since-time 2026-11-05T10:35:00Z
 ```
 
@@ -698,7 +695,7 @@ order:
 | `linked_issues` | Issues the PR closes, as `owner/repo#number` strings |
 | `reviewers` | One object per reviewer, with the fields of the [reviewer state](#reviewer-state) (`login`, `actor_class`, `requested`, `latest_state`, `on_head`, `waiting`, `rereview_needed` and more) |
 | `reports` | One object per `[reports]` marker: `name`, `found`, `at`, `actor`, `head`, `on_head`, `failed` |
-| `since` | The cutoff in UTC that `--since-time` or `--since-snapshot` set, `null` without one. The key keeps this name; it did not change with the flag |
+| `since` | The cutoff in UTC that `--since-time` set, `null` without one. The key keeps this name; it did not change with the flag |
 | `timeline_truncated` | `true` when the item has more events than the fetch cap |
 | `events` | The timeline, oldest first |
 
@@ -1024,7 +1021,7 @@ that first run ([`doc/automation.md`](automation.md#1-poll-what-moved-since-the-
 
 **What changed.** The date flags used to filter on a field that tickster guessed, and two
 commands used `--since` for unrelated things. In 2.0 the flag name says what it means. Each
-old flag still exists as a stub that only prints an error. `--since-snapshot`, `--snapshot`,
+old flag still exists as a stub that only prints an error. `--snapshot`,
 `--diff` and `--watch` are unchanged.
 
 - `issue list`, `pr list` and `review`: the date field moves into the flag name.
@@ -1058,7 +1055,7 @@ after 2.0.0. After that they are removed, and argparse reports an unrecognized a
 grep -rnE -- '--(since|after|before|date-field)\b' path/to/your/scripts
 ```
 
-`--since-snapshot`, `--since-time` and `--since-sha` also match this pattern; they are the
+`--since-time` and `--since-sha` also match this pattern; they are the
 new spellings and need no change. For the rest: a flag that took days goes to
 `--<field>-since`, and a flag that took a date goes to `--<field>-after` or
 `--<field>-before`. Before 2.0 the field was `--date-field`, or when you gave none, `merged`

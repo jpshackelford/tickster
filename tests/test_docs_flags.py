@@ -75,7 +75,7 @@ def test_help_has_no_old_date_flags(argv):
 
 def test_guard_pattern_flags_old_spellings_and_keeps_new_ones():
     old = "--since 14 --after D --before D --date-field F --since=3"
-    new = "--since-snapshot a --since-time T --since-sha S --created-since 14 --updated-after D"
+    new = "--since-time T --since-sha S --created-since 14 --updated-after D"
 
     assert len(OLD_FLAG.findall(old)) == 5
     assert OLD_FLAG.findall(new) == []

@@ -1724,18 +1724,11 @@ class _RemovedShowSince(argparse.Action):
 
 def _add_show_args(parser: argparse.ArgumentParser) -> None:
     """Attach the options `pr show` and `issue show` share."""
-    since_group = parser.add_mutually_exclusive_group()
-    since_group.add_argument(
+    parser.add_argument(
         "--since-time",
         dest="since_time",
         metavar="TS",
         help="Only events after this ISO-8601 time (a date or a time with no zone is UTC)",
-    )
-    since_group.add_argument(
-        "--since-snapshot",
-        dest="since_snapshot",
-        metavar="KIND/NAME",
-        help="Only events after the last_activity this snapshot stored for the item",
     )
     parser.add_argument(
         "--since",
@@ -1766,7 +1759,6 @@ def _show_kwargs(args: argparse.Namespace) -> dict:
     return {
         "ref": args.ref,
         "since_time": args.since_time,
-        "since_snapshot": args.since_snapshot,
         "max_body": args.max_body,
         "output_format": args.output_format,
     }

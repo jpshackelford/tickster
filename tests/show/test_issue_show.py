@@ -11,11 +11,10 @@ from src.__main__ import main
 from src.board import config as board_config
 from src.norms import store as norms_store
 from src.norms.schema import parse_norms
-from src.snapshot import store as snapshot_store
 from tests.show.builders import comment, conn, issue_node, login, ts
 from tests.show.fake_github import FakeGitHub
-from tests.snapshot.conftest import make_item, make_snapshot
 
+REMOVED_FLAG = "--since-" + "snapshot"
 NORMS = parse_norms("""\
 schema = 1
 
@@ -328,23 +327,6 @@ class TestSince:
         assert lines[0].startswith("o/r#40 issue open")
         assert lines[-1] == "no new events since 2026-11-06T00:00:00Z"
 
-    def test_since_snapshot(self, show):
-        item = make_item(key="o/r#40", last_activity="2026-11-05T12:30:00Z")
-        snapshot_store.save(make_snapshot(kind="issue", name="tick", items=[item]))
-
-        _, out, _ = show(busy_issue(), "--since-snapshot", "issue/tick")
-
-        events = [line for line in out.splitlines() if line.startswith("2026-")]
-        assert [line.split()[1] for line in events] == ["x"]
-
-    def test_pr_snapshot_is_rejected(self, show):
-        snapshot_store.save(make_snapshot(kind="pr", name="tick", items=[]))
-
-        code, _, err = show(busy_issue(), "--since-snapshot", "pr/tick")
-
-        assert code == 1
-        assert "`issue show` reads an issue snapshot, not pr" in err
-
 
 class TestBodiesAndCompleteness:
     def test_max_body(self, show):
@@ -496,12 +478,15 @@ class TestRemovedSince:
         assert f"tkt issue show: error: {self.MESSAGE}" in captured.err
         client.assert_not_called()
 
-    def test_wins_over_the_snapshot_exclusion_error(self, capsys):
-        with pytest.raises(SystemExit) as exc:
-            main(["issue", "show", "o/r#40", "--since", "T", "--since-snapshot", "issue/tick"])
+    def test_removed_flag_is_rejected_at_parse_time(self, capsys):
+        with patch("src.show.cli.GitHubClient") as client, pytest.raises(SystemExit) as exc:
+            main(["issue", "show", "o/r#40", REMOVED_FLAG, "issue/x"])
 
+        captured = capsys.readouterr()
         assert exc.value.code == 2
-        assert self.MESSAGE in capsys.readouterr().err
+        assert captured.out == ""
+        assert f"unrecognized arguments: {REMOVED_FLAG} issue/x" in captured.err
+        client.assert_not_called()
 
     def test_prefixes_of_the_new_flags_still_resolve(self, show):
         code, out, _ = show(busy_issue(), "--since-t", "2026-12-01T00:00:00Z")
@@ -516,5 +501,5 @@ class TestRemovedSince:
         out = capsys.readouterr().out
         assert exc.value.code == 0
         assert "--since-time TS" in out
-        assert "--since-snapshot KIND/NAME" in out
+        assert REMOVED_FLAG not in out
         assert not re.search(r"--since(\s|$)", out)
