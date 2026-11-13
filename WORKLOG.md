@@ -935,3 +935,11 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-13 — Impl #137 done
+
+- Impl #137 (`priority:medium`, Upgrading to 2.0 docs sweep) → [PR #168](https://github.com/jpshackelford/tickster/pull/168), CI green, marked ready for review. Manual test, review and merge are separate conversations.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
