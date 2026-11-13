@@ -453,3 +453,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:05 UTC - Expansion Worker
+
+✅ **Expanded Issue #131**
+
+- Issue: [feat(list): explicit date flags on pr list](https://github.com/jpshackelford/tickster/issues/131)
+- Type: Enhancement
+- Status: Ready for implementation (start after #130 merges; no formal blocked-by link is set on #131)
+- Approach: reuse #130's per-field flag helper on the `pr list` parser, fold the flags into `since_days/after/before/date_field` before `cmd_list`; snapshot scope unchanged; state-mismatch errors for `--merged-*` / `--closed-*` name the typed flag
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
