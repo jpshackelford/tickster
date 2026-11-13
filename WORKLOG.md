@@ -584,3 +584,17 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Needing expansion next: #136, #137, #139–#143
 
 ---
+
+### 2026-11-13 06:35 UTC - Expansion Worker
+
+✅ **Expanded Issue #134**
+
+- Issue: [feat(show)!: rename show --since TS to --since-time TS](https://github.com/jpshackelford/tickster/issues/134)
+- Type: Enhancement (breaking)
+- Status: Ready for implementation. Independent of #130 to #133; #137 is blocked by it (stated in the issue text; no formal "blocked by" link was set).
+- Approach: in the shared `_add_show_args`, replace `--since` with `--since-time` in the existing mutually exclusive group and add a hidden `--since` stub (`nargs="?"`, `help=SUPPRESS`, `parser.error`, exit 2, no GitHub call). Rename the `cmd_show` keyword to `since_time`; the JSON key `since` is unchanged. Update `doc/automation.md`, `doc/usage.md` and `README.md`, and add tests for both commands.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
