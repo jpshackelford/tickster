@@ -45,8 +45,7 @@ def sort_issues(issues: Sequence[IssueInfo], keys: Sequence[str]) -> list[IssueI
     Sorts from the last key to the first; Python's sort is stable, so each earlier key
     takes precedence and later ones only break its ties.
     """
-    ordered = sorted(issues, key=lambda i: (i.repo, i.number))
-    ordered.sort(key=lambda i: i.number)
+    ordered = sorted(issues, key=lambda i: (i.number, i.repo))
     for key in reversed(keys):
         value, descending_by_default = _KEYS[key.removeprefix("-")]
         ordered.sort(key=value, reverse=descending_by_default != key.startswith("-"))
