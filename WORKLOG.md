@@ -495,3 +495,16 @@ Implementation worker [`1a38633`](https://app.beta.staging.all-hands-testing.dev
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 21:20 UTC - Implementation Worker
+
+✅ **Issue #181 implemented: [PR #184](https://github.com/jpshackelford/tickster/pull/184) ready for review**
+
+- Diff JSON deltas now use `ref`, `kind` (row kind) and `change`; `activity` is `last_activity`; top-level `prev`/`curr` lose `kind`. Breaking, with a `BREAKING CHANGE:` footer.
+- CI green (lint, type check, tests). `doc/automation.md` and `doc/usage.md` updated; every documented command run against PRs #60 and #62 and the output matches.
+- All acceptance criteria met. Follow-up: `tests/test_docs_flags.py` does not yet check the delta table for the old `key` name.
+- Release PR [#119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
