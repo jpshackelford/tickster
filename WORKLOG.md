@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 13:00 UTC - Implementation worker
+
+- [Issue #148](https://github.com/jpshackelford/tickster/issues/148): `--sort` on `issue list` (`number`, `created`, `updated`, `blocking`) → [PR #172](https://github.com/jpshackelford/tickster/pull/172). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do (only a smoke run so far). Note: `--sort -key` needs an argv rewrite to `--sort=-key` because argparse reads `-key` as a flag; `--sort` is mutually exclusive with `--activity`.
+
 ### 2026-11-13 12:30 UTC - Implementation worker
 
 - [Issue #141](https://github.com/jpshackelford/tickster/issues/141): print the effective `Filters:` line under `pr list` and `review` → [PR #171](https://github.com/jpshackelford/tickster/pull/171). CI green, marked ready for review. Follow-up to file: `pr list --reviewer` silently ignores `--author` / `--merged` / `--closed`.
