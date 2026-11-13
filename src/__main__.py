@@ -866,6 +866,7 @@ Examples:
         help="List issues with history visualization",
         description="List issues with history visualization. "
         "Default shows issues created by you; --all-authors shows everyone's. "
+        "--no-pr / --has-pr keep issues without / with a linked PR. "
         "Accepts issue references as arguments (owner/repo#number).",
     )
     issue_list_parser.add_argument(
@@ -918,6 +919,22 @@ Examples:
         metavar="LABEL",
         help="Leave out issues that have this label (case-insensitive). Repeat to leave out "
         "issues with any of several labels; commas are not special. Not with explicit refs",
+    )
+    issue_pr_group = issue_list_parser.add_mutually_exclusive_group()
+    issue_pr_group.add_argument(
+        "--no-pr",
+        dest="pr_filter",
+        action="store_const",
+        const="no-pr",
+        help="Only issues with no linked PR (the PR column shows `--`). "
+        "Closed issues are included only with --closed or --all. Not with explicit refs",
+    )
+    issue_pr_group.add_argument(
+        "--has-pr",
+        dest="pr_filter",
+        action="store_const",
+        const="has-pr",
+        help="Only issues with at least one linked PR, in any state. Not with explicit refs",
     )
     issue_list_parser.add_argument(
         "--open",
@@ -1465,6 +1482,7 @@ Examples:
                 states=issue_states,
                 labels=args.labels,
                 not_labels=args.not_labels,
+                pr_filter=args.pr_filter,
                 board_name=args.board_name,
                 limit=args.limit,
                 show_title=args.show_title,

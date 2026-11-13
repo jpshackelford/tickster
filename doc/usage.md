@@ -108,6 +108,8 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--board, -b NAME` | Use repos from the named board |
 | `--label, -l LABEL` | Filter by label. Repeat for AND (`-l bug -l urgent`), comma for OR (`-l bug,stale`) |
 | `--not-label LABEL` | Leave out issues that have this label (case-insensitive). Repeat to leave out issues with any of several labels; commas are not special. Combines with `-l`; a label in both returns nothing. Not with explicit refs |
+| `--no-pr` | Only issues with no linked PR (the `PR` column shows `--`), by the definition in [Linked PRs](#linked-prs). Closed issues are included only with `--closed` or `--all`. Not with `--has-pr` or explicit refs |
+| `--has-pr` | Only issues with at least one linked PR, in any state (open, merged or closed). Not with `--no-pr` or explicit refs |
 | `--open, -O` | Show open issues (default) |
 | `--closed, -C` | Show closed issues |
 | `--all, -A` | Show all states (open + closed) |
@@ -130,12 +132,22 @@ tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list --deps                       # which of my open issues are blocked
 tkt issue list --repo octocat/hello-world --all-authors -l ready --not-label hold   # ready, not on hold
+tkt issue list --all --no-pr --title        # issues nobody has opened a PR for
+tkt issue list --has-pr                     # my open issues that already have a PR
 tkt issue list octocat/hello-world#42       # a specific issue
 tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
 tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
 tkt issue list --all --closed-after 2026-11-01 --closed-before 2026-11-07   # closed that week
 tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's open issues
 ```
+
+`--no-pr` and `--has-pr` filter after the search, so `--limit` counts matching
+issues, not issues fetched. When more matching issues exist, the footer says
+`Showing N matching issues (more available; raise --limit)`; it gives no total,
+since GitHub's count includes issues the filter drops. When the search ran out
+of issues, there is no footer. Under `--no-pr`, an issue leaves a `--diff` or
+`--watch` when a PR links to it, and the Note says so (see
+[Why a row is gone](#why-a-row-is-gone)).
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
@@ -1056,7 +1068,7 @@ is the same dense table you already read, with two added visual channels:
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
-(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, limit). Exact capture
+(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, limit). Exact capture
 times are in `tkt snapshot show` and `--format json`.
 
 ```
@@ -1198,6 +1210,7 @@ knows the row is no longer in the result.
 | Note | JSON `disappearance_reason` | Meaning |
 | --- | --- | --- |
 | `closed?` | `closed-or-gone` | `pr list` / `issue list`: it was open and no longer matches, most likely closed or merged (or deleted / transferred). |
+| `PR linked?` | `pr-linked?` | `issue list --no-pr`: an open issue is gone, most likely because a PR now links to it (it may instead have been closed, if the list was open-only). |
 | `done?` | `left-queue` | `tkt review`: it left your queue, usually because you approved it or it went on hold. |
 | `limit?` | `limit` | The current result was cut off by `--limit` and the row was among the last ones of the previous result, as many rows as were added. It probably still matches; it just no longer fits. |
 | `scope` | `scope` | The two snapshots used different scopes (only seen with `--diff-force`). |
@@ -1221,6 +1234,7 @@ and the Note says what GitHub reports now:
 | --- | --- | --- |
 | `merged` | `merged` | The PR was merged. |
 | `closed` | `closed` | The PR or issue was closed. |
+| `PR linked` | `pr-linked` | `issue list --no-pr`: it is open and now has a linked PR. |
 | `still open` | `still-open` | It is open but no longer matches the query: a filter attribute changed, it fell past `--limit`, or the search index lagged. |
 | `not found` | `not-found` | GitHub no longer returns it (deleted, transferred or no access). |
 
@@ -1344,7 +1358,7 @@ tkt pr list --diff poll --format json --events none       # steps only, no timel
 ### Scope matching
 
 The query filter set (board, author or `--all-authors`, reviewer, repos, explicit
-`owner/repo#N` refs, states, labels, `--not-label`, `--all`, limit, and the
+`owner/repo#N` refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--all`, limit, and the
 [date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
@@ -1352,7 +1366,8 @@ counts as a scope change. Repos, refs and `--not-label` labels are compared as
 sets, so their order doesn't matter. The window is recorded as typed, so `--since 14`
 matches `--since 14` on any later day, while `--since 14` against
 `--since 3`, or against no window at all, is a scope change; the error
-(or the `window:` line under the summary) names both windows. If the
+(or the `window:` line under the summary) names both windows. A changed PR filter is named the
+same way, on a `pr filter: none → no-pr` line. If the
 current query's scope doesn't match the
 snapshot's scope, the diff refuses to render in either table or JSON mode
 and exits 2 without touching the baseline, so you can rerun with
@@ -1609,6 +1624,9 @@ if both rules match; the `p` event is dated when the PR was opened. A closing PR
 from another repository shows as `owner/repo#N`. When several PRs are linked,
 `linked_pr` is the first merged one, else the first open one, else the first
 closed one. A release PR whose changelog says "closes #N" is linked too.
+
+`tkt issue list --no-pr` and `--has-pr` use exactly this definition: `--no-pr`
+keeps the rows whose `PR` column is `--`, `--has-pr` the rest.
 
 ### AI actors
 

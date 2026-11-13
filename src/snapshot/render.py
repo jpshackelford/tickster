@@ -41,11 +41,13 @@ _MERGE_FIELDS = frozenset({"merge_state", "mergeable"})
 _REMOVAL_LABEL = {
     "closed-or-gone": "closed?",
     "left-queue": "done?",
+    "pr-linked?": "PR linked?",
     "scope": "scope",
     "limit": "limit?",
     "closed": "closed",
     "merged": "merged",
     "still-open": "still open",
+    "pr-linked": "PR linked",
     "not-found": "not found",
 }
 
@@ -117,8 +119,9 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
         f"{counts[ChangeKind.UNCHANGED]} unchanged){scope_tag}"
     )
     print_note(console, header)
-    if note := window_note(prev, curr):
-        print_note(console, f"[dim]{note}[/]")
+    for note in (window_note(prev, curr), pr_filter_note(prev, curr)):
+        if note:
+            print_note(console, f"[dim]{note}[/]")
 
 
 def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
@@ -129,6 +132,13 @@ def window_note(prev: Snapshot, curr: Snapshot) -> str | None:
     before = prev_window.describe() if prev_window else "none"
     after = curr_window.describe() if curr_window else "none"
     return f"window: {before} → {after}"
+
+
+def pr_filter_note(prev: Snapshot, curr: Snapshot) -> str | None:
+    """Name the PR filter change (`--no-pr` / `--has-pr`) that makes two scopes differ."""
+    if prev.scope.pr_filter == curr.scope.pr_filter:
+        return None
+    return f"pr filter: {prev.scope.pr_filter or 'none'} → {curr.scope.pr_filter or 'none'}"
 
 
 def _print_table(

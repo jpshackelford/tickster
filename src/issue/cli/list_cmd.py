@@ -23,6 +23,7 @@ from src.issue.dependencies import short_ref
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
 from src.list_table import add_shrinkable_column, print_fitted_table, print_note
+from src.pr_filter import pr_filter_error
 from src.snapshot.convert import snapshot_from_issues
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_ISSUE, SnapshotScope
@@ -40,6 +41,7 @@ def cmd_list(
     states: list[str] | None = None,
     labels: list[str] | None = None,
     not_labels: list[str] | None = None,
+    pr_filter: str | None = None,
     board_name: str | None = None,
     limit: int = 100,
     show_title: bool = False,
@@ -64,6 +66,7 @@ def cmd_list(
         states: Filter by state (open, closed); defaults to open
         labels: Filter by labels (comma-separated = OR, multiple = AND)
         not_labels: Leave out issues that have any of these labels (not with refs)
+        pr_filter: "no-pr" or "has-pr": keep issues without or with a linked PR (not with refs)
         board_name: Board to get repos from (default: default board)
         limit: Maximum number of issues to show
         show_title: Include issue titles in output
@@ -102,6 +105,10 @@ def cmd_list(
         )
         return 1
 
+    if error := pr_filter_error(pr_filter, has_refs=bool(issue_refs)):
+        print_error(error)
+        return 1
+
     try:
         target_repos = None if issue_refs else _get_repos(repos, board_name)
         if all_authors:
@@ -127,6 +134,7 @@ def cmd_list(
                     sort_by_activity=sort_by_activity,
                     date_qualifier=date_qualifier,
                     not_labels=not_labels,
+                    pr_filter=pr_filter,
                 )
 
             plan = SnapshotPlan.from_args(
@@ -149,6 +157,7 @@ def cmd_list(
                     states=states,
                     labels=labels,
                     not_labels=not_labels,
+                    pr_filter=pr_filter,
                     limit=limit,
                     window=window,
                 )
@@ -186,7 +195,13 @@ def cmd_list(
                     "Blocks: open issues this one blocks[/]",
                 )
 
-            if result.has_more:
+            if result.has_more and pr_filter:
+                print_note(
+                    console,
+                    f"\n[dim]Showing {len(result.issues)} matching issues "
+                    "(more available; raise --limit)[/]",
+                )
+            elif result.has_more:
                 print_note(
                     console,
                     f"\n[dim]Showing {len(result.issues)} of {result.total_count} issues[/]",
