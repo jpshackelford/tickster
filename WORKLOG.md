@@ -509,3 +509,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 08:50 UTC - Implementation Worker
+
+✅ **[PR #162](https://github.com/jpshackelford/tickster/pull/162) ready for review** for #124 (`feat(snapshot):`, `Closes #124`)
+
+- `pr list --diff/--watch --format json` adds `events_since`, `events_truncated` and `steps` (with evidence) to added/changed deltas. Events come from the `pr show` builder; steps from `collect_steps`. New `--events brief|full|none` and `--max-body N`, usage errors (exit 2) outside a JSON diff. `--events none` makes no timeline request; removed/unchanged rows make none.
+- `src/show/delta.py` is new. Existing JSON-diff tests now get an autouse fake timeline endpoint in `tests/conftest.py`. Docs in `doc/usage.md` are included. CI green (pytest 2086, ruff, basedpyright).
+- The issue's manual test is left to the testing conversation. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
