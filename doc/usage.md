@@ -116,7 +116,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--blocked` | Only issues with at least one open blocker. A blocker you cannot read counts as open (`?`). Not with `--unblocked` or explicit refs |
 | `--open, -O` | Show open issues (default) |
 | `--closed, -C` | Show closed issues |
-| `--all, -A` | Show all states (open + closed) |
+| `--all, -A` | Include closed issues as well as open ones. Without `--all`, `--open` or `--closed`, only open issues are listed |
 | `--limit, -n N` | Max issues to show (default: 100) |
 | `--title, -t` | Show issue titles |
 | `--deps` | Add `Blocked by` (open blockers, `--` for none) and `Blocks` (open issues this one blocks) columns. See [Issue dependencies](#issue-dependencies) |
@@ -1857,7 +1857,8 @@ tkt issue list --all --created-since 14 --title
 ```
 
 `--author` defaults to you, so these are your issues. `--all` includes closed
-ones, and `--created-since` filters on the created date (UTC day boundary).
+ones: leave it out and only open issues are listed, so closed ones are missed.
+`--created-since` filters on the created date (UTC day boundary).
 
 Which of those have no PR yet:
 

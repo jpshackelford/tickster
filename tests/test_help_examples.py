@@ -188,5 +188,17 @@ def test_option_help_states_the_field_or_definition(phrase):
     assert phrase in _flat(_issue_list_help())
 
 
+def test_all_flag_is_explained_wherever_the_recipe_uses_it():
+    assert "Without --all, --open or --closed, only open issues are listed" in _flat(
+        _issue_list_help()
+    )
+    assert "--all includes closed issues. Without it" in _flat(_issue_list_help())
+    root = io.StringIO()
+    with contextlib.redirect_stdout(root), pytest.raises(SystemExit):
+        main(["--help"])
+    assert "(--all adds closed ones)" in _flat(root.getvalue())
+    assert "leave it out and only open issues are listed" in _flat(_recipe_section_all())
+
+
 def test_recipes_in_usage_name_the_linked_definition():
     assert "closes or mentions" in _flat(_recipe_section_all())
