@@ -1387,3 +1387,11 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## Implementation worker: Issue #127
+
+[PR #177](https://github.com/jpshackelford/tickster/pull/177) (`docs: rewrite doc/automation.md as a short recipe for the poll loop`) is ready for review, CI green. `doc/automation.md` went from 429 to 193 lines. Every command block was run against #60 and #62 with a temporary `TKT_HOME`. The `usage.md` anchor and the README blurb were updated. No code changed. Docs, testing and review are left to separate conversations. Release PR #119 untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
