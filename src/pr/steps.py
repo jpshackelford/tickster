@@ -14,6 +14,7 @@ in a thread.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import assert_never
 
 from src.actors import ACTOR_GROUP, ActorClass
 from src.norms.model import CI, Norms, Review, any_glob_match
@@ -44,11 +45,15 @@ STEP_NAMES = (*PHASE_A_STEPS, *MANUAL_TEST_STEPS)
 # manual_test has steps in `pr steps` and snapshots but no column.
 STEP_LETTERS = "rcfamtx"
 
+MARK_DONE = "✓"
+MARK_NA = "·"
+
 STEPS_LEGEND = (
     "Steps: r review, c fix CI, f review findings, a re-review, "
     "m manual test, t test findings, x retest. "
-    "UPPER needed, lower waiting, . done or n/a, ? unknown, - not configured. "
-    f"All dots ({'.' * len(STEP_LETTERS)}) = every step done or n/a: nothing pending."
+    f"UPPER needed, lower waiting, {MARK_DONE} done, {MARK_NA} n/a, ? unknown, - not configured. "
+    f"Only {MARK_DONE} and {MARK_NA} ({MARK_DONE * len(STEP_LETTERS)}) = every step done or n/a: "
+    "nothing pending."
 )
 
 _ROLLUP_PENDING = frozenset({"PENDING", "EXPECTED"})
@@ -351,7 +356,8 @@ def _rereview_step(pr: PRInfo, review: Review, norms: Norms | None) -> StepResul
 
 
 def steps_mark(results: Sequence[StepResult]) -> str:
-    """One character per step: UPPER needed, lower waiting, ``.`` done or n/a, ``?`` unknown."""
+    """One character per step: UPPER needed, lower waiting, ``✓`` done, ``·`` n/a, ``?``
+    unknown, ``-`` not configured."""
     return "".join(
         _mark(letter, r.status) for letter, r in zip(STEP_LETTERS, results, strict=False)
     )
@@ -366,7 +372,11 @@ def _mark(letter: str, status: StepStatus) -> str:
         return "?"
     if status is StepStatus.NOT_CONFIGURED:
         return "-"
-    return "."
+    if status is StepStatus.DONE:
+        return MARK_DONE
+    if status is StepStatus.NOT_APPLICABLE:
+        return MARK_NA
+    assert_never(status)
 
 
 def step_statuses(results: Sequence[StepResult]) -> dict[str, str]:

@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from rich import box
+from rich.cells import cell_len
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -277,6 +278,25 @@ class TestSteps:
         assert "Steps" not in buf.getvalue()
 
 
+class TestStepsCellWidth:
+    @pytest.mark.parametrize("width", [40, 200])
+    @pytest.mark.parametrize("status", [StepStatus.DONE, StepStatus.NOT_APPLICABLE])
+    def test_cell_stays_seven_cells_wide(self, width, status):
+        results = tuple(StepResult(step=s, status=status) for s in STEP_LETTERS)
+        mark = steps_mark(results)
+        console, buf = make_pipe_console(width)
+        pr_cmd.console = console
+        pr_cmd._print_pr_table(
+            [make_pr(1, SHORT)], show_title=False, steps={"OpenHands/OpenHands#1": results}
+        )
+        (row,) = [
+            ln for ln in buf.getvalue().splitlines() if mark in ln and not ln.startswith("Steps:")
+        ]
+        (cell,) = [c for c in row.split() if mark in c]
+        assert cell == mark
+        assert cell_len(cell) == len(STEP_LETTERS)
+
+
 class TestPrintFittedTable:
     @staticmethod
     def table() -> Table:
@@ -527,12 +547,21 @@ class TestHistoryLegendInLists:
         assert line.endswith("s AI opened, v AI approval, n AI comment")
 
 
-class TestStepsLegendAllDots:
-    def test_says_all_dots_means_nothing_pending(self):
-        assert f"All dots ({'.' * 7}) = every step done or n/a: nothing pending." in STEPS_LEGEND
+class TestStepsLegendGlyphs:
+    def test_names_both_glyphs(self):
+        assert "✓ done, · n/a," in STEPS_LEGEND
 
-    def test_dot_count_follows_the_step_letters(self):
-        assert "." * len(STEP_LETTERS) in STEPS_LEGEND
+    def test_no_longer_uses_a_dot_for_either(self):
+        assert ". done or n/a" not in STEPS_LEGEND
+        assert "dots" not in STEPS_LEGEND
+
+    def test_says_all_ticks_means_nothing_pending(self):
+        assert f"Only ✓ and · ({'✓' * 7}) = every step done or n/a: nothing pending." in (
+            STEPS_LEGEND
+        )
+
+    def test_tick_count_follows_the_step_letters(self):
+        assert "✓" * len(STEP_LETTERS) in STEPS_LEGEND
 
 
 class TestShowLegendsUseTheTables:
