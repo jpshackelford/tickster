@@ -517,3 +517,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 07:40 UTC - Implementation worker (#145)
+
+- [PR #158](https://github.com/jpshackelford/tickster/pull/158) (`feat(issue): record dependency facts on every issue`, closes #145) is ready for review. CI is green and the branch merges cleanly.
+- Built: `blockedBy`, `blocking`, `parent` and `milestone` in the issue and `issue show` queries, paged with `ConnectionSpec` (new `total_count` option); `open_blockers` (with `?` for unreadable), `blocking`, `parent`, `milestone` in `issue show`, `issue list --format json` and issue snapshots; `issue list --deps`; diff Note `unblocked` / `blocked` / `blockers changed`; `doc/usage.md`.
+- Still open: the manual test from the acceptance criteria (scratch repo, link two issues, `--watch`, close the blocker, `--watch`) is for the testing worker. Unblocks #146 and #148 once merged.
+- Learning: the shared test node builders and `tests/fixtures/issue_40_closed_by_pr_69.json` needed the four new keys, because `complete_connection` fails fast on a missing connection.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
