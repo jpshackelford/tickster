@@ -776,3 +776,16 @@ Implementing [#187](https://github.com/jpshackelford/tickster/issues/187): name 
 - Needs expansion: none (#179, #138, #129 are tracking issues; #71 is `needs-split`); all other open issues are `hold`
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+
+### 2026-11-13 23:15 UTC - Implementation Worker
+
+✅ **Implemented [#187](https://github.com/jpshackelford/tickster/issues/187)**: `pr=none` / `pr=linked` in the Filters: line of `tkt issue list`
+
+- [PR #189](https://github.com/jpshackelford/tickster/pull/189) is ready for review; CI is green
+- Field sits after `not-label`, before `blocked`; JSON `filters` is unchanged; `doc/usage.md` has the new row
+- Unit tests cover both flags, neither flag, ordering and the empty result
+- Note: `GITHUB_TOKEN` gets 403 on push and PR create; the owner token was used
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
