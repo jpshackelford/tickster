@@ -35,6 +35,12 @@ console = Console()
 
 
 ISSUE_LIST_EPILOG = """\
+Examples (the command first, the question it answers after it):
+  tkt issue list --all --created-since 14 --no-pr --title  Which issues did I file in the last 2 weeks that no PR links to?
+  tkt issue list --all --created-since 14 --has-pr --title  Which issues did I file in the last 2 weeks that a PR already links to?
+  tkt issue list --all --updated-since 7 --title  Which of my issues, open or closed, changed in the last week?
+  tkt issue list --repo octocat/hello-world --all-authors --format json  Every open issue in a repo, any author, as one JSON document?
+
 Which issues can I start now? (the labels are yours; the rank order is [labels] rank):
   tkt issue list --all-authors -l ready --not-label hold --unblocked --no-pr \\
     --sort rank,blocking,number --limit 2 --format json
@@ -225,6 +231,7 @@ def _run(argv: list[str] | None = None) -> int:
         epilog="""\
 Examples:
   tkt issue list                        List open issues
+  tkt issue list --all --created-since 14 --no-pr --title  Issues I filed in the last 2 weeks with no PR
   tkt pr list                           List open pull requests
   tkt review                            List PRs awaiting review
   tkt board status                      Show project board status
@@ -966,7 +973,8 @@ Examples:
         dest="pr_filter",
         action="store_const",
         const="no-pr",
-        help="Only issues with no linked PR (the PR column shows `--`). "
+        help="Only issues with no linked PR (the PR column shows `--`). Linked = a PR "
+        "closes or mentions the issue, in any state. "
         "Closed issues are included only with --closed or --all. Not with explicit refs",
     )
     issue_pr_group.add_argument(
@@ -974,7 +982,8 @@ Examples:
         dest="pr_filter",
         action="store_const",
         const="has-pr",
-        help="Only issues with at least one linked PR, in any state. Not with explicit refs",
+        help="Only issues with at least one linked PR (a PR closes or mentions the issue), "
+        "in any PR state. Not with explicit refs",
     )
     issue_blocked_group = issue_list_parser.add_mutually_exclusive_group()
     issue_blocked_group.add_argument(
@@ -1686,8 +1695,9 @@ def _add_snapshot_flags(parser) -> None:
         choices=["table", "json"],
         default="table",
         help=(
-            "Output format (default: table). json prints one document on stdout: "
-            "the diff with --diff / --watch, else the current result as a snapshot."
+            "Output format (default: table). json prints one document on stdout and "
+            "nothing else: schema, filters, total_count, has_more and items (one row "
+            "per issue or PR), or the diff with --diff / --watch."
         ),
     )
     group.add_argument(
