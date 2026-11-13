@@ -15,9 +15,11 @@ compact and structured so it is cheap to feed to an LLM agent.
 - [`tkt repo`](#tkt-repo)
 - [`tkt norms`](#tkt-norms)
 - [Upgrading to 1.0](#upgrading-to-10)
+- [Upgrading to 2.0](#upgrading-to-20)
 - [`tkt snapshot`](#tkt-snapshot)
 - [Snapshots & diffs](#snapshots--diffs)
 - [Date-window filtering](#date-window-filtering)
+- [Recipes](#recipes)
 - [History strings](#history-strings)
 - [Piping refs from stdin](#piping-refs-from-stdin)
 - [Environment variables](#environment-variables)
@@ -117,10 +119,6 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--title, -t` | Show issue titles |
 | `--deps` | Add `Blocked by` (open blockers, `--` for none) and `Blocks` (open issues this one blocks) columns. See [Issue dependencies](#issue-dependencies) |
 | `--activity, -s` | Sort by recent activity instead of creation date |
-| `--since DAYS` | Only issues since the start of the UTC day N days ago |
-| `--after YYYY-MM-DD` | Only issues on/after this date (inclusive) |
-| `--before YYYY-MM-DD` | Only issues on/before this date (inclusive) |
-| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 | `--created-since DAYS` | Only issues created since the start of the UTC day N days ago (`0` = today) |
 | `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only issues created on/after, on/before this UTC date (inclusive) |
 | `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
@@ -157,10 +155,8 @@ table, the same document `tkt snapshot show KIND/NAME --format json` prints,
 with `name` set to the `--snapshot` name or `""`. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
-See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`, and
-[Date flags by field](#date-flags-by-field) for the `--created-*` /
-`--updated-*` / `--closed-*` spelling.
+See [Date-window filtering](#date-window-filtering) for the semantics of the
+`--created-*` / `--updated-*` / `--closed-*` flags.
 
 ### Effective filters line
 
@@ -286,17 +282,12 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
 | `--events {brief,full,none}` | With `--diff` / `--watch` and `--format json`: how much of each added or changed PR's new timeline events the delta carries (default `brief`). See [Events and steps in a PR diff](#events-and-steps-in-a-pr-diff) |
 | `--max-body N` | With `--events brief`: cut each event body at `N` characters instead of 160 |
-| `--since DAYS` | Only PRs since the start of the UTC day N days ago |
-| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
-| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
-| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 | `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
 | `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only PRs created on/after, on/before this UTC date (inclusive) |
 | `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
 | `--closed-since DAYS`, `--closed-after YYYY-MM-DD`, `--closed-before YYYY-MM-DD` | The same, on the close date. Needs `--closed`, `--merged` or `--all` |
 | `--merged-since DAYS`, `--merged-after YYYY-MM-DD`, `--merged-before YYYY-MM-DD` | The same, on the merge date. Needs `--merged` or `--all` |
 
-The old `--since` / `--after` / `--before` / `--date-field` flags still work.
 
 ```bash
 tkt pr list --author me                     # your open PRs
@@ -315,10 +306,8 @@ table, the same document `tkt snapshot show KIND/NAME --format json` prints,
 with `name` set to the `--snapshot` name or `""`. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
-See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`, and
-[Date flags by field](#date-flags-by-field) for the `--created-*` /
-`--updated-*` / `--closed-*` / `--merged-*` spelling.
+See [Date-window filtering](#date-window-filtering) for the semantics of the
+`--created-*` / `--updated-*` / `--closed-*` / `--merged-*` flags.
 
 ### `tkt pr checks`
 
@@ -401,7 +390,7 @@ tkt pr changes OWNER/REPO#NUM --since-sha SHA [--format text|json]
 | `--min-changed-lines N` | After ignoring paths, changes below `N` added+deleted lines are not significant. `0` counts as given and replaces the norms file's value |
 | `--explain` | After the verdict, print one `why:` line per setting with its value and source |
 
-`--since` was removed in 2.0: it exits 2 and names `--since-sha`.
+The 1.x spelling of `--since-sha` was removed in 2.0; see [Upgrading to 2.0](#upgrading-to-20).
 
 Where the settings come from: per setting, a flag beats `[commits]`
 (`ignore_paths`, `min_changed_lines`) in the repo's `.agents/tickster.toml`, which
@@ -623,8 +612,8 @@ tkt pr show OWNER/REPO#NUM [--since-time TS | --since-snapshot KIND/NAME]
 
 The ref may be `owner/repo#number` or a GitHub PR URL.
 
-`--since` was removed on `pr show` and `issue show`. It exits 2 with
-`--since was removed on show: use --since-time TS`, before any GitHub call.
+The 1.x spelling of `--since-time` was removed in 2.0; see
+[Upgrading to 2.0](#upgrading-to-20).
 
 ```text
 $ tkt pr show jpshackelford/tickster#60 --max-body 40
@@ -758,17 +747,12 @@ tkt review [options]
 | `--title, -t` | Show PR titles |
 | `--merged, -M` | Show merged PRs you've reviewed |
 | `--closed, -C` | Show closed (unmerged) PRs you've reviewed |
-| `--since DAYS` | Only PRs since the start of the UTC day N days ago |
-| `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
-| `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
-| `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
 | `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
 | `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only PRs created on/after, on/before this UTC date (inclusive) |
 | `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
 | `--closed-since DAYS`, `--closed-after YYYY-MM-DD`, `--closed-before YYYY-MM-DD` | The same, on the close date. Needs `--closed` or `--merged` (merged PRs are closed) |
 | `--merged-since DAYS`, `--merged-after YYYY-MM-DD`, `--merged-before YYYY-MM-DD` | The same, on the merge date. Needs `--merged` |
 
-The old `--since` / `--after` / `--before` / `--date-field` flags still work.
 `--all` / `-A` (include approved and on-hold PRs) is not a state flag: it does not satisfy the `--merged-*` or `--closed-*` checks.
 
 ```bash
@@ -780,10 +764,8 @@ tkt review --created-since 14               # review requests on PRs opened in t
 tkt review --closed --closed-since 7        # closed (unmerged) PRs you reviewed, closed this week
 ```
 
-See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`, and
-[Date flags by field](#date-flags-by-field) for the `--created-*` /
-`--updated-*` / `--closed-*` / `--merged-*` spelling.
+See [Date-window filtering](#date-window-filtering) for the semantics of the
+`--created-*` / `--updated-*` / `--closed-*` / `--merged-*` flags.
 
 The output computes, for each PR, **what action you owe it** rather than dumping
 raw review state:
@@ -1030,6 +1012,60 @@ tkt pr list --repo OWNER/NAME --all --snapshot NAME
 
 A job that polls with `--watch` can also skip the deltas that have `history-rewritten` on
 that first run ([`doc/automation.md`](automation.md#1-poll-what-moved-since-the-last-run)).
+
+## Upgrading to 2.0
+
+**What changed.** The date flags used to filter on a field that tickster guessed, and two
+commands used `--since` for unrelated things. In 2.0 the flag name says what it means. Each
+old flag still exists as a stub that only prints an error. `--since-snapshot`, `--snapshot`,
+`--diff` and `--watch` are unchanged.
+
+- `issue list`, `pr list` and `review`: the date field moves into the flag name.
+- `issue show` and `pr show`: `--since TS` is `--since-time TS`.
+- `pr changes`: `--since SHA` is `--since-sha SHA`.
+- `board scan`: `--since DAYS` is `--updated-since DAYS`.
+
+| Command | Old (1.x) | New (2.0) | Error the old flag prints (after `tkt <cmd>: error: `) |
+| --- | --- | --- | --- |
+| `issue list` | `--since N` | `--created-since N`, `--updated-since N` or `--closed-since N` | `--since was removed: use --created-since N, --updated-since N or --closed-since N` |
+| `issue list` | `--after D` | `--created-after D`, `--updated-after D` or `--closed-after D` | `--after was removed: use --created-after D, --updated-after D or --closed-after D` |
+| `issue list` | `--before D` | `--created-before D`, `--updated-before D` or `--closed-before D` | `--before was removed: use --created-before D, --updated-before D or --closed-before D` |
+| `issue list` | `--date-field F` | the field goes in the flag name | `--date-field was removed: put the field in the flag name, for example --created-since N` |
+| `pr list`, `review` | `--since N` | `--created-since N`, `--updated-since N`, `--closed-since N` or `--merged-since N` | `--since was removed: use --created-since N, --updated-since N or --closed-since N (--merged-since N on pr list and review)` |
+| `pr list`, `review` | `--after D` | `--created-after D`, `--updated-after D`, `--closed-after D` or `--merged-after D` | `--after was removed: use --created-after D, --updated-after D or --closed-after D (--merged-after D on pr list and review)` |
+| `pr list`, `review` | `--before D` | `--created-before D`, `--updated-before D`, `--closed-before D` or `--merged-before D` | `--before was removed: use --created-before D, --updated-before D or --closed-before D (--merged-before D on pr list and review)` |
+| `pr list`, `review` | `--date-field F` | the field goes in the flag name | `--date-field was removed: put the field in the flag name, for example --created-since N` (the field you typed replaces `created` when it is valid for the command) |
+| `pr show`, `issue show` | `--since TS` | `--since-time TS` | `--since was removed on show: use --since-time TS` |
+| `pr changes` | `--since SHA` | `--since-sha SHA` | `--since was removed on pr changes: use --since-sha SHA` |
+| `board scan` | `--since DAYS` | `--updated-since DAYS` | `--since was removed: use --updated-since DAYS` |
+
+**Are you affected?** Yes, if a script, cron job, agent prompt or board automation passes any
+of the old flags. The old flags fail at parse time: exit 2, empty stdout, and no GitHub call.
+A job fails loudly on its first run and never returns data from a field you did not choose.
+There is no silent fallback to a default field. The stubs stay for at least one minor release
+after 2.0.0. After that they are removed, and argparse reports an unrecognized argument.
+
+**Find the callers.**
+
+```bash
+grep -rnE -- '--(since|after|before|date-field)\b' path/to/your/scripts
+```
+
+`--since-snapshot`, `--since-time` and `--since-sha` also match this pattern; they are the
+new spellings and need no change. For the rest: a flag that took days goes to
+`--<field>-since`, and a flag that took a date goes to `--<field>-after` or
+`--<field>-before`. Before 2.0 the field was `--date-field`, or when you gave none, `merged`
+for a `--merged`-only listing, `closed` for a `--closed`-only listing and `updated` for
+everything else. A bare `--since 14` was therefore `--updated-since 14` on an open listing.
+
+**Saved snapshots.** Snapshots written by 1.x still diff and `--watch` cleanly. A snapshot
+stores the resolved field and the days or bounds, not the flag you typed, so the 1.x window
+`--since 14 --date-field created` equals the 2.0 window `--created-since 14`, and a bare
+`--since 14` on an open listing equals `--updated-since 14`. No scope-changed error, no
+re-baseline.
+
+**JSON keys.** The key names did not change. `since` in `tkt pr show --format json` and
+`tkt issue show --format json` and `since` in `tkt pr changes --format json` keep their name.
 
 ## `tkt snapshot`
 
@@ -1387,9 +1423,9 @@ The query filter set (board, author or `--all-authors`, reviewer, repos, explici
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
 counts as a scope change. Repos, refs and `--not-label` labels are compared as
-sets, so their order doesn't matter. The window is recorded as typed, so `--since 14`
-matches `--since 14` on any later day, while `--since 14` against
-`--since 3`, or against no window at all, is a scope change; the error
+sets, so their order doesn't matter. The window is recorded as typed, so `--created-since 14`
+matches `--created-since 14` on any later day, while `--created-since 14` against
+`--created-since 3`, `--updated-since 14` or no window at all is a scope change; the error
 (or the `window:` line under the summary) names both windows. A changed PR filter is named the
 same way, on a `pr filter: none → no-pr` line. If the
 current query's scope doesn't match the
@@ -1424,67 +1460,11 @@ tkt review                 --watch hourly
 
 ## Date-window filtering
 
-`tkt issue list`, `tkt pr list`, and `tkt review` accept a shared set of options
-to restrict results to a recent time window. They translate directly into the
-GitHub search date qualifiers (`created:`, `updated:`, `merged:`, `closed:`), so
-you no longer have to run a separate GitHub search and pipe refs back in.
-
-| Option | Description |
-| --- | --- |
-| `--since DAYS` | Relative window: from the start of the UTC day N days ago |
-| `--after YYYY-MM-DD` | Absolute lower bound (inclusive) |
-| `--before YYYY-MM-DD` | Absolute upper bound (inclusive) |
-| `--date-field FIELD` | Which date to filter on: `created`, `updated`, `merged`, `closed` |
-
-Semantics:
-
-- `--since N` is shorthand for `--after <today minus N days>`, where "today" is
-  the current **UTC** date. It reaches back to the start of that UTC day, not
-  to N × 24 hours ago, so `--since 0` means "today (UTC)". `tkt board scan`
-  uses the same rule with `--updated-since`.
-- `--after` and `--before` may be combined to express a closed interval; using
-  both renders as `field:AFTER..BEFORE`.
-- `--since` cannot be combined with `--after`/`--before`.
-- **Date field selection.** If `--date-field` is not given, the field is
-  inferred from the state being queried: a `--merged`-only listing filters on
-  `merged:`, a `--closed`-only listing on `closed:`, and everything else on
-  `updated:`. Pass `--date-field` to override (for example, filter merged PRs by
-  when they were `created`).
-- **The window is reported.** (`tkt issue list` also prints a separate
-  [`Filters:` line](#effective-filters-line); it does not repeat the window.)
-  A listing that used a window ends with a
-  `Window: merged ≥ 2026-09-26 (UTC)` line, and an empty result names it too
-  (`No PRs found (merged ≥ 2026-09-26, UTC).`), so a window that is narrower
-  than you meant is visible rather than silent.
-- **Window with `--watch`/`--diff`/`--snapshot`.** The window is part of the
-  snapshot's [scope](#scope-matching).
-
-Combinations that cannot do what they say are errors (exit 1), not silent
-no-ops:
-
-| Command | Why it is rejected |
-| --- | --- |
-| `--date-field` with no `--since`/`--after`/`--before` | There is no window for it to apply to. |
-| `--since`/`--after`/`--before` with explicit refs (`owner/repo#N`, or refs piped on stdin) | Refs list exactly the items named; a window can't narrow them. Drop one or the other. |
-| `--date-field merged` without `--merged` | Only merged items have a merge date, so nothing can match. |
-| `--date-field closed` without `--closed` (or `--merged`) | Open items have no close date. |
-| `--date-field merged` on `tkt issue list` | Issues are never merged. |
-| A [by-field flag](#date-flags-by-field) mixed with `--since`/`--after`/`--before`/`--date-field` | Use one spelling per invocation. |
-| By-field flags for two different fields (`--created-since 14 --updated-since 2`) | One date field per query; the snapshot scope stores one window. |
-| `--closed-since`/`--closed-after`/`--closed-before` without `--closed` or `--all` | Open items have no close date. |
-
-```bash
-tkt pr list --author ak684 --merged --since 14        # merged in the last 2 weeks
-tkt issue list --after 2026-08-01 --before 2026-08-31 # opened/updated in August
-tkt pr list --merged --date-field created --since 30  # merged, created in last 30d
-tkt review --merged --since 7                         # reviewed & merged this week
-```
-
-### Date flags by field
-
-`--since` filters on the *updated* date unless `--date-field` says otherwise, so
-`--since 14` does not mean "filed in the last 14 days". On `tkt issue list`,
-`tkt pr list` and `tkt review`, flags that name the field remove the guess:
+`tkt issue list`, `tkt pr list`, and `tkt review` accept flags that restrict
+results to a time window. Each flag names the date it filters on. They translate
+directly into the GitHub search date qualifiers (`created:`, `updated:`,
+`merged:`, `closed:`), so you no longer have to run a separate GitHub search and
+pipe refs back in.
 
 | Field | Days back (UTC day boundary) | Absolute (UTC date, inclusive) |
 | --- | --- | --- |
@@ -1495,32 +1475,91 @@ tkt review --merged --since 7                         # reviewed & merged this w
 
 `tkt pr list` and `tkt review` offer all four fields. There is no `--merged-*`
 on `tkt issue list`: argparse rejects it as an unrecognized argument (exit 2).
+`DATE` is `YYYY-MM-DD`.
 
-- The rules are the ones above, spelled per field: `--created-since 0` is
-  today (UTC), a negative number or a bad date is an error naming the flag you
-  typed, and `--F-since` cannot be combined with `--F-after`/`--F-before` of the
-  same field.
+Semantics:
+
+- `--F-since N` is shorthand for `--F-after <today minus N days>`, where "today"
+  is the current **UTC** date. It reaches back to the start of that UTC day, not
+  to N × 24 hours ago, so `--created-since 0` means "today (UTC)".
+  `tkt board scan --updated-since DAYS` uses the same rule.
+- `--F-after` and `--F-before` may be combined to express a closed interval;
+  using both renders as `field:AFTER..BEFORE`.
+- `--F-since` cannot be combined with `--F-after`/`--F-before` of the same field.
+- **The field is the one in the flag name.** It is never inferred from the state
+  being queried. In 1.x a window with no field flag meant a field the state
+  picked, mostly "updated"; now `--updated-since 14` says so.
 - One date field per query. `--created-since 14 --updated-since 2` is an error
   naming both flags.
-- The old flags keep working but cannot be mixed with the new ones in one
-  invocation.
-- The field is always the one in the flag name; it is never inferred from the
-  state. The state filter must still be able to match the field, as with
-  `--date-field`: `--merged-*` needs `--merged` or `--all`, and `--closed-*`
-  needs `--closed` (on `tkt pr list` also `--merged`) or `--all`. The error
-  names the flag you typed and the state flag to add, for example
-  `--merged-since only matches merged items, but the state filter is open: add --merged (or --all)`.
-  On `tkt review`, `--all` means "include approved and on-hold PRs", not "all
-  states": its states come only from `--merged` and `--closed`, so `--merged-*`
-  needs `--merged`, `--closed-*` needs `--closed` or `--merged`, and the error
-  does not suggest `--all`, for example
-  `--closed-since only matches closed items, but the state filter is open: add --closed (or --merged)`.
-- Explicit refs cannot be narrowed by any date flag; the error names the flag
-  you typed.
-- The `Window:` line and the empty-result message name the field as before.
-- A window typed either way records the same snapshot scope, so
-  `--since 14 --date-field created --snapshot a` and
-  `--created-since 14 --diff a` compare without a scope mismatch.
+- **The window is reported.** (`tkt issue list` also prints a separate
+  [`Filters:` line](#effective-filters-line); it does not repeat the window.)
+  A listing that used a window ends with a
+  `Window: merged ≥ 2026-09-26 (UTC)` line, and an empty result names it too
+  (`No PRs found (merged ≥ 2026-09-26, UTC).`), so a window that is narrower
+  than you meant is visible rather than silent.
+- **Window with `--watch`/`--diff`/`--snapshot`.** The window is part of the
+  snapshot's [scope](#scope-matching). It records the field and the number of
+  days (or the bounds), so a rolling window compares equal from day to day.
+
+Combinations that cannot do what they say are errors, not silent no-ops:
+
+| Command | Why it is rejected |
+| --- | --- |
+| Any date flag with explicit refs (`owner/repo#N`, or refs piped on stdin) | Refs list exactly the items named; a window can't narrow them. The error names the flag you typed. Drop one or the other. |
+| `--merged-*` without `--merged` or `--all` | Only merged items have a merge date, so nothing can match. |
+| `--closed-*` without `--closed` or `--all` (`--merged` also works on `tkt pr list` and `tkt review`; on `tkt review`, `--all` does not count) | Open items have no close date. |
+| `--F-since` mixed with `--F-after`/`--F-before` | One spelling per field: use the days-back form or the absolute bounds. |
+| Flags for two different fields (`--created-since 14 --updated-since 2`) | One date field per query; the snapshot scope stores one window. |
+
+On `tkt review`, `--all` means "include approved and on-hold PRs", not "all
+states": its states come only from `--merged` and `--closed`, so `--merged-*`
+needs `--merged`, `--closed-*` needs `--closed` or `--merged`, and the error does
+not suggest `--all`. For example:
+
+```text
+--closed-since only matches closed items, but the state filter is open: add --closed (or --merged)
+```
+
+On `tkt pr list` the same error suggests `--all` as well:
+
+```text
+--merged-since only matches merged items, but the state filter is open: add --merged (or --all)
+```
+
+```bash
+tkt pr list --author ak684 --merged --merged-since 14             # merged in the last 2 weeks
+tkt issue list --created-after 2026-08-01 --created-before 2026-08-31   # opened in August
+tkt pr list --created-since 30 --all                              # PRs created in the last 30 days, any state
+tkt review --merged --merged-since 7                              # reviewed & merged this week
+```
+
+The date flags of tickster 1.x were removed in 2.0. See
+[Upgrading to 2.0](#upgrading-to-20) for what each one is now.
+
+---
+
+## Recipes
+
+What I filed in the last two weeks, with titles:
+
+```bash
+tkt issue list --all --created-since 14 --title
+```
+
+`--author` defaults to you, so these are your issues. `--all` includes closed
+ones, and `--created-since` filters on the created date.
+
+What merged in the last two weeks:
+
+```bash
+tkt pr list --merged --merged-since 14
+```
+
+What I touched in the last week, across all states:
+
+```bash
+tkt issue list --all --updated-since 7 --title
+```
 
 ---
 

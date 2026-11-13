@@ -183,7 +183,7 @@ loop's `prev.last_activity` is `2026-11-08T00:51:09Z`.
 `tkt pr show REF --since-time TIME` prints the PR header and the events strictly after
 `TIME`. For a `changed` row, `TIME` is `prev.last_activity`. For an `added` row there
 is nothing to compare with, so read the whole timeline.
-The output is the same as the removed `--since TIME` printed.
+The output is the same as the 1.x spelling of `--since-time` printed (see [Upgrading to 2.0](usage.md#upgrading-to-20)).
 
 ```text
 $ tkt pr show jpshackelford/tickster#62 --since-time 2026-11-05T11:31:49Z --max-body 40

@@ -90,6 +90,7 @@ tkt pr show owner/repo#7 --since-time 2026-11-05T10:00:00Z   # only events after
 tkt issue show owner/repo#42       # one issue's timeline with comment text
 tkt pr checks owner/repo#7 --short # failing checks: name, failing step, log URL
 tkt pr checks owner/repo#7 --full  # same, plus each failing step's log
+tkt issue list --all --created-since 14 --title   # what I filed in the last two weeks
 tkt review                         # list PRs awaiting your review
 tkt board status                   # show project board status
 tkt repo add owner/name            # track a repo on a board
@@ -122,7 +123,9 @@ Documentation:
 - **[doc/usage.md](doc/usage.md)** — complete usage guide: every command and
   option, the [history string reference](doc/usage.md#history-strings),
   configuration, stdin piping, and environment variables. Upgrading from 0.x? See
-  [Upgrading to 1.0](doc/usage.md#upgrading-to-10).
+  [Upgrading to 1.0](doc/usage.md#upgrading-to-10). Upgrading from 1.x (the
+  renamed date flags)? See [Upgrading to 2.0](doc/usage.md#upgrading-to-20).
+  [Recipes](doc/usage.md#recipes) has the date-window one-liners.
 - **[doc/automation.md](doc/automation.md)** — a worked loop for scheduled jobs
   and agents: poll, read what changed, and decide what a PR needs, with the norms
   each command reads, exit codes and known limits.

@@ -95,7 +95,7 @@ tkt board scan --updated-since 30
 tkt board scan --dry-run --verbose
 ```
 
-`--since` was removed in 2.0; the error names `--updated-since`.
+The 1.x spelling of `--updated-since` was removed in 2.0; see [Upgrading to 2.0](usage.md#upgrading-to-20).
 
 The scan uses GitHub's Search API to find items where you are:
 - The author
