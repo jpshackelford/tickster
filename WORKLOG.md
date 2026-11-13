@@ -1132,3 +1132,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 12:00 UTC - Merge worker
+
+✅ **Merged: [PR #171](https://github.com/jpshackelford/tickster/pull/171)** → [`5ef87f9`](https://github.com/jpshackelford/tickster/commit/5ef87f922e58df995554b552ab984440075ba311) (squash, pinned to head `fd06f6c`)
+
+- `tkt pr list` and `tkt review` now print the `Filters:` line. Issue [#141](https://github.com/jpshackelford/tickster/issues/141) is closed.
+- PR description updated to the final state. Manual test report: 29 scenarios, all pass.
+- Follow-up still to file: `pr list --reviewer` silently ignores `--author` / `--merged` / `--closed`.
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
