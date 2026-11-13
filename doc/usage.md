@@ -261,6 +261,7 @@ Filters: author=octocat (you) · state=open · repos=all GitHub · label=any · 
 | `repos` | `--repo` values, the board's repos (comma-joined), or `all GitHub` |
 | `label` | `any`, or the `-l` values: repeated flags joined with ` & ` (AND), commas shown as `\|` (OR). `-l bug,stale -l urgent` prints `label=bug\|stale & urgent` |
 | `not-label` | Only with `--not-label`: the labels, comma-joined |
+| `pr` | Only with `--no-pr` (`none`) or `--has-pr` (`linked`) |
 | `blocked` | Only with `--blocked` (`yes`) or `--unblocked` (`no`) |
 | `sort` | Only with `--sort`: the keys, comma-joined, as typed |
 | `limit` | `--limit` (default 100) |

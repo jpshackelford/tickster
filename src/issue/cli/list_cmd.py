@@ -164,6 +164,7 @@ def cmd_list(
                     repos=target_repos,
                     labels=labels,
                     not_labels=not_labels,
+                    pr_filter=pr_filter,
                     blocked_filter=blocked_filter,
                     sort=sort,
                     limit=limit,
@@ -276,6 +277,7 @@ def _issue_filters(
     repos: Sequence[str] | None,
     labels: Sequence[str] | None,
     not_labels: Sequence[str] | None,
+    pr_filter: str | None,
     blocked_filter: str | None,
     sort: Sequence[str] | None,
     limit: int,
@@ -284,7 +286,8 @@ def _issue_filters(
 
     `author` is the resolved login (`None` = every author); `is_me` marks a login that
     came from the default or `me`. Repeated labels are AND (` & `), commas inside one
-    are OR (`|`). `not-label`, `blocked` and `sort` appear only when given.
+    are OR (`|`). `not-label`, `pr` (`none` for
+    `no-pr`, `linked` for `has-pr`), `blocked` and `sort` appear only when given.
     """
     author_text = "all authors" if author is None else author + (" (you)" if is_me else "")
     label_text = " & ".join(label.replace(",", "|") for label in labels) if labels else "any"
@@ -296,6 +299,8 @@ def _issue_filters(
     ]
     if not_labels:
         parts.append(("not-label", ",".join(not_labels)))
+    if pr_filter:
+        parts.append(("pr", "none" if pr_filter == "no-pr" else "linked"))
     if blocked_filter:
         parts.append(("blocked", "yes" if blocked_filter == "blocked" else "no"))
     if sort:
