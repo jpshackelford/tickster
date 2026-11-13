@@ -838,3 +838,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 UTC - Implementation worker (#139)
+
+- Opened [PR #166](https://github.com/jpshackelford/tickster/pull/166) `--no-pr`/`--has-pr` on `issue list` for #139; CI green, marked ready.
+- Pushes and PR creation needed `JPSHACKELFORD_GITHUB_TOKEN` (GITHUB_TOKEN got 403).
+- `has_more` is now scan-based only when a PR filter is set; the OR-label quirk is untouched.
+- Left for the next workers: docs/testing/review/merge. #140 shares the list footer and may need a rebase.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
