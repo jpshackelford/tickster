@@ -527,3 +527,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 12:00 UTC - Expansion worker
+
+- Issue: [feat(list): tell done from n/a in the Steps column (✓ and ·)](https://github.com/jpshackelford/tickster/issues/157)
+- Status: Expanded and labelled `ready`. It waits on #155 (formal "blocked by" relation added): both reword `STEPS_LEGEND`, so the legend changes once.
+- Approach: `MARK_DONE = "✓"` and `MARK_NA = "·"` constants in `src/pr/steps.py`, used by `_mark` and `STEPS_LEGEND`. Decided: keep `-` for not configured, no ASCII fallback (output already has `💬`, `→`, `…`), use `✓` not `✔`. JSON, snapshots and diffs carry status names and are unchanged.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
