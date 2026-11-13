@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 
 import pytest
 from rich.console import Console
@@ -21,8 +22,8 @@ def seed(tkt_home):  # noqa: ARG001
             kind="pr",
             name="hourly",
             items=[
-                make_item(key="a/b#1", history="oC"),
-                make_item(key="a/b#2", history="oCr"),
+                make_item(ref="a/b#1", history="oC"),
+                make_item(ref="a/b#2", history="oCr"),
             ],
         )
     )
@@ -31,8 +32,8 @@ def seed(tkt_home):  # noqa: ARG001
             kind="pr",
             name="later",
             items=[
-                make_item(key="a/b#2", history="oCrfA"),
-                make_item(key="a/b#3", history="o"),
+                make_item(ref="a/b#2", history="oCrfA"),
+                make_item(ref="a/b#3", history="o"),
             ],
         )
     )
@@ -154,21 +155,29 @@ def test_diff_json_errors_go_to_stderr(seed, capsys):  # noqa: ARG001
     assert "Error" in captured.err
 
 
+def _notices(caplog) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.getMessage().startswith("tkt: discarded")]
+
+
 def _corrupt(seed, name: str = "broken") -> str:  # noqa: ARG001
     path = store.snapshots_dir() / f"pr-{name}.json"
     path.write_text('{"kind": "pr", "name": "broken", "items": [')
     return str(path)
 
 
-def test_show_corrupt_snapshot_is_one_error_line_on_stderr(seed, capsys):
+def test_show_corrupt_snapshot_is_discarded_with_a_notice_and_reported_missing(
+    seed, capsys, caplog
+):
     path = _corrupt(seed)
     assert cli.cmd_show("pr/broken", output_format="json") == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.count("\n") == 1
-    assert captured.err.startswith("Error: snapshot pr/broken cannot be read (")
-    assert path in captured.err
+    assert captured.err.startswith("Error: snapshot not found: pr/broken")
+    [notice] = _notices(caplog)
+    assert notice.startswith("tkt: discarded snapshot pr/broken: invalid JSON")
     assert "Traceback" not in captured.err
+    assert not Path(path).exists()
 
 
 def test_list_with_a_corrupt_file_still_lists_the_others(seed, capsys, caplog):
@@ -179,12 +188,14 @@ def test_list_with_a_corrupt_file_still_lists_the_others(seed, capsys, caplog):
     assert [r.levelname for r in caplog.records] == ["WARNING"]
 
 
-def test_diff_with_a_corrupt_snapshot_is_an_error_on_stderr(seed, capsys):
+def test_diff_with_a_corrupt_snapshot_is_an_error_on_stderr(seed, capsys, caplog):
     _corrupt(seed)
     assert cli.cmd_diff("pr/hourly", "pr/broken", output_format="json") == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert "snapshot pr/broken cannot be read" in captured.err
+    assert "snapshot not found: pr/broken" in captured.err
+    [notice] = _notices(caplog)
+    assert notice.startswith("tkt: discarded snapshot pr/broken: invalid JSON")
 
 
 def test_diff_header_names_the_kind_of_both_snapshots(seed, capsys):  # noqa: ARG001
@@ -203,8 +214,8 @@ def wide_snapshot(tkt_home):  # noqa: ARG001
             kind="pr",
             name="wide",
             items=[
-                make_item(key=f"{LONG_REPO}#13306", history=LONG_HISTORY),
-                make_item(key="jpshackelford/tickster#86", history=LONG_HISTORY),
+                make_item(ref=f"{LONG_REPO}#13306", history=LONG_HISTORY),
+                make_item(ref="jpshackelford/tickster#86", history=LONG_HISTORY),
             ],
         )
     )
@@ -258,12 +269,12 @@ def test_list_piped_prints_full_columns_on_narrow_console(seed, monkeypatch):  #
 
 
 def test_ack_commits_the_pending_baseline(seed, capsys):  # noqa: ARG001
-    store.save_pending(make_snapshot(kind="pr", name="hourly", items=[make_item(key="a/b#9")]))
+    store.save_pending(make_snapshot(kind="pr", name="hourly", items=[make_item(ref="a/b#9")]))
 
     assert cli.cmd_ack("pr/hourly") == 0
 
     assert "acked pr/hourly" in capsys.readouterr().out
-    assert [it.key for it in store.load("pr", "hourly").items] == ["a/b#9"]
+    assert [it.ref for it in store.load("pr", "hourly").items] == ["a/b#9"]
     assert not store.has_pending("pr", "hourly")
 
 
@@ -285,14 +296,17 @@ def test_ack_rejects_a_bad_ref(seed, capsys):  # noqa: ARG001
     assert "KIND/NAME" in capsys.readouterr().err
 
 
-def test_ack_of_a_corrupt_pending_file_is_an_error_line(seed, capsys):  # noqa: ARG001
+def test_ack_of_a_corrupt_pending_file_is_an_error_line(seed, capsys, caplog):  # noqa: ARG001
     path = store.pending_path_for("pr", "hourly")
     path.parent.mkdir()
     path.write_text("{")
 
     assert cli.cmd_ack("pr/hourly") == 1
 
-    assert "pending baseline pr/hourly cannot be read" in capsys.readouterr().err
+    assert "pending baseline not found: pr/hourly" in capsys.readouterr().err
+    [notice] = _notices(caplog)
+    assert notice.startswith("tkt: discarded pending baseline pr/hourly: invalid JSON")
+    assert not path.exists()
 
 
 def test_list_marks_a_snapshot_with_a_pending_baseline(seed, capsys):  # noqa: ARG001

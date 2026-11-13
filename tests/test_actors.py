@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 
 import pytest
@@ -16,7 +15,7 @@ from src.norms.schema import parse_norms
 from src.pr.github_api import PR_FIELDS_FRAGMENT
 from src.pr.history import process_pr_data
 from src.review.github_api import ReviewClient
-from src.snapshot.convert import item_from_issue, item_from_pr, item_from_review
+from src.snapshot.convert import item_from_pr
 from src.snapshot.models import ItemSnapshot
 
 NORMS_TEXT = """\
@@ -96,11 +95,10 @@ class TestClassifyActor:
 
 
 class TestHistoryEvent:
-    def test_round_trip(self):
+    def test_to_dict(self):
         event = HistoryEvent(
             "N", "comment", "all-hands-bot", ActorClass.AGENT, "2024-01-02T03:04:05Z"
         )
-        assert HistoryEvent.from_dict(event.to_dict()) == event
         assert event.to_dict()["actor_class"] == "agent"
 
     def test_iso_utc(self):
@@ -341,44 +339,14 @@ class TestReviewHistory:
 
 class TestSnapshotJson:
     @pytest.mark.usefixtures("repo_norms")
-    def test_pr_snapshot_item_carries_actor_class(self):
-        info = process_pr_data(
-            pr_data(
-                review("all-hands-bot", "CHANGES_REQUESTED", "2024-01-02T00:00:00Z"),
-                review("bob", "CHANGES_REQUESTED", "2024-01-03T00:00:00Z"),
-            ),
-            "alice",
-        )
-        payload = json.loads(json.dumps(item_from_pr(info).to_dict()))
-        assert [(e["char"], e["actor"], e["actor_class"]) for e in payload["events"]] == [
-            ("o", "alice", "me"),
-            ("E", "all-hands-bot", "agent"),
-            ("R", "bob", "human"),
-        ]
-
-    @pytest.mark.usefixtures("repo_norms")
-    def test_issue_and_review_snapshot_items_carry_events(self):
-        issue = process_issue_data(
-            issue_data(comment("alice", "2024-01-15T11:00:00Z", DISCLOSURE)), "alice"
-        )
-        assert item_from_issue(issue).events[-1].actor_class == ActorClass.ME_AGENT
-        client = ReviewClient.__new__(ReviewClient)
-        queue = client._process_pr_for_reviewer(
-            pr_data(review("all-hands-bot", "APPROVED", "2024-01-02T00:00:00Z")), "bob"
-        )
-        assert queue is not None
-        assert item_from_review(queue).events[-1].actor_class == ActorClass.AGENT
-
-    @pytest.mark.usefixtures("repo_norms")
-    def test_item_round_trips_and_old_snapshots_load_without_events(self):
+    def test_rows_carry_the_history_string_but_not_its_events(self):
         info = process_pr_data(
             pr_data(review("all-hands-bot", "APPROVED", "2024-01-02T00:00:00Z")), "alice"
         )
-        item = item_from_pr(info)
-        assert ItemSnapshot.from_dict(item.to_dict()) == item
-        old = item.to_dict()
-        del old["events"]
-        assert ItemSnapshot.from_dict(old).events == ()
+        row = item_from_pr(info).to_dict()
+        assert row["history"] == info.history
+        assert "events" not in row
+        assert ItemSnapshot.from_dict(row) == item_from_pr(info)
 
 
 @pytest.mark.parametrize(

@@ -12,6 +12,7 @@ from src.snapshot.models import (
     Snapshot,
     SnapshotScope,
 )
+from src.snapshot.rows import item_url
 
 
 @pytest.fixture
@@ -25,32 +26,45 @@ def tkt_home(tmp_path: Path, monkeypatch) -> Path:
 
 def make_item(
     *,
-    key: str = "owner/repo#1",
+    ref: str = "owner/repo#1",
+    kind: str = "pr",
     history: str = "oC",
     state: str = "open",
-    ci_status: str | None = "green",
+    ci: str | None = None,
     labels: tuple[str, ...] = (),
     unresolved: int = 0,
     last_activity: str = "2026-09-30T22:00:00Z",
     linked_pr: str | None = None,
     review_status: str | None = None,
+    **fields,
 ) -> ItemSnapshot:
-    """Convenience constructor for ItemSnapshot in tests."""
-    repo, _, num = key.partition("#")
+    """Convenience constructor for ItemSnapshot in tests.
+
+    `ci` defaults to "green" for pr and review rows and is unused for issues;
+    `review_status` makes the row a review row.
+    """
+    if review_status is not None:
+        kind = "review"
+        fields["review_status"] = review_status
+    if kind != "issue":
+        fields["ci"] = "green" if ci is None else ci
+        fields["unresolved_threads"] = unresolved
+    repo, _, num = ref.partition("#")
     return ItemSnapshot(
-        key=key,
+        ref=ref,
+        kind=kind,
         repo=repo,
         number=int(num),
+        url=item_url(repo, kind, int(num)),
         title="t",
         history=history,
         state=state,
         author="octocat",
+        created_at="2026-09-01T00:00:00Z",
         last_activity=last_activity,
         labels=labels,
-        ci_status=ci_status,
-        unresolved_thread_count=unresolved,
         linked_pr=linked_pr,
-        review_status=review_status,
+        **fields,
     )
 
 

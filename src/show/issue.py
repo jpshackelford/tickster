@@ -23,6 +23,7 @@ from src.issue.models import IssueActionType, TimelineEvent
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
 from src.show.models import NO_CHAR, Entry, Show, trim_body
+from src.snapshot.rows import KIND_ISSUE, item_url
 
 # A busy issue's whole timeline matters here, so the cap is far above the list commands'.
 TIMELINE_CAP = 5000
@@ -218,10 +219,11 @@ def build_issue_show(node: dict, reference_user: str, max_body: int) -> Show:
     header = {
         "repo": info.repo,
         "number": info.number,
-        "url": node.get("url"),
+        "url": item_url(info.repo, KIND_ISSUE, info.number),
         "state": info.state.value,
         "author": info.author,
         "created_at": iso_utc(info.created_at),
+        "closed_at": iso_utc(info.closed_at) if info.closed_at else None,
         "last_activity": iso_utc(info.last_activity),
         "history": info.history,
         "labels": info.labels,

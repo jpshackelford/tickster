@@ -97,15 +97,15 @@ class ReviewerState:
     def from_dict(cls, data: dict) -> ReviewerState:
         return cls(
             login=data["login"],
-            actor_class=data.get("actor_class"),
-            requested=bool(data.get("requested", False)),
-            requested_by=data.get("requested_by"),
-            requested_at=data.get("requested_at"),
-            as_code_owner=bool(data.get("as_code_owner", False)),
-            latest_state=data.get("latest_state"),
-            reviewed_commit=data.get("reviewed_commit"),
-            on_head=bool(data.get("on_head", False)),
-            submitted_at=data.get("submitted_at"),
+            actor_class=data["actor_class"],
+            requested=data["requested"],
+            requested_by=data["requested_by"],
+            requested_at=data["requested_at"],
+            as_code_owner=data["as_code_owner"],
+            latest_state=data["latest_state"],
+            reviewed_commit=data["reviewed_commit"],
+            on_head=data["on_head"],
+            submitted_at=data["submitted_at"],
         )
 
 

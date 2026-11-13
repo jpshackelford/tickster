@@ -327,6 +327,7 @@ order. It has no `draft`, `ci`, `unresolved_threads`, `head`, `mergeable`,
 | `state` | `open` or `closed` |
 | `author` | Login of the issue author |
 | `created_at` | When the issue was opened (UTC, ISO-8601) |
+| `closed_at` | When the issue was closed (UTC, ISO-8601); `null` while it is open |
 | `last_activity` | Time of the latest event (UTC, ISO-8601) |
 | `history` | The [history string](#history-strings) |
 | `labels` | Label names |
@@ -689,10 +690,9 @@ not been written yet.
 - `tkt pr list` records the statuses in every snapshot (`--snapshot`, `--watch`) and in
   `--format json`, with or without `--steps`; `--steps` only adds the table column. With
   `--diff` / `--watch` and `--format json`, a step that moved is in `step_changes` and
-  `changed_fields` (`steps`): `request re-review: done → needed`. In the diff table the
+  `changed_fields` (`step_status`): `request re-review: done → needed`. In the diff table the
   move marks the row `*` and adds that Note only with `--steps`. Every step is recorded,
-  including other reports' steps. A baseline saved before this (no recorded steps) is not
-  compared, and a step missing from the baseline is skipped.
+  including other reports' steps. A step missing from the baseline is skipped.
 - `tkt pr list --steps` shows one character per step, in this order: `r` review, `c` CI,
   `f` findings, `a` re-review, `m` manual test, `t` test findings, `x` retest. Uppercase is
   `needed`, lowercase `waiting`, `✓` done, `·` `n/a`, `?` unknown, `-` not configured.
@@ -790,6 +790,7 @@ order:
 | `state` | `open`, `merged` or `closed` |
 | `draft` | `true` while the PR is a draft |
 | `author` | Login of the PR author |
+| `labels` | Label names |
 | `created_at` | When the PR was opened (UTC, ISO-8601) |
 | `last_activity` | Time of the latest event (UTC, ISO-8601) |
 | `history` | The [history string](#history-strings) |
@@ -1199,14 +1200,33 @@ new spellings and need no change. For the rest: a flag that took days goes to
 for a `--merged`-only listing, `closed` for a `--closed`-only listing and `updated` for
 everything else. A bare `--since 14` was therefore `--updated-since 14` on an open listing.
 
-**Saved snapshots.** Snapshots written by 1.x still diff and `--watch` cleanly. A snapshot
-stores the resolved field and the days or bounds, not the flag you typed, so the 1.x window
-`--since 14 --date-field created` equals the 2.0 window `--created-since 14`, and a bare
-`--since 14` on an open listing equals `--updated-since 14`. No scope-changed error, no
-re-baseline.
+**Saved snapshots.** The snapshot file has a new schema (2), and tkt does not read schema 1.
+A snapshot or pending baseline that tkt cannot read is deleted, and tkt prints one notice on
+stderr, for example `tkt: discarded snapshot issue/hourly: schema 1, this tkt writes
+schema 2`. The run then goes on as a first run with no baseline: the first `--diff` or
+`--watch` after upgrading reports every row as new (`baseline` is `missing` in JSON), and
+`--watch` saves a schema 2 baseline. Nothing needs to be migrated or removed by hand.
 
-**JSON keys.** The key names did not change. `since` in `tkt pr show --format json` and
-`tkt issue show --format json` and `since` in `tkt pr changes --format json` keep their name.
+**Row keys.** A row is the object for one issue, PR or review: the items of the list JSON,
+of the snapshot file and the `prev` / `curr` of a diff delta. It now uses the names of
+`show`, and only the keys of its kind ([Row fields](#row-fields)):
+
+- `key` is `ref`.
+- The CI key is `ci`, the draft flag is `draft`, the head commit is `head`, and the count of
+  unresolved threads is `unresolved_threads`.
+- In a row, `steps` is `step_status`: a map of step name to status. `pr steps` and the delta
+  keep `steps` for the list with evidence.
+- `events` is gone from a row. `history` has the same facts as letters, and `pr show` and
+  `issue show` have the timeline.
+- New: `kind`, `url`, `created_at`, and `closed_at` on an issue row and on `issue show`.
+  `review` rows now carry the PR fields, so `review --diff` reports a push, a draft change
+  or a reviewer move that it never saw before.
+
+`changed_fields` in a diff uses the same names, so a scripted filter on the old head, CI or
+steps name has to change to `head`, `ci` and `step_status`.
+
+The `since` key in `tkt pr show --format json`, `tkt issue show --format json` and
+`tkt pr changes --format json` did not change.
 
 ## `tkt snapshot`
 
@@ -1285,11 +1305,30 @@ diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
 
 A Note with several parts (history rewritten, `head!` tags, reviewer changes, step changes) joins them with `; `.
 
+### Row fields
+
+A row is the object for one issue, PR or review. It is one item in the list JSON
+(`items`), in the saved snapshot file and in the `prev` and `curr` of a diff delta.
+A row has the fields of its kind and no others. Every field is always present: `null`
+means none and `[]` means empty. `tkt issue show` and `tkt pr show` use the same name and
+value for the same fact, in `--format json`.
+
+| Kind | Fields |
+| --- | --- |
+| all | `ref` (`owner/repo#N`), `kind` (`issue`, `pr` or `review`), `repo`, `number`, `url`, `title`, `state`, `author`, `labels`, `history`, `created_at`, `last_activity` (UTC, ISO-8601) |
+| issue | `linked_pr`, `closed_at` (`null` while open), `open_blockers`, `blocking`, `parent`, `milestone` ([Issue dependencies](#issue-dependencies)) |
+| pr | `draft`, `ci`, `unresolved_threads`, `head` (full SHA), `review_decision`, `merge_state`, `mergeable`, `reviewers` ([Reviewer state](#reviewer-state), `[]` when none), `step_status` (step name to status, or `null` when the steps were not evaluated) |
+| review | the PR fields, plus `review_status` and `wait_seconds` (`step_status` is always `null`) |
+
+`url` is `https://github.com/OWNER/REPO/issues/N` for an issue and
+`https://github.com/OWNER/REPO/pull/N` for a PR or a review. `changed_fields` in a diff names
+row fields (and `activity` for `last_activity`).
+
 ### Step changes
 
 `tkt pr list` always records each PR's [step](#tkt-pr-steps) statuses in a snapshot
 (`--snapshot`, `--watch`) and prints them in `--format json`; `--steps` only adds the table
-column. In `--format json` a diff lists a step that moved in `step_changes` and `steps` in
+column. In `--format json` a diff lists a step that moved in `step_changes` and `step_status` in
 `changed_fields`. The diff table reports the move (the `*` mark and a Note such as
 `request re-review: done → needed`) only with `--steps`. Evaluating steps costs no extra
 request for a repo without a [norms](#tkt-norms) file; a plain table without `--steps`,
@@ -1297,7 +1336,7 @@ snapshot, diff or JSON evaluates nothing.
 
 ### Head, review and merge changes
 
-PR snapshots (`tkt pr list`) also record four fields from GitHub: `head_sha`
+PR rows (`tkt pr list`) record four fields from GitHub: `head`
 (the full head commit), `review_decision` (`APPROVED`, `CHANGES_REQUESTED`,
 `REVIEW_REQUIRED`, or null), `merge_state` (`mergeStateStatus`: `BEHIND`,
 `DIRTY`, `BLOCKED`, `CLEAN`, `UNSTABLE`, …) and `mergeable` (`MERGEABLE`,
@@ -1307,7 +1346,7 @@ changed:
 
 | Note | JSON `changed_fields` | Meaning |
 | --- | --- | --- |
-| `head!` | `head_sha` | New head commit (a push or force-push). |
+| `head!` | `head` | New head commit (a push or force-push). |
 | `review!` | `review_decision` | GitHub's review decision changed, e.g. an approval was withdrawn. |
 | `merge!` | `merge_state`, `mergeable` | Merge state changed, e.g. the branch fell behind base or into conflict. |
 
@@ -1324,14 +1363,10 @@ instead of a Note.
   `CLEAN` on the next run is silent. The same goes for the CI column: while
   either run has `UNKNOWN` mergeability, CI falls back to the check rollup
   (for example `green`) and then shows `conflict` once GitHub answers, so a CI
-  move to or from `conflict` is not flagged. A baseline saved before `mergeable`
-  was recorded counts the same way. A real rollup change
+  move to or from `conflict` is not flagged. A real rollup change
   (`green` → `red`) is still flagged, and a push shows as `head!`.
-- A baseline saved before these fields existed has no head SHA, so these
-  fields are not compared until it is replaced; the first run after upgrading
-  does not flag every row.
-- `tkt issue list` snapshots do not record these fields. `tkt review` snapshots
-  record `mergeable` only, for the CI rule above.
+- `tkt issue list` rows do not have these fields. `tkt review` rows have them like `tkt pr list`
+  rows do.
 
 ### Issue dependencies
 
@@ -1350,9 +1385,7 @@ requests are for pages past the first 50 blockers or blocked issues (up to 500).
 
 They are in `tkt issue show --format json` and in every row of
 `tkt issue list --format json` (and of `tkt snapshot show issue/NAME --format
-json`). Issue snapshots always record them. A snapshot saved before they
-existed loads unchanged and saves back byte for byte, because the keys are left
-out when not recorded.
+json`). Every issue row has them.
 
 `tkt issue list --deps` adds the `Blocked by` and `Blocks` columns to the table.
 Open blockers in the issue's own repo print as `#N`, others as `owner/repo#N`.
@@ -1374,12 +1407,11 @@ JSON):
 | `blocked` | The issue had no open blockers and has some now |
 | `blockers changed` | The set of open blockers changed and is not empty on either side |
 
-A change in `blocking`, `parent` or `milestone` alone does not mark the row. A
-baseline saved before these fields existed is not compared until it is replaced.
+A change in `blocking`, `parent` or `milestone` alone does not mark the row.
 
 ### Reviewer state
 
-PR snapshots also record one record per reviewer, built from GitHub's pending
+PR and review rows also have one record per reviewer, built from GitHub's pending
 review requests, each reviewer's latest review and the commit it covered. They
 are in the JSON outputs (`tkt snapshot show --format json`, `--format json`)
 as `reviewers`:
@@ -1402,8 +1434,7 @@ waiting, `↻` re-review requested, `!` review on an old head with no request.
 With `--diff` / `--watch`, a reviewer transition marks the row `*` and the Note
 (and `reviewer_changes` in the JSON) says what happened: `alice requested`, `all-hands-bot
 approved on head`, `bob ↻ re-requested`, `bob review now on old head` (a push
-after the review), `bob request removed`, `alice review dismissed`. A baseline
-saved before reviewer state existed is not compared until it is replaced.
+after the review), `bob request removed`, `alice review dismissed`.
 
 - Up to 200 reviewers are read per PR; beyond that the `--reviewers` cell ends in `…`.
 - Removal and dismissal come from comparing snapshots, not from the PR timeline,
@@ -1424,9 +1455,8 @@ knows the row is no longer in the result.
 | `?` | `unknown` | It wasn't open in the previous snapshot. |
 
 Snapshots record whether the query matched more rows than `--limit` kept
-(`has_more` in `tkt snapshot show --format json`; absent when it did not). A
-baseline saved before this was recorded never says `limit?` for its own run,
-since only the current result's flag is used.
+(`has_more` in `tkt snapshot show --format json`). The `limit?` note uses the
+current result's flag only.
 
 Other things can also drop a row: a filter attribute changed (label removed,
 review request withdrawn), or GitHub's search index briefly lagged.
@@ -1562,8 +1592,7 @@ errors go to stderr.
 - With `--diff` or `--watch`, the document is the diff.
 - Without them, it is the current result, in the same schema as
   `tkt snapshot show KIND/NAME --format json`: `kind`, `name`, `captured_at`,
-  `scope`, `items`, and `has_more` when the query matched more rows than
-  `--limit`. `name` is the `--snapshot` name, or `""` when none is given.
+  `scope`, `has_more` and `items`. `name` is the `--snapshot` name, or `""` when none is given.
 - `--snapshot NAME --format json` still saves the snapshot, and prints the
   document instead of the table.
 
@@ -1636,9 +1665,12 @@ such as `/` or a space, is stored as one `-`, so `a/b` and `a-b` are the same
 snapshot. When `--snapshot` or `--watch` saves under a name it had to change,
 `tkt` prints `tkt: snapshot name 'a/b' is stored as 'a-b'` on stderr.
 
-A snapshot file that is not valid, or lacks a required field, is an error that
-names the snapshot and the file. `tkt snapshot rm KIND/NAME` deletes it.
-`tkt snapshot list` skips such a file and warns on stderr.
+A snapshot or pending-baseline file that tkt cannot read (another schema, invalid
+JSON, a missing or unexpected field, a value of the wrong type) is deleted, and tkt
+prints one notice on stderr: `tkt: discarded snapshot issue/NAME: schema 1, this tkt
+writes schema 2`. The file then counts as missing, as on a first run. No `tkt snapshot rm`
+is needed. `tkt snapshot list` discards such a file in the same way. A `*.json` file in the
+folder whose name does not start with `pr-`, `issue-` or `review-` is left alone.
 
 ```bash
 # hourly agent loop
@@ -1888,8 +1920,8 @@ keeps the rows whose `PR` column is `--`, `--has-pr` the rest.
 
 ### AI actors
 
-Every event also carries an **actor class**, shown in JSON (the `events` list of each
-`tkt snapshot` item, one entry per history character, as `actor_class`):
+Every event also carries an **actor class**, shown in JSON (the `events` list of
+`tkt pr show` and `tkt issue show`, as `actor_class`):
 
 | Class | Who |
 | --- | --- |
@@ -1902,14 +1934,11 @@ Every event also carries an **actor class**, shown in JSON (the `events` list of
 Logins and the disclosure pattern come only from the repo's `.agents/tickster.toml`
 ([norms file](#tkt-norms)). With no file, no AI actor is recognised and `[bot]`
 accounts are still `bot`. The disclosure pattern is matched against the whole body of
-a comment, review or opened item (the PR or issue body). Histories with no AI actors
-render exactly as before.
+a comment, review or opened item (the PR or issue body).
 
 An item an AI actor opened starts with `s` / `S` instead of `o` / `O`. Each later event
 of an AI actor changes its letter too: `A` becomes `V` and `c` becomes `n`, so `oAcm` in
-0.3.0 is `sVnm` now. A snapshot saved before AI actors were recognised holds the old
-letters, so the first diff against it reports each row an AI actor took part in as
-`history-rewritten`, once. See [Upgrading to 1.0](#upgrading-to-10).
+0.3.0 is `sVnm` now. See [Upgrading to 1.0](#upgrading-to-10).
 
 ### Bot detection
 

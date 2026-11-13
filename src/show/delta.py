@@ -64,7 +64,7 @@ def _fetch_shows(wanted: list[ItemDelta], max_body: int) -> dict[str, Show]:
         reference_user = get_github_username() or client.get_authenticated_user()
         for delta in wanted:
             item = delta.display_item
-            repo, number = item.key.rsplit("#", 1)
+            repo, number = item.ref.rsplit("#", 1)
             show = build_pr_show(fetch_pr_node(client, repo, int(number)), reference_user, max_body)
             if delta.prev is not None:
                 show.apply_since(parse_time(delta.prev.last_activity))

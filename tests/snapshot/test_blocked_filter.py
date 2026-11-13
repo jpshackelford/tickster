@@ -187,13 +187,6 @@ def _scope(blocked_filter: str | None) -> SnapshotScope:
     )
 
 
-def test_scope_hash_without_the_filter_is_unchanged():
-    """Same golden hash as before --blocked existed."""
-    scope = _scope(None)
-    assert "blocked_filter" not in scope.to_dict()
-    assert scope.fingerprint() == "ab1ab50d"
-
-
 def test_scope_with_the_filter_differs_and_round_trips():
     blocked, unblocked = _scope("blocked"), _scope("unblocked")
     assert blocked.to_dict()["blocked_filter"] == "blocked"
@@ -241,7 +234,7 @@ def test_note_names_the_filter_change_only_when_it_changed():
 
 def test_resolve_calls_an_unblocked_row_still_open():
     scope = _scope("blocked")
-    prev = make_snapshot(kind="issue", scope=scope, items=[make_item(key="o/r#2")])
+    prev = make_snapshot(kind="issue", scope=scope, items=[make_item(ref="o/r#2")])
     curr = make_snapshot(kind="issue", scope=scope, items=[])
     result = resolve_removed(diff_snapshots(prev, curr), lambda _: [_issue(2)])
     assert result.deltas[0].disappearance_reason == "still-open"

@@ -86,7 +86,7 @@ With `--diff` or `--watch` and `--format json`, stdout is one JSON document with
 | Field | Meaning |
 | --- | --- |
 | `kind` | `added`, `changed`, `removed` or `unchanged`. Act on `added` and `changed` |
-| `changed_fields` | For `changed`: what moved, such as `head_sha`, `review_decision`, `activity`, `ci_status`, `steps` ([why](usage.md#head-review-and-merge-changes)). `history-rewritten` means the new history does not start with the old one, so no event is new: skip the row |
+| `changed_fields` | For `changed`: what moved, such as `head`, `review_decision`, `activity`, `ci`, `step_status` ([why](usage.md#head-review-and-merge-changes)). `history-rewritten` means the new history does not start with the old one, so no event is new: skip the row |
 | `new_history_tail` | The characters appended to the [history string](usage.md#history-strings) since the baseline |
 | `prev`, `curr` | The row before and after. `prev` is `null` for `added`, `curr` is `null` for `removed`; both are `null` for `unchanged` |
 | `events_since` | Timeline events after `prev.last_activity`, oldest first; the whole timeline for `added`. Same fields as an event in [`tkt pr show --format json`](usage.md#tkt-pr-show) |

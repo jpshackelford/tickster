@@ -136,6 +136,7 @@ def print_review(console: Console, *, title: bool = True) -> None:
             unresolved_thread_count=0,
             author="octocat",
             last_activity=NOW,
+            created_at=NOW,
         )
         for number, history in zip((1, 2, 3), HISTORIES.values(), strict=True)
     ]

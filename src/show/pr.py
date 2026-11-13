@@ -35,6 +35,7 @@ from src.show.models import (
     ThreadComment,
     trim_body,
 )
+from src.snapshot.rows import KIND_PR, item_url
 
 # A busy PR's whole timeline matters here, so the cap is far above the list commands'.
 TIMELINE_CAP = 5000
@@ -484,10 +485,11 @@ def build_pr_show(node: dict, reference_user: str, max_body: int) -> Show:
     header = {
         "repo": info.repo,
         "number": info.number,
-        "url": node.get("url"),
+        "url": item_url(info.repo, KIND_PR, info.number),
         "state": info.state.value,
         "draft": info.is_draft,
         "author": info.author,
+        "labels": list(info.labels),
         "created_at": iso_utc(info.created_at),
         "last_activity": iso_utc(info.last_activity),
         "history": info.history,

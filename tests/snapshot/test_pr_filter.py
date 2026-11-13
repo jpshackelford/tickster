@@ -169,13 +169,6 @@ def _scope(pr_filter: str | None) -> SnapshotScope:
     )
 
 
-def test_scope_hash_without_the_filter_is_unchanged():
-    """Golden hash computed on main before --no-pr existed."""
-    scope = _scope(None)
-    assert "pr_filter" not in scope.to_dict()
-    assert scope.fingerprint() == "ab1ab50d"
-
-
 def test_scope_with_the_filter_differs_and_round_trips():
     no_pr, has_pr = _scope("no-pr"), _scope("has-pr")
     assert no_pr.to_dict()["pr_filter"] == "no-pr"
@@ -223,7 +216,7 @@ def test_note_names_the_filter_change_only_when_it_changed():
 def _removed_reason(prev_state: str, pr_filter: str | None, states=("open",)) -> str | None:
     scope = replace(_scope(pr_filter), states=states)
     prev = make_snapshot(
-        kind="issue", scope=scope, items=[make_item(key="o/r#1", state=prev_state)]
+        kind="issue", scope=scope, items=[make_item(ref="o/r#1", state=prev_state)]
     )
     curr = make_snapshot(kind="issue", scope=scope, items=[])
     (delta,) = diff_snapshots(prev, curr).deltas
@@ -246,7 +239,7 @@ def test_closed_row_in_a_no_pr_list_is_not_blamed_on_a_pr_link():
 
 def _resolved(pr_filter: str | None, fetched: list[IssueInfo]) -> str | None:
     scope = _scope(pr_filter)
-    prev = make_snapshot(kind="issue", scope=scope, items=[make_item(key="o/r#1")])
+    prev = make_snapshot(kind="issue", scope=scope, items=[make_item(ref="o/r#1")])
     curr = make_snapshot(kind="issue", scope=scope, items=[])
     result = resolve_removed(diff_snapshots(prev, curr), lambda _: fetched)
     return result.deltas[0].disappearance_reason

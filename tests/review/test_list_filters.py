@@ -33,6 +33,7 @@ def _review(number: int) -> ReviewInfo:
         unresolved_thread_count=0,
         author="alice",
         last_activity=NOW,
+        created_at=NOW,
     )
 
 

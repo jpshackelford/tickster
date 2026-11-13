@@ -194,6 +194,7 @@ class TestCmdList:
                 unresolved_thread_count=2,
                 author="alice",
                 last_activity=now,
+                created_at=now,
             )
         ]
         mock_client.list_reviews.return_value = ReviewListResult(

@@ -29,7 +29,7 @@ from src.pr.reviewers import (
 from src.snapshot import store
 from src.snapshot.convert import item_from_pr
 from src.snapshot.diff import diff_snapshots
-from src.snapshot.models import ItemSnapshot, Snapshot, SnapshotScope
+from src.snapshot.models import Snapshot, SnapshotScope
 from src.snapshot.render import render_diff
 
 OLD = "0945b15" + "0" * 33
@@ -368,13 +368,10 @@ class TestSnapshot:
         assert raw[0]["login"] == "bob" and raw[0]["on_head"] is True
         assert raw[1]["waiting"] is True
 
-    def test_not_recorded_stays_out_of_the_json(self):
-        item = item_from_pr(pr_info(None))
-        assert item.reviewers is None and "reviewers" not in item.to_dict()
-        assert ItemSnapshot.from_dict(item.to_dict()).reviewers is None
-
-    def test_recorded_empty_is_distinct_from_not_recorded(self):
-        assert item_from_pr(pr_info(())).to_dict()["reviewers"] == []
+    def test_a_pr_without_reviewers_has_an_empty_list(self):
+        row = item_from_pr(pr_info(())).to_dict()
+        assert row["reviewers"] == []
+        assert item_from_pr(pr_info(None)).to_dict()["reviewers"] == []
 
 
 def only_delta(prev: PRInfo, curr: PRInfo):
@@ -394,10 +391,6 @@ class TestDiff:
     def test_unchanged_reviewers_do_not_flag_the_row(self):
         delta = only_delta(pr_info((approved(),)), pr_info((approved(),)))
         assert delta.kind.value == "unchanged" and delta.reviewer_changes == ()
-
-    def test_snapshot_without_reviewers_is_not_compared(self):
-        delta = only_delta(pr_info(None), pr_info((approved(),)))
-        assert delta.kind.value == "unchanged"
 
     def test_json_lists_transitions_only_when_present(self):
         prev = snapshot_of(pr_info((state(requested=True),)))

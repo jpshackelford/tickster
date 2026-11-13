@@ -29,13 +29,13 @@ NOW = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
 
 def _item(**overrides: Any) -> ItemSnapshot:
     fields: dict[str, Any] = {
-        "head_sha": SHA_A,
+        "head": SHA_A,
         "review_decision": "APPROVED",
         "merge_state": "CLEAN",
         "mergeable": "MERGEABLE",
     }
     fields.update(overrides)
-    return replace(make_item(key="o/r#1"), **fields)
+    return replace(make_item(ref="o/r#1"), **fields)
 
 
 def _changed_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
@@ -105,7 +105,7 @@ class TestCapture:
 
     def test_snapshot_item_stores_the_four_fields(self):
         item = item_from_pr(_pr())
-        assert (item.head_sha, item.review_decision, item.merge_state, item.mergeable) == (
+        assert (item.head, item.review_decision, item.merge_state, item.mergeable) == (
             SHA_A,
             "APPROVED",
             "CLEAN",
@@ -116,25 +116,14 @@ class TestCapture:
         item = item_from_pr(_pr())
         assert ItemSnapshot.from_dict(json.loads(json.dumps(item.to_dict()))) == item
 
-    def test_old_snapshot_file_without_the_fields_loads(self):
-        data = item_from_pr(_pr()).to_dict()
-        for name in ("head_sha", "review_decision", "merge_state", "mergeable"):
-            del data[name]
-        item = ItemSnapshot.from_dict(data)
-        assert item.head_sha is None and item.merge_state is None
-
-    def test_new_snapshot_file_with_unknown_keys_loads(self):
-        data = {**item_from_pr(_pr()).to_dict(), "future_field": "x"}
-        assert ItemSnapshot.from_dict(data).head_sha == SHA_A
-
 
 class TestDiff:
     def test_push_with_ci_and_history_unchanged_is_a_changed_row(self):
-        prev, curr = _item(), _item(head_sha=SHA_B)
-        assert prev.ci_status == curr.ci_status and prev.history == curr.history
+        prev, curr = _item(), _item(head=SHA_B)
+        assert prev.ci == curr.ci and prev.history == curr.history
         [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[curr])).deltas
         assert delta.kind is ChangeKind.CHANGED
-        assert delta.changed_fields == ("head_sha",)
+        assert delta.changed_fields == ("head",)
 
     def test_identical_rows_are_unchanged(self):
         [delta] = diff_snapshots(
@@ -143,9 +132,9 @@ class TestDiff:
         assert delta.kind is ChangeKind.UNCHANGED
 
     def test_approval_keeps_reported_decision_next_to_a_head_change(self):
-        prev, curr = _item(), _item(head_sha=SHA_B)
+        prev, curr = _item(), _item(head=SHA_B)
         assert curr.review_decision == "APPROVED"
-        assert _changed_fields(prev, curr) == ("head_sha",)
+        assert _changed_fields(prev, curr) == ("head",)
 
     @pytest.mark.parametrize(
         ("overrides", "field_name"),
@@ -180,20 +169,35 @@ class TestDiff:
 
     def test_unknown_does_not_hide_a_head_change(self):
         prev = _item(merge_state="UNKNOWN", mergeable="UNKNOWN")
-        assert _changed_fields(prev, _item(head_sha=SHA_B)) == ("head_sha",)
+        assert _changed_fields(prev, _item(head=SHA_B)) == ("head",)
 
-    def test_baseline_without_the_fields_is_not_a_change(self):
-        prev = _item(head_sha=None, review_decision=None, merge_state=None, mergeable=None)
-        [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[_item()])).deltas
-        assert delta.kind is ChangeKind.UNCHANGED
+    def test_a_review_row_head_and_draft_moves_are_flagged(self):
+        def row(**fields: Any) -> ItemSnapshot:
+            return make_item(ref="o/r#1", review_status="review", **{"head": SHA_A, **fields})
+
+        prev, curr = row(), row(head=SHA_B, draft=True)
+        diff = diff_snapshots(
+            make_snapshot(kind="review", items=[prev]), make_snapshot(kind="review", items=[curr])
+        )
+        assert diff.deltas[0].changed_fields == ("draft", "head")
+
+    def test_row_field_names_are_the_changed_fields(self):
+        prev = _item(draft=False, unresolved_threads=0, ci="green", step_status={"review": "done"})
+        curr = _item(draft=True, unresolved_threads=2, ci="red", step_status={"review": "needed"})
+        assert _changed_fields(prev, curr) == (
+            "ci",
+            "draft",
+            "unresolved_threads",
+            "step_status",
+        )
 
     def test_json_diff_names_the_field(self):
         result = diff_snapshots(
-            make_snapshot(items=[_item()]), make_snapshot(items=[_item(head_sha=SHA_B)])
+            make_snapshot(items=[_item()]), make_snapshot(items=[_item(head=SHA_B)])
         )
         [delta] = result.to_dict()["deltas"]
-        assert delta["changed_fields"] == ["head_sha"]
-        assert delta["curr"]["head_sha"] == SHA_B
+        assert delta["changed_fields"] == ["head"]
+        assert delta["curr"]["head"] == SHA_B
 
 
 def _render(prev: ItemSnapshot, curr: ItemSnapshot, *, detail: bool = False) -> str:
@@ -205,14 +209,14 @@ def _render(prev: ItemSnapshot, curr: ItemSnapshot, *, detail: bool = False) -> 
 
 class TestRender:
     def test_default_diff_table_has_no_detail_columns(self):
-        out = _render(_item(), _item(head_sha=SHA_B))
+        out = _render(_item(), _item(head=SHA_B))
         for header in ("Head", "Review", "Merge"):
             assert header not in out
         assert SHA_B[:7] not in out
 
     def test_default_diff_note_names_the_changed_fields(self):
         prev = _item()
-        curr = _item(head_sha=SHA_B, review_decision="CHANGES_REQUESTED", merge_state="BEHIND")
+        curr = _item(head=SHA_B, review_decision="CHANGES_REQUESTED", merge_state="BEHIND")
         out = _render(prev, curr)
         assert "head!; review!; merge!" in out
 
@@ -222,7 +226,7 @@ class TestRender:
         assert "head!" not in row and "review!" not in row and "merge!" not in row
 
     def test_detail_adds_columns_and_marks_changed_values(self):
-        out = _render(_item(), _item(head_sha=SHA_B, merge_state="BEHIND"), detail=True)
+        out = _render(_item(), _item(head=SHA_B, merge_state="BEHIND"), detail=True)
         row = next(line for line in out.splitlines() if "o/r" in line)
         assert "Head" in out and "Review" in out and "Merge" in out
         assert f"{SHA_B[:7]}!" in row
@@ -232,8 +236,8 @@ class TestRender:
     def test_detail_ignored_for_issue_snapshots(self):
         console = Console(width=200, color_system=None, record=True)
         diff = diff_snapshots(
-            make_snapshot(kind="issue", items=[make_item(key="o/r#1")]),
-            make_snapshot(kind="issue", items=[make_item(key="o/r#1", state="closed")]),
+            make_snapshot(kind="issue", items=[make_item(ref="o/r#1")]),
+            make_snapshot(kind="issue", items=[make_item(ref="o/r#1", state="closed")]),
         )
         render_diff(diff, console=console, detail=True)
         assert "Head" not in console.export_text()
@@ -269,7 +273,7 @@ class TestPrList:
         fake_client.prs = [_pr()]
         assert pr_list.cmd_list(snapshot_name="s") == 0
         [item] = store.load("pr", "s").items
-        assert (item.head_sha, item.review_decision, item.merge_state, item.mergeable) == (
+        assert (item.head, item.review_decision, item.merge_state, item.mergeable) == (
             SHA_A,
             "APPROVED",
             "CLEAN",
@@ -295,7 +299,7 @@ class TestPrList:
         fake_client.prs = [_pr(head_sha=SHA_B)]
         assert pr_list.cmd_list(watch_name="w", output_format="json", show_detail=True) == 0
         data = json.loads(capsys.readouterr().out)
-        assert data["deltas"][0]["changed_fields"] == ["head_sha"]
+        assert data["deltas"][0]["changed_fields"] == ["head"]
 
     def test_warm_up_unknown_is_not_reported(self, fake_client, capsys):
         fake_client.prs = [_pr(merge_state="UNKNOWN", mergeable="UNKNOWN")]

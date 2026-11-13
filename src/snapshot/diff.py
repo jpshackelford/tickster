@@ -1,18 +1,18 @@
 """Pure diff of two snapshots.
 
-Items are matched by their `key` (`owner/repo#NNN`). For items present in
+Rows are matched by their `ref` (`owner/repo#NNN`). For rows present in
 both snapshots we compare the fields that drive the display and produce an
 `ItemDelta` with:
 
-- `changed_fields` — which of (history, state, ci_status, labels,
-  unresolved_thread_count, is_draft, linked_pr, review_status) differ,
+- `changed_fields` — which row fields (history, state, ci, labels,
+  unresolved_threads, draft, linked_pr, review_status) differ,
   plus `"activity"` when `last_activity` moved. PR rows also compare
-  `head_sha`, `review_decision`, `merge_state` and `mergeable` (see
+  `head`, `review_decision`, `merge_state` and `mergeable` (see
   `_compare_pr_detail`), `reviewers` when a reviewer's request or review
-  moved (the transitions are in `ItemDelta.reviewer_changes`), `steps` when a
+  moved (the transitions are in `ItemDelta.reviewer_changes`), `step_status` when a
   `--steps` status moved (the transitions are in `ItemDelta.step_changes`) and
-  `open_blockers` when an issue's open blockers moved (`ItemDelta.blocker_note`). History collapses
-  consecutive same-type events, so new comments or reviews can leave the
+  `open_blockers` when an issue's open blockers moved (`ItemDelta.blocker_note`).
+  History collapses consecutive same-type events, so new comments or reviews can leave the
   string byte-identical; `last_activity` still records them.
 - `new_history_tail` — characters of `curr.history` not in `prev.history`,
   computed as the longest common prefix (LCP). The history string is
@@ -23,7 +23,7 @@ both snapshots we compare the fields that drive the display and produce an
   `curr.history` as the new tail and record `"history-rewritten"` as a
   changed field so the agent is told the diff is approximate.
 
-A `ci_status` move to or from `conflict` is not flagged while either side's
+A `ci` move to or from `conflict` is not flagged while either side's
 `mergeable` is `UNKNOWN` (GitHub computes mergeability lazily); see
 `_is_mergeability_warmup`.
 """
@@ -44,15 +44,15 @@ from src.snapshot.models import (
 _FIELDS_TO_COMPARE: tuple[str, ...] = (
     "history",
     "state",
-    "ci_status",
-    "is_draft",
+    "ci",
+    "draft",
     "labels",
-    "unresolved_thread_count",
+    "unresolved_threads",
     "linked_pr",
     "review_status",
 )
 
-_PR_DETAIL_FIELDS: tuple[str, ...] = ("head_sha", "review_decision", "merge_state", "mergeable")
+_PR_DETAIL_FIELDS: tuple[str, ...] = ("head", "review_decision", "merge_state", "mergeable")
 _MERGEABILITY_FIELDS = ("merge_state", "mergeable")
 _MERGEABILITY_UNKNOWN = "UNKNOWN"
 
@@ -69,12 +69,12 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
             f"cannot diff snapshots of different kinds: {prev.kind!r} vs {curr.kind!r}"
         )
 
-    prev_items = prev.items_by_key
-    curr_items = curr.items_by_key
+    prev_items = prev.items_by_ref
+    curr_items = curr.items_by_ref
 
     deltas: list[ItemDelta] = []
     added_count = len(curr_items.keys() - prev_items.keys())
-    prev_rank = {it.key: i for i, it in enumerate(prev.items)}
+    prev_rank = {it.ref: i for i, it in enumerate(prev.items)}
 
     # ADDED: in curr, not in prev
     for key in curr_items.keys() - prev_items.keys():
@@ -116,7 +116,7 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
             changed += ("reviewers",)
         steps = _step_changes(p, c)
         if steps:
-            changed += ("steps",)
+            changed += ("step_status",)
         blocker_note = _blocker_note(p, c)
         if blocker_note:
             changed += ("open_blockers",)
@@ -175,7 +175,7 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
             if set(a) != set(b):
                 changed.append(field_name)
             continue
-        if field_name == "ci_status" and a != b and _is_mergeability_warmup(prev, curr):
+        if field_name == "ci" and a != b and _is_mergeability_warmup(prev, curr):
             continue
         if a != b:
             changed.append(field_name)
@@ -189,28 +189,23 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
 
 
 def _reviewer_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
-    """Per-reviewer transitions; none when either snapshot predates reviewer state."""
-    if prev.reviewers is None or curr.reviewers is None:
-        return ()
+    """Per-reviewer transitions."""
     return reviewer_changes(prev.reviewers, curr.reviewers)
 
 
 def _step_changes(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
-    """Step status transitions; none when either snapshot was taken without `--steps`."""
-    if prev.steps is None or curr.steps is None:
+    """Step status transitions; none when either row has no step statuses (`--steps` not given)."""
+    if prev.step_status is None or curr.step_status is None:
         return ()
-    return step_changes(prev.steps, curr.steps)
+    return step_changes(prev.step_status, curr.step_status)
 
 
 def _blocker_note(prev: ItemSnapshot, curr: ItemSnapshot) -> str:
     """`unblocked`, `blocked` or `blockers changed`; empty when the open blockers did not move.
 
-    Empty too when either snapshot predates the dependency facts. `blocking`, `parent`
-    and `milestone` are recorded but never mark a row: only a blocker change tells
-    a reader that an issue can now be started, or can no longer be.
+    `blocking`, `parent` and `milestone` are recorded but never mark a row: only a
+    blocker change tells a reader that an issue can now be started, or can no longer be.
     """
-    if prev.open_blockers is None or curr.open_blockers is None:
-        return ""
     if prev.open_blockers == curr.open_blockers:
         return ""
     if not curr.open_blockers:
@@ -223,12 +218,9 @@ def _blocker_note(prev: ItemSnapshot, curr: ItemSnapshot) -> str:
 def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:
     """Names of head / review / mergeability fields that differ.
 
-    A snapshot without `head_sha` predates these fields, so comparing would flag
-    every row. GitHub reports `UNKNOWN` mergeability while it computes it after a
-    push or a base change; a move to or from `UNKNOWN` is warm-up noise.
+    GitHub reports `UNKNOWN` mergeability while it computes it after a push or a
+    base change; a move to or from `UNKNOWN` is warm-up noise.
     """
-    if prev.head_sha is None or curr.head_sha is None:
-        return []
     changed: list[str] = []
     for field_name in _PR_DETAIL_FIELDS:
         a = getattr(prev, field_name)
@@ -244,15 +236,13 @@ def _compare_pr_detail(prev: ItemSnapshot, curr: ItemSnapshot) -> list[str]:
 def _is_mergeability_warmup(prev: ItemSnapshot, curr: ItemSnapshot) -> bool:
     """True when a CI change to or from `conflict` is only GitHub still computing mergeability.
 
-    While `mergeable` is `UNKNOWN`, `ci_status` falls back to the check rollup,
-    so it flips to `conflict` once the answer arrives. A baseline saved before
-    `mergeable` was recorded (`None`) is the same case: its CI value never knew
-    about conflicts. Only moves involving `conflict` are suppressed: a rollup
-    change (green to red) is real.
+    While `mergeable` is `UNKNOWN`, `ci` falls back to the check rollup, so it
+    flips to `conflict` once the answer arrives. Only moves involving `conflict`
+    are suppressed: a rollup change (green to red) is real.
     """
-    if not {_MERGEABILITY_UNKNOWN, None} & {prev.mergeable, curr.mergeable}:
+    if _MERGEABILITY_UNKNOWN not in (prev.mergeable, curr.mergeable):
         return False
-    return "conflict" in (prev.ci_status, curr.ci_status)
+    return "conflict" in (prev.ci, curr.ci)
 
 
 def _new_history_tail(prev_history: str, curr_history: str) -> str:

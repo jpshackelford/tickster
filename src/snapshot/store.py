@@ -9,7 +9,9 @@ A `--diff NAME` run stages its result as a pending baseline in
 directory keeps a pending file from colliding with any snapshot name.
 
 Pure filesystem, no network. Any snapshot can be inspected or edited with a
-text editor; schema is versioned (see `models.SCHEMA_VERSION`).
+text editor; schema is versioned (see `models.SCHEMA_VERSION`). A file this tkt
+cannot read (another schema, invalid JSON, a missing or mistyped field) is deleted
+with a notice and then counts as missing.
 """
 
 from __future__ import annotations
@@ -30,10 +32,6 @@ logger = logging.getLogger(__name__)
 _SNAPSHOTS_DIRNAME = "snapshots"
 _PENDING_DIRNAME = "pending"
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
-
-
-class SnapshotFormatError(ValueError):
-    """A snapshot file exists but cannot be read as a snapshot."""
 
 
 def snapshots_dir() -> Path:
@@ -115,7 +113,8 @@ def save_pending(snapshot: Snapshot) -> Path:
 def load(kind: str, name: str) -> Snapshot:
     """Load a snapshot by (kind, name).
 
-    Raises FileNotFoundError if absent and SnapshotFormatError if the file is not a snapshot.
+    Raises FileNotFoundError if absent. A file that cannot be read is deleted with a
+    notice and raises FileNotFoundError too.
     """
     return _read(path_for(kind, name), kind, name)
 
@@ -126,23 +125,18 @@ def load_pending(kind: str, name: str) -> Snapshot:
 
 
 def _read(p: Path, kind: str, name: str, what: str = "snapshot") -> Snapshot:
+    missing = FileNotFoundError(f"{what} not found: {kind}/{name} (looked in {p})")
     if not p.exists():
-        raise FileNotFoundError(f"{what} not found: {kind}/{name} (looked in {p})")
+        raise missing
     try:
-        data = json.loads(p.read_text())
-        if not isinstance(data, dict):
-            raise TypeError("the top level is not a JSON object")
-        return Snapshot.from_dict(data)
+        return Snapshot.from_dict(json.loads(p.read_text()))
     except json.JSONDecodeError as e:
-        reason = f"invalid JSON at line {e.lineno} column {e.colno}: {e.msg}"
-    except KeyError as e:
-        reason = f"missing the required field {e.args[0]!r}"
-    except (TypeError, ValueError, AttributeError) as e:
+        reason = f"invalid JSON at line {e.lineno} column {e.colno}"
+    except ValueError as e:
         reason = str(e)
-    raise SnapshotFormatError(
-        f"{what} {kind}/{name} cannot be read ({p}): {reason}. "
-        f"Delete it with: tkt snapshot rm {kind}/{name}"
-    )
+    p.unlink(missing_ok=True)
+    logger.warning("tkt: discarded %s %s/%s: %s", what, kind, name, reason)
+    raise missing
 
 
 def exists(kind: str, name: str) -> bool:
@@ -201,38 +195,30 @@ class SnapshotRecord:
 def list_(kind: str | None = None) -> list[SnapshotRecord]:
     """List stored snapshots, optionally filtered by kind.
 
-    Reads only metadata (not the item list) for speed on large snapshots —
-    we still have to parse the JSON header, but the item array is small
-    relative to the typical hundred-item snapshot so this stays cheap.
+    Reads each `<kind>-*.json` file like `load` does, so an unreadable one is deleted
+    with a notice instead of listed. Other `*.json` files are skipped.
     """
     if kind is not None:
         _validate_kind(kind)
     out: list[SnapshotRecord] = []
     for p in sorted(snapshots_dir().glob("*.json")):
+        file_kind = next((k for k in VALID_KINDS if p.name.startswith(f"{k}-")), None)
+        if file_kind is None or (kind is not None and file_kind != kind):
+            continue
+        file_name = p.stem[len(file_kind) + 1 :]
         try:
-            data = json.loads(p.read_text())
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning("tkt: skipping unreadable snapshot file %s: %s", p, e)
+            snap = _read(p, file_kind, file_name)
+        except FileNotFoundError:
             continue
-        if not isinstance(data, dict):
-            logger.warning("tkt: skipping unreadable snapshot file %s: not a JSON object", p)
-            continue
-        k = data.get("kind")
-        if k not in VALID_KINDS:
-            continue
-        if kind is not None and k != kind:
-            continue
-        items = data.get("items")
-        name_in_file = data.get("name", p.stem)
         out.append(
             SnapshotRecord(
-                kind=k,
-                name=name_in_file,
-                captured_at=data.get("captured_at", ""),
-                scope_hash=data.get("scope_hash", ""),
-                item_count=len(items) if isinstance(items, list) else 0,
+                kind=snap.kind,
+                name=snap.name,
+                captured_at=snap.captured_at,
+                scope_hash=snap.scope_hash,
+                item_count=len(snap.items),
                 path=p,
-                pending=pending_path_for(k, name_in_file).exists(),
+                pending=pending_path_for(snap.kind, snap.name).exists(),
             )
         )
     return out

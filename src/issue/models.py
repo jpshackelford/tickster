@@ -49,7 +49,7 @@ class Milestone:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Milestone":
-        return cls(title=data["title"], due_on=data.get("due_on"))
+        return cls(title=data["title"], due_on=data["due_on"])
 
 
 @dataclass

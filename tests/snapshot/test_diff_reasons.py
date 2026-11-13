@@ -19,7 +19,7 @@ from .conftest import make_item, make_snapshot
 
 
 def _items(*numbers: int, **kwargs) -> list[ItemSnapshot]:
-    return [make_item(key=f"o/r#{n}", **kwargs) for n in numbers]
+    return [make_item(ref=f"o/r#{n}", **kwargs) for n in numbers]
 
 
 def _reasons(prev: Snapshot, curr: Snapshot) -> dict[str, str | None]:
@@ -72,9 +72,9 @@ class TestSnapshotHasMore:
         snap = make_snapshot(items=_items(1), has_more=True)
         assert Snapshot.from_dict(snap.to_dict()).has_more is True
 
-    def test_is_omitted_when_false_and_defaults_false_for_old_files(self):
+    def test_is_always_written(self):
         data = make_snapshot(items=_items(1)).to_dict()
-        assert "has_more" not in data
+        assert data["has_more"] is False
         assert Snapshot.from_dict(data).has_more is False
 
     def test_convert_records_has_more(self):
@@ -146,7 +146,7 @@ class TestResolveRemoved:
 
 
 def _pr(**kwargs) -> ItemSnapshot:
-    defaults = {"head_sha": "a" * 40, "mergeable": "MERGEABLE", "merge_state": "CLEAN"}
+    defaults = {"head": "a" * 40, "mergeable": "MERGEABLE", "merge_state": "CLEAN"}
     return replace(make_item(), **{**defaults, **kwargs})
 
 
@@ -162,44 +162,34 @@ class TestMergeabilityWarmUp:
     @pytest.mark.parametrize(
         ("prev", "curr"),
         [
-            ({"mergeable": "UNKNOWN", "ci_status": "green"}, {"ci_status": "conflict"}),
-            ({"ci_status": "conflict"}, {"mergeable": "UNKNOWN", "ci_status": "green"}),
-            ({"mergeable": "UNKNOWN", "ci_status": "red"}, {"ci_status": "conflict"}),
-            ({"ci_status": "pending"}, {"mergeable": "UNKNOWN", "ci_status": "conflict"}),
+            ({"mergeable": "UNKNOWN", "ci": "green"}, {"ci": "conflict"}),
+            ({"ci": "conflict"}, {"mergeable": "UNKNOWN", "ci": "green"}),
+            ({"mergeable": "UNKNOWN", "ci": "red"}, {"ci": "conflict"}),
+            ({"ci": "pending"}, {"mergeable": "UNKNOWN", "ci": "conflict"}),
         ],
     )
     def test_conflict_appearing_or_clearing_around_unknown_is_not_a_change(self, prev, curr):
         assert _changed(_pr(**prev), _pr(**curr)) == ()
 
-    @pytest.mark.parametrize("prev_ci", ["green", "red", "pending"])
-    def test_a_baseline_without_mergeable_does_not_flag_a_conflict(self, prev_ci):
-        prev = _pr(head_sha=None, mergeable=None, merge_state=None, ci_status=prev_ci)
-        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci_status="conflict")
-        assert _changed(prev, curr) == ()
-
-    def test_a_baseline_without_mergeable_still_flags_a_rollup_change(self):
-        prev = _pr(head_sha=None, mergeable=None, merge_state=None, ci_status="green")
-        assert _changed(prev, _pr(ci_status="red")) == ("ci_status",)
-
     def test_unknown_to_conflicting_leaves_the_row_unchanged(self):
-        prev = _pr(mergeable="UNKNOWN", merge_state="UNKNOWN", ci_status="green")
-        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci_status="conflict")
+        prev = _pr(mergeable="UNKNOWN", merge_state="UNKNOWN", ci="green")
+        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci="conflict")
         [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[curr])).deltas
         assert delta.kind is ChangeKind.UNCHANGED
 
     def test_a_real_conflict_between_known_states_is_still_flagged(self):
-        prev = _pr(ci_status="green")
-        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci_status="conflict")
-        assert _changed(prev, curr) == ("ci_status", "merge_state", "mergeable")
+        prev = _pr(ci="green")
+        curr = _pr(mergeable="CONFLICTING", merge_state="DIRTY", ci="conflict")
+        assert _changed(prev, curr) == ("ci", "merge_state", "mergeable")
 
     def test_a_rollup_change_while_unknown_is_still_flagged(self):
-        prev = _pr(mergeable="UNKNOWN", ci_status="green")
-        assert _changed(prev, _pr(ci_status="red")) == ("ci_status",)
+        prev = _pr(mergeable="UNKNOWN", ci="green")
+        assert _changed(prev, _pr(ci="red")) == ("ci",)
 
     def test_a_new_conflict_after_a_push_is_flagged_by_the_head_change(self):
-        prev = _pr(ci_status="green")
-        curr = _pr(head_sha="b" * 40, mergeable="UNKNOWN", ci_status="conflict")
-        assert "head_sha" in _changed(prev, curr)
+        prev = _pr(ci="green")
+        curr = _pr(head="b" * 40, mergeable="UNKNOWN", ci="conflict")
+        assert "head" in _changed(prev, curr)
 
     def test_review_rows_record_mergeable_for_the_same_rule(self):
         def row(mergeable: str, ci: CIStatus) -> ItemSnapshot:
@@ -215,6 +205,7 @@ class TestMergeabilityWarmUp:
                     unresolved_thread_count=0,
                     author="a",
                     last_activity=datetime(2026, 10, 1, tzinfo=UTC),
+                    created_at=datetime(2026, 10, 1, tzinfo=UTC),
                     mergeable=mergeable,
                 )
             )
