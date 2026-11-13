@@ -848,3 +848,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 UTC - Implementation worker (#140)
+
+- Opened [PR #167](https://github.com/jpshackelford/tickster/pull/167) `Filters:` line under `issue list` for #140; CI green, marked ready.
+- Shared `filters_line`/`print_filters` live in `src/list_table.py` for #141 to reuse. `cmd_list` now resolves `me` itself, so fake clients need `get_current_user`.
+- `not-label=` joins the line only when `--not-label` is set. Pushes needed `JPSHACKELFORD_GITHUB_TOKEN`.
+- Likely conflicts with #166 in `cmd_list` and `doc/usage.md`; whichever merges second rebases.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
