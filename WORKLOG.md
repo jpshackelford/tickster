@@ -543,3 +543,17 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:25 UTC - Expansion Worker
+
+✅ **Expanded Issue #133**
+
+- Issue: [feat(list)!: remove --since/--after/--before/--date-field from list commands](https://github.com/jpshackelford/tickster/issues/133)
+- Type: Enhancement (breaking)
+- Status: Ready for implementation, but start only after #130, #131 and #132 merge (no formal "blocked by" link exists; the order is in the issue text).
+- Approach: hidden argparse stub actions (`nargs="?"`, `help=SUPPRESS`) that call `parser.error` with a one-line replacement message (exit 2, nothing queried); delete state-based field inference and old-flag error text in `src/date_window.py`; tests for stubs, `--help`, and a literal 1.x `WindowScope` for snapshot compatibility. Docs are left to #137.
+- Note: `GITHUB_TOKEN` could not edit issues (403 on `updateIssue`); used `JPSHACKELFORD_GITHUB_TOKEN` for this jpshackelford-owned repo.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
