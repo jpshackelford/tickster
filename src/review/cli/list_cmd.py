@@ -17,7 +17,13 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
-from src.list_table import add_shrinkable_column, print_filters, print_fitted_table, print_note
+from src.list_table import (
+    add_shrinkable_column,
+    print_filters,
+    print_fitted_table,
+    print_history_legend,
+    print_note,
+)
 from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo
 from src.review.github_api import ReviewClient
@@ -317,7 +323,7 @@ def _print_review_table(
         rows.append(row)
 
     print_fitted_table(console, table, rows, history_col=history_col)
-    print_note(console, f"\n[dim]History: lowercase={reviewer}, UPPERCASE=others[/]")
+    print_history_legend(console, "pr", (r.history for r in reviews), you=reviewer)
 
 
 def _format_history(history: str) -> str:

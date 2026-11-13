@@ -196,8 +196,8 @@ saved with a different `--sort` reports `scope mismatch` and names the change.
 
 ### Effective filters line
 
-A plain `tkt issue list` prints one `Filters:` line under the table, before the
-legend, naming every filter in effect, defaults included. An empty result prints
+A plain `tkt issue list` prints one `Filters:` line under the table and its
+`History:` legend, naming every filter in effect, defaults included. An empty result prints
 `No issues found.` and then the same line, so you can see what was searched.
 
 ```
@@ -241,7 +241,7 @@ history: slx
 author: jpshackelford  created: 2026-10-27T20:37:49Z  last activity: 2026-11-05T10:45:40Z
 labels: bug, priority:high, ready  assignees: --
 linked PRs: --
-Legend: the letter is the event's history character (lowercase = you, uppercase = others; s n = AI opened, comment, B = bot comment; - = not in the history string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. Class: me human bot agent me_agent.
+Legend: the letter is the event's history character (lowercase = you, UPPERCASE = others; AI letters: lowercase = your login, UPPERCASE = its own login; - = not in the history string). o opened, s AI opened, c comment, n AI comment, B bot comment, l labeled, a assigned, x closed, r reopened, p PR linked. blocked by: open blockers (? = one you cannot read), blocks: open issues this one blocks. Class: me human bot agent me_agent.
 timeline: 5 events, oldest first
 2026-10-27T20:37:49Z s jpshackelford(me_agent) opened: ## Summary `tkt issue list` with no sta…(1944 more chars)
 2026-10-27T20:37:50Z l jpshackelford(me) labeled bug
@@ -317,7 +317,7 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--detail` | Add **Head**, **Review** and **Merge** columns: the 7-character head commit, GitHub's review decision (`approved`, `changes`, `required`, `--`) and merge state (`clean`, `behind`, `dirty`, `blocked`, `unstable`, …). Off by default so the table stays narrow. With `--diff` / `--watch` the columns are in the diff table too (see [Head, review and merge changes](#head-review-and-merge-changes)) |
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
-| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
+| `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. The legend says that all dots (`.......`) means every step is done or n/a, so nothing is pending. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
 | `--events {brief,full,none}` | With `--diff` / `--watch` and `--format json`: how much of each added or changed PR's new timeline events the delta carries (default `brief`). See [Events and steps in a PR diff](#events-and-steps-in-a-pr-diff) |
 | `--max-body N` | With `--events brief`: cut each event body at `N` characters instead of 160 |
 | `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
@@ -349,8 +349,9 @@ See [Date-window filtering](#date-window-filtering) for the semantics of the
 
 ### Effective filters line (`tkt pr list`)
 
-A plain `tkt pr list` prints one `Filters:` line under the table, before the
-`Showing N of M` footer and the `Window:` line, naming every filter in effect,
+A plain `tkt pr list` prints a `History:` [legend](#history-strings) under the table
+(then the `Reviewers:` and `Steps:` legends when those columns are on), and one
+`Filters:` line after them, before the `Showing N of M` footer and the `Window:` line, naming every filter in effect,
 defaults included. An empty result prints `No PRs found.` and then the same line.
 
 ```
@@ -686,7 +687,7 @@ head: 742dbea  mergeable: unknown  merge: unknown  review: approved
 reviewers: github-actions(agent) ✓ approved on head
 linked issues: jpshackelford/tickster#49
 reports: manual_test 2026-11-05T10:37:08Z by jpshackelford at 742dbea (on head) no fail match
-Legend: the letter is the event's history character (lowercase = you, uppercase = others; s e v n = AI opened, review, approval, comment; - = not in the history string). o opened, h review requested, r changes or inline review, a approved, c comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
+Legend: the letter is the event's history character (lowercase = you, UPPERCASE = others; AI letters: lowercase = your login, UPPERCASE = its own login; - = not in the history string). o opened, s AI opened, h review requested, r changes or inline review, e AI review, a approved, v AI approval, c comment, n AI comment, f push after a review, m merged, k closed. Class: me human bot agent me_agent. ↳ marks a review thread: path:line, resolved or unresolved.
 timeline: 5 events, oldest first
 2026-11-05T10:27:37Z - openhands-agent(agent) pushed 1 commit, last 742dbea "fix(issue): default 'issue list' to open issues"
 2026-11-05T10:28:10Z s jpshackelford(me_agent) opened: Fixes #49 ## Why `tkt issue list` with…(2537 more chars)
@@ -853,7 +854,8 @@ with `name` set to the `--snapshot` name or `""`. See
 
 ### Effective filters line (`tkt review`)
 
-A plain `tkt review` prints one `Filters:` line under the table and its legend,
+A plain `tkt review` prints a `History:` [legend](#history-strings) naming the
+reviewer, and one `Filters:` line under the table and that legend,
 before the `Showing N PRs …` footer and the `Window:` line. An empty result
 prints its message (`No PRs needing your review.`) and then the same line, so
 you can tell an empty queue from a mis-scoped one.
@@ -1825,12 +1827,24 @@ API returns `github-actions[bot]`. List such accounts in `[actors] bots`, or in
 `[actors] agent_logins` if they are AI actors; otherwise they are classed `human`.
 A login in `[actors] agent_logins` is an AI actor instead, even if it ends in `[bot]`.
 
-`tkt issue list` also prints a one-line legend beneath the table, so the
-encoding is self-documenting at the terminal. A `Filters:` line sits between
-the table and the legend ([details](#effective-filters-line)). `tkt pr list`
-and `tkt review` print the same line under the table and its legends
-([pr](#effective-filters-line-tkt-pr-list),
-[review](#effective-filters-line-tkt-review)).
+`tkt pr list`, `tkt issue list` and `tkt review` print a one-line `History:` legend
+beneath the table, so the encoding is self-documenting at the terminal. It names
+only the characters in the rows shown, in a fixed order, after the case rule
+(lowercase = you or an AI acting with your login, UPPERCASE = others or an AI under
+its own login), for example:
+
+```
+History: lowercase = you, UPPERCASE = others (AI letters: lowercase = your login, UPPERCASE = its own login). s AI opened, v AI approval, n AI comment
+```
+
+The character is matched in either case, so `V` and `v` both give the `v AI approval`
+entry. No legend prints when no row has a known character. `tkt review` names the
+reviewer in the case rule (`lowercase = octocat`). Piped, the legend is one line
+whatever `$COLUMNS` says; on a terminal it wraps. `--format json` and the `--diff` /
+`--watch` diff tables do not print it. A `Filters:` line sits under the table and its
+legends ([issue](#effective-filters-line), [pr](#effective-filters-line-tkt-pr-list),
+[review](#effective-filters-line-tkt-review)). The wording lives in
+`src/history_legend.py`; the `Legend:` block of `show` renders from the same table.
 
 ## Piping refs from stdin
 

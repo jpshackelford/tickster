@@ -512,7 +512,7 @@ def test_piped_notes_do_not_depend_on_width(command, fake_client, monkeypatch):
     assert outs[0] == outs[1]
     lines = outs[0].splitlines()
     assert any(line.startswith("Showing 1 ") for line in lines)
-    assert any(line.startswith("History: ") for line in lines) == (command != "pr")
+    assert any(line.startswith("History: ") for line in lines)
     assert "Window: updated ≤ 2026-08-31 (UTC)" in lines
 
 

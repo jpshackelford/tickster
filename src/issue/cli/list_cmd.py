@@ -28,6 +28,7 @@ from src.list_table import (
     add_shrinkable_column,
     print_filters,
     print_fitted_table,
+    print_history_legend,
     print_note,
 )
 from src.pr_filter import pr_filter_error
@@ -220,14 +221,6 @@ def cmd_list(
             if not result.issues:
                 return 0
 
-            # Print legend
-            console.print()
-            print_note(
-                console,
-                "[dim]History: o=opened, s/S=AI opened, c/C=comment, n/N=AI comment, l/L=label, B=bot, "
-                "a=assigned, x=closed, r=reopened, p=PR linked[/]",
-            )
-            print_note(console, "[dim]lowercase=you, UPPERCASE=others[/]")
             if show_deps:
                 print_note(
                     console,
@@ -375,6 +368,7 @@ def _print_issue_table(
         rows.append(row)
 
     print_fitted_table(console, table, rows, history_col=history_col)
+    print_history_legend(console, "issue", (issue.history for issue in issues))
 
 
 def _format_linked_pr(linked_pr: str | None) -> str:

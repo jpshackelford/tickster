@@ -10,6 +10,7 @@ from rich.table import Table
 from rich.text import Text
 
 from src.connection_paging import TRUNCATION_MARKER
+from src.history_legend import chars_text, history_legend
 from src.issue.cli import list_cmd as issue_cmd
 from src.issue.models import IssueInfo, IssueState
 from src.list_table import (
@@ -28,6 +29,7 @@ from src.pr.step_types import StepResult, StepStatus
 from src.pr.steps import STEP_LETTERS, STEPS_LEGEND, steps_mark
 from src.review.cli import list_cmd as review_cmd
 from src.review.models import ReviewInfo, ReviewStatus
+from src.show.render import ISSUE_LEGEND, PR_LEGEND
 
 NOW = datetime.now(UTC) - timedelta(hours=23, minutes=30)
 SHORT = "oCc"
@@ -469,3 +471,73 @@ class TestLegendsWhenPiped:
         )
         assert STEPS_LEGEND not in buf.getvalue().splitlines()
         assert "Steps:" in buf.getvalue()
+
+
+class TestHistoryLegendInLists:
+    @pytest.mark.parametrize("kind", PRINTERS)
+    @pytest.mark.parametrize("width", [40, 200])
+    def test_piped_legend_is_one_line_naming_the_characters_shown(self, kind, width):
+        console, buf = make_pipe_console(width)
+        PRINTERS[kind](console)
+        lines = [ln for ln in buf.getvalue().splitlines() if ln.startswith("History:")]
+        expected = "History: lowercase = {}, UPPERCASE = others. o opened, c comment"
+        assert lines == [expected.format("me" if kind == "review" else "you")]
+
+    @pytest.mark.parametrize("kind", PRINTERS)
+    def test_legend_wraps_on_a_terminal(self, kind):
+        console, buf = make_console(40)
+        PRINTERS[kind](console)
+        out = buf.getvalue()
+        assert "History: lowercase" in out
+        assert not any(ln.startswith("History:") and "c comment" in ln for ln in out.splitlines())
+
+    def test_issue_legend_comes_from_the_shared_text(self):
+        console, buf = make_pipe_console(200)
+        print_issue(console)
+        assert history_legend("issue", [SHORT]) in buf.getvalue().splitlines()
+
+    @pytest.mark.parametrize("kind", PRINTERS)
+    def test_no_legend_without_a_known_character(self, kind, monkeypatch):
+        monkeypatch.setattr(
+            "tests.test_list_table.HISTORIES", {"a": "…", "b": ">", "c": ""}, raising=True
+        )
+        console, buf = make_pipe_console(200)
+        PRINTERS[kind](console)
+        assert "History:" not in buf.getvalue()
+
+    def test_the_legend_is_a_pr_list_note_above_reviewers_and_steps(self):
+        console, buf = make_pipe_console(200)
+        pr_cmd.console = console
+        prs = [make_pr(1, SHORT)]
+        pr_cmd._print_pr_table(
+            prs, reviewers="counts", steps={"OpenHands/OpenHands#1": STEP_RESULTS}
+        )
+        lines = buf.getvalue().splitlines()
+        history, reviewers, steps = (
+            next(i for i, ln in enumerate(lines) if ln.startswith(prefix))
+            for prefix in ("History:", "Reviewers:", "Steps:")
+        )
+        assert history < reviewers < steps
+
+    def test_a_pr_row_with_an_ai_character_names_it_case_insensitively(self):
+        console, buf = make_pipe_console(200)
+        pr_cmd.console = console
+        pr_cmd._print_pr_table([make_pr(1, "sVn")])
+        (line,) = [ln for ln in buf.getvalue().splitlines() if ln.startswith("History:")]
+        assert line.endswith("s AI opened, v AI approval, n AI comment")
+
+
+class TestStepsLegendAllDots:
+    def test_says_all_dots_means_nothing_pending(self):
+        assert f"All dots ({'.' * 7}) = every step done or n/a: nothing pending." in STEPS_LEGEND
+
+    def test_dot_count_follows_the_step_letters(self):
+        assert "." * len(STEP_LETTERS) in STEPS_LEGEND
+
+
+class TestShowLegendsUseTheTables:
+    def test_pr_legend_names_every_character(self):
+        assert chars_text("pr") in PR_LEGEND
+
+    def test_issue_legend_names_every_character(self):
+        assert chars_text("issue") in ISSUE_LEGEND

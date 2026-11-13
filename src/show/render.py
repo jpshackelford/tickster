@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import json
 
+from src.history_legend import AI_CASE_RULE, case_rule, chars_text
 from src.issue.dependencies import deps_line
 from src.issue.models import Milestone
 from src.pr.detail import short_sha
 from src.pr.reviewers import ReviewerState, reviewer_mark
 from src.show.models import Entry, ReportStatus, Show, Thread
 
+_HISTORY_INTRO = (
+    "Legend: the letter is the event's history character ("
+    f"{case_rule()}; {AI_CASE_RULE}; - = not in the history string). "
+)
 PR_LEGEND = (
-    "Legend: the letter is the event's history character (lowercase = you, uppercase = "
-    "others; s e v n = AI opened, review, approval, comment; - = not in the history "
-    "string). o opened, h review requested, r changes or inline review, a approved, c comment, "
-    "f push after a review, m merged, k closed. Class: me human bot agent me_agent. "
+    f"{_HISTORY_INTRO}{chars_text('pr')}. Class: me human bot agent me_agent. "
     "↳ marks a review thread: path:line, resolved or unresolved."
 )
 ISSUE_LEGEND = (
-    "Legend: the letter is the event's history character (lowercase = you, uppercase = "
-    "others; s n = AI opened, comment, B = bot comment; - = not in the history "
-    "string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. "
+    f"{_HISTORY_INTRO}{chars_text('issue')}. "
     "blocked by: open blockers (? = one you cannot read), blocks: open issues this one blocks. "
     "Class: me human bot agent me_agent."
 )

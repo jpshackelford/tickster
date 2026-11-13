@@ -696,7 +696,9 @@ class TestListColumn:
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list() == 0
         lines = capsys.readouterr().out.splitlines()
-        assert all(len(line) <= 80 for line in lines if not line.startswith("Filters:"))
+        assert all(
+            len(line) <= 80 for line in lines if not line.startswith(("Filters:", "History:"))
+        )
 
 
 def snapshot_of(*prs: PRInfo, with_steps: bool = True) -> Snapshot:

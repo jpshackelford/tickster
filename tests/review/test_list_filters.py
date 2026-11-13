@@ -149,7 +149,9 @@ def test_board_repos_are_comma_joined(run, monkeypatch):
 def test_line_sits_after_the_legend_and_before_the_footer(run):
     lines = run()
     line = lines.index(DEFAULT_LINE)
-    assert lines[line - 1] == "History: lowercase=octocat, UPPERCASE=others"
+    assert (
+        lines[line - 1] == "History: lowercase = octocat, UPPERCASE = others. o opened, c comment"
+    )
     assert lines[line + 1 :] == ["", "Showing 1 PRs needing your review"]
 
 
