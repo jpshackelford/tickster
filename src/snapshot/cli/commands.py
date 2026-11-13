@@ -1,6 +1,6 @@
 """`tkt snapshot` subcommand implementations.
 
-Users invoke these via `tkt snapshot {list, show, rm, diff}`. They
+Users invoke these via `tkt snapshot {list, show, rm, ack, diff}`. They
 operate purely on the on-disk store under `~/.tkt/snapshots/` and never
 touch the GitHub API.
 """
@@ -50,7 +50,12 @@ def cmd_list(*, kind: str | None = None) -> int:
     table.add_column("Items", justify="right", no_wrap=True)
     table.add_column("Scope#", no_wrap=True)
     rows = [
-        [escape(f"{r.kind}/{r.name}"), r.captured_at, str(r.item_count), r.scope_hash]
+        [
+            escape(f"{r.kind}/{r.name}") + (" (pending ack)" if r.pending else ""),
+            r.captured_at,
+            str(r.item_count),
+            r.scope_hash,
+        ]
         for r in records
     ]
     if console.is_terminal:
@@ -127,6 +132,27 @@ def cmd_rm(refs: list[str]) -> int:
             err_console.print(f"[yellow]not found:[/] {kind}/{name}")
             exit_code = max(exit_code, 1)
     return exit_code
+
+
+def cmd_ack(ref: str) -> int:
+    """Commit the pending baseline staged by `--diff NAME` as the new baseline."""
+    try:
+        kind, name = _parse_ref(ref)
+    except ValueError as e:
+        print_error(str(e))
+        return 2
+    try:
+        acked = store.ack(kind, name)
+    except (FileNotFoundError, store.SnapshotFormatError) as e:
+        print_error(str(e))
+        return 1
+    if not acked:
+        print_error(
+            f"nothing to ack: {kind}/{name} has no pending baseline (run a --diff {name} first)"
+        )
+        return 1
+    console.print(f"acked {kind}/{name}")
+    return 0
 
 
 def cmd_diff(

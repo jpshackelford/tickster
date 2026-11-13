@@ -123,12 +123,17 @@ class SnapshotPlan:
 
         With a diff, the diff output replaces the normal table, and the
         baseline is only overwritten when the diff succeeded so that a
-        scope-mismatch error is safe to retry with `--diff-force`.
+        scope-mismatch error is safe to retry with `--diff-force`. A bare
+        `--diff NAME` leaves the baseline alone and stages `curr` as the
+        pending baseline for `tkt snapshot ack`.
         """
         if self.wants_diff:
             rc = self.render_diff(curr, console, fetch_by_ref)
-            if rc == 0 and self.wants_save:
-                self.save(curr)
+            if rc == 0:
+                if self.wants_save:
+                    self.save(curr)
+                elif self.diff_name is not None:
+                    store.save_pending(replace(curr, name=self.diff_name))
             return rc
         print_table()
         self.save(curr)
@@ -142,6 +147,7 @@ class SnapshotPlan:
             raise RuntimeError("render_diff called without --diff / --watch")
         # In JSON mode stdout must hold only the document, so notices go to stderr.
         msg = Console(stderr=True) if self.output_format == "json" else console
+        baseline_found = True
         try:
             prev = store.load(self.kind, self.diff_name)
         except FileNotFoundError:
@@ -152,10 +158,11 @@ class SnapshotPlan:
                 "treating all current rows as new.[/]"
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
+            baseline_found = False
         except store.SnapshotFormatError as e:
             print_error(str(e))
             return 1
-        result = diff_module.diff_snapshots(prev, curr)
+        result = replace(diff_module.diff_snapshots(prev, curr), baseline_found=baseline_found)
         if self.resolve:
             if fetch_by_ref is None:
                 raise RuntimeError("--diff-resolve needs a fetch_by_ref")
@@ -178,7 +185,11 @@ class SnapshotPlan:
         return 0
 
     def save(self, snapshot: Snapshot) -> None:
-        """Persist `snapshot` under the configured save name."""
+        """Persist `snapshot` under the configured save name.
+
+        A newer saved baseline supersedes any baseline staged for that name.
+        """
         if self.save_name is None:
             raise RuntimeError("save called without --snapshot / --watch")
         store.save(replace(snapshot, name=self.save_name))
+        store.delete_pending(snapshot.kind, self.save_name)

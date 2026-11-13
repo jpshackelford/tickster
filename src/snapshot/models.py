@@ -438,6 +438,7 @@ class DiffResult:
     curr: Snapshot
     deltas: tuple[ItemDelta, ...]
     scope_matches: bool
+    baseline_found: bool = True
 
     @property
     def counts(self) -> dict[ChangeKind, int]:
@@ -462,6 +463,7 @@ class DiffResult:
                 "captured_at": self.curr.captured_at,
                 "scope_hash": self.curr.scope_hash,
             },
+            "baseline": "found" if self.baseline_found else "missing",
             "scope_matches": self.scope_matches,
             "counts": counts,
             "deltas": [_delta_to_dict(d) for d in self.deltas],

@@ -8,6 +8,9 @@ import sys
 import pytest
 
 from src.__main__ import main
+from src.snapshot import store
+
+from .conftest import make_snapshot
 
 
 @pytest.mark.parametrize(
@@ -66,3 +69,12 @@ def test_diff_resolve_flag_reaches_the_list_command(module, argv, monkeypatch):
     assert main([*argv, "--watch", "w"]) == 0
     assert main([*argv, "--watch", "w", "--diff-resolve"]) == 0
     assert seen == [False, True]
+
+
+def test_snapshot_ack_is_wired_through_main(tkt_home, capsys):  # noqa: ARG001
+    assert main(["snapshot", "ack", "pr/poll"]) == 1
+    assert "nothing to ack: pr/poll has no pending baseline" in capsys.readouterr().err
+
+    store.save_pending(make_snapshot(name="poll"))
+    assert main(["snapshot", "ack", "pr/poll"]) == 0
+    assert store.exists("pr", "poll")

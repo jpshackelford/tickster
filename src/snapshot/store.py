@@ -4,6 +4,10 @@ One JSON file per snapshot: `<kind>-<name>.json`. Named snapshots
 (`--snapshot=hourly`) overwrite in place; auto-timestamped snapshots use
 `ts-YYYYMMDDTHHMMSSZ` as the name so they coexist.
 
+A `--diff NAME` run stages its result as a pending baseline in
+`pending/<kind>-<name>.json`; `tkt snapshot ack` promotes it. The separate
+directory keeps a pending file from colliding with any snapshot name.
+
 Pure filesystem, no network. Any snapshot can be inspected or edited with a
 text editor; schema is versioned (see `models.SCHEMA_VERSION`).
 """
@@ -14,7 +18,7 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -24,6 +28,7 @@ from src.snapshot.models import VALID_KINDS, Snapshot
 logger = logging.getLogger(__name__)
 
 _SNAPSHOTS_DIRNAME = "snapshots"
+_PENDING_DIRNAME = "pending"
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 
 
@@ -67,6 +72,24 @@ def path_for(kind: str, name: str) -> Path:
     return snapshots_dir() / f"{kind}-{slugify(name)}.json"
 
 
+def pending_path_for(kind: str, name: str) -> Path:
+    """Return the on-disk path for the pending baseline of (kind, name)."""
+    _validate_kind(kind)
+    return snapshots_dir() / _PENDING_DIRNAME / f"{kind}-{slugify(name)}.json"
+
+
+def _write(snapshot: Snapshot, dst: Path) -> Path:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_suffix(".json.tmp")
+    payload = json.dumps(snapshot.to_dict(), indent=2, sort_keys=False)
+    with tmp.open("w", encoding="utf-8") as f:
+        f.write(payload)
+        f.flush()
+        os.fsync(f.fileno())
+    tmp.replace(dst)
+    return dst
+
+
 def save(snapshot: Snapshot) -> Path:
     """Persist a snapshot to disk, atomically. Returns the written path.
 
@@ -80,14 +103,13 @@ def save(snapshot: Snapshot) -> Path:
     stored_name = slugify(snapshot.name)
     if stored_name != snapshot.name:
         logger.warning("tkt: snapshot name %r is stored as %r", snapshot.name, stored_name)
-    tmp = dst.with_suffix(".json.tmp")
-    payload = json.dumps(snapshot.to_dict(), indent=2, sort_keys=False)
-    with tmp.open("w", encoding="utf-8") as f:
-        f.write(payload)
-        f.flush()
-        os.fsync(f.fileno())
-    tmp.replace(dst)
-    return dst
+    return _write(snapshot, dst)
+
+
+def save_pending(snapshot: Snapshot) -> Path:
+    """Stage `snapshot` as the pending baseline; the saved baseline is untouched."""
+    _validate_kind(snapshot.kind)
+    return _write(snapshot, pending_path_for(snapshot.kind, snapshot.name))
 
 
 def load(kind: str, name: str) -> Snapshot:
@@ -95,9 +117,17 @@ def load(kind: str, name: str) -> Snapshot:
 
     Raises FileNotFoundError if absent and SnapshotFormatError if the file is not a snapshot.
     """
-    p = path_for(kind, name)
+    return _read(path_for(kind, name), kind, name)
+
+
+def load_pending(kind: str, name: str) -> Snapshot:
+    """Load the pending baseline of (kind, name); same errors as `load`."""
+    return _read(pending_path_for(kind, name), kind, name, what="pending baseline")
+
+
+def _read(p: Path, kind: str, name: str, what: str = "snapshot") -> Snapshot:
     if not p.exists():
-        raise FileNotFoundError(f"snapshot not found: {kind}/{name} (looked in {p})")
+        raise FileNotFoundError(f"{what} not found: {kind}/{name} (looked in {p})")
     try:
         data = json.loads(p.read_text())
         if not isinstance(data, dict):
@@ -110,7 +140,7 @@ def load(kind: str, name: str) -> Snapshot:
     except (TypeError, ValueError, AttributeError) as e:
         reason = str(e)
     raise SnapshotFormatError(
-        f"snapshot {kind}/{name} cannot be read ({p}): {reason}. "
+        f"{what} {kind}/{name} cannot be read ({p}): {reason}. "
         f"Delete it with: tkt snapshot rm {kind}/{name}"
     )
 
@@ -119,12 +149,39 @@ def exists(kind: str, name: str) -> bool:
     return path_for(kind, name).exists()
 
 
-def delete(kind: str, name: str) -> bool:
-    """Delete a snapshot. Returns True if it existed and was removed."""
-    p = path_for(kind, name)
+def has_pending(kind: str, name: str) -> bool:
+    return pending_path_for(kind, name).exists()
+
+
+def delete_pending(kind: str, name: str) -> bool:
+    """Delete a pending baseline. Returns True if it existed and was removed."""
+    p = pending_path_for(kind, name)
     if not p.exists():
         return False
     p.unlink()
+    return True
+
+
+def delete(kind: str, name: str) -> bool:
+    """Delete a snapshot and its pending baseline. True if either existed."""
+    p = path_for(kind, name)
+    existed = p.exists()
+    if existed:
+        p.unlink()
+    return delete_pending(kind, name) or existed
+
+
+def ack(kind: str, name: str) -> bool:
+    """Promote the pending baseline of (kind, name) to the saved baseline.
+
+    Returns False if nothing is pending. The baseline is written before the
+    pending file is removed, so a crash in between leaves a re-ackable state.
+    """
+    if not has_pending(kind, name):
+        return False
+    pending = load_pending(kind, name)
+    save(replace(pending, name=name))
+    delete_pending(kind, name)
     return True
 
 
@@ -138,6 +195,7 @@ class SnapshotRecord:
     scope_hash: str
     item_count: int
     path: Path
+    pending: bool = False
 
 
 def list_(kind: str | None = None) -> list[SnapshotRecord]:
@@ -165,14 +223,16 @@ def list_(kind: str | None = None) -> list[SnapshotRecord]:
         if kind is not None and k != kind:
             continue
         items = data.get("items")
+        name_in_file = data.get("name", p.stem)
         out.append(
             SnapshotRecord(
                 kind=k,
-                name=data.get("name", p.stem),
+                name=name_in_file,
                 captured_at=data.get("captured_at", ""),
                 scope_hash=data.get("scope_hash", ""),
                 item_count=len(items) if isinstance(items, list) else 0,
                 path=p,
+                pending=pending_path_for(k, name_in_file).exists(),
             )
         )
     return out

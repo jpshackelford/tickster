@@ -908,6 +908,17 @@ Examples:
         "refs", nargs="+", metavar="KIND/NAME", help="Snapshot refs to delete"
     )
 
+    snapshot_ack_parser = snapshot_subparsers.add_parser(
+        "ack",
+        help="Commit the baseline staged by --diff NAME",
+        description=(
+            "Replace the baseline KIND/NAME with the pending result that the last "
+            "`--diff NAME` staged, then delete the pending file. Exits 1 when "
+            "nothing is pending."
+        ),
+    )
+    snapshot_ack_parser.add_argument("ref", metavar="KIND/NAME", help="Snapshot ref to commit")
+
     snapshot_diff_parser = snapshot_subparsers.add_parser("diff", help="Diff two stored snapshots")
     snapshot_diff_parser.add_argument(
         "prev_ref", metavar="PREV", help="Baseline snapshot ref (kind/name)"
@@ -1360,6 +1371,9 @@ Examples:
     # Handle snapshot command
     if args.command == "snapshot":
         from src.snapshot.cli import (
+            cmd_ack as snapshot_cmd_ack,
+        )
+        from src.snapshot.cli import (
             cmd_diff as snapshot_cmd_diff,
         )
         from src.snapshot.cli import (
@@ -1378,6 +1392,8 @@ Examples:
             return snapshot_cmd_show(args.ref, output_format=args.output_format)
         if args.snapshot_command == "rm":
             return snapshot_cmd_rm(args.refs)
+        if args.snapshot_command == "ack":
+            return snapshot_cmd_ack(args.ref)
         if args.snapshot_command == "diff":
             return snapshot_cmd_diff(
                 args.prev_ref,
@@ -1451,7 +1467,10 @@ def _add_snapshot_flags(parser) -> None:
         "--diff",
         dest="diff_name",
         metavar="NAME",
-        help="Diff the result against snapshot NAME.",
+        help=(
+            "Diff the result against snapshot NAME. Leaves NAME as it is and stages "
+            "the result; `tkt snapshot ack KIND/NAME` makes it the new baseline."
+        ),
     )
     group.add_argument(
         "--watch",
