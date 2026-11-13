@@ -497,3 +497,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 08:25 UTC - Implementation Worker
+
+✅ **[PR #161](https://github.com/jpshackelford/tickster/pull/161) ready for review** for #133 (`feat(list)!:`, `BREAKING CHANGE` footer, `Closes #133`)
+
+- Removed `--since/--after/--before/--date-field` from `issue list`, `pr list` and `review`; hidden stubs exit 2 at parse time with the issue's messages. Deleted `resolve_date_field()` and the old-flag branches in `src/date_window.py`; `build_date_window()` now requires the field and flag names.
+- Rebased onto `main` after #160 merged (`show --since` is now `--since-time`); one test followed that rename. CI green (pytest 2079, ruff, basedpyright).
+- Docs left to #137, as the issue says. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
