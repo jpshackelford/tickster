@@ -75,6 +75,46 @@ class TestSearchQuery:
         assert '-label:"Hold"' in post.call_args.kwargs["json"]["variables"]["query"]
         assert len(result.issues) == 2
 
+    @pytest.mark.parametrize(
+        ("labels", "not_labels"),
+        [(["ready"], ["ready"]), (["Ready"], ["rEADY"]), (["bug", "ready"], ["hold", "READY"])],
+    )
+    def test_label_in_both_filters_returns_nothing_without_searching(
+        self, labels, not_labels, monkeypatch
+    ):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        nodes = [_issue_node(1, ["bug"]), _issue_node(2, ["ready", "bug"])]
+        with patch.object(httpx.Client, "post", return_value=_search_response(nodes)) as post:
+            client = IssueClient(token="test-token")
+            result = client.list_issues_by_author(
+                None, repos=["o/r"], labels=labels, not_labels=not_labels
+            )
+            client.close()
+        assert result.issues == []
+        assert result.total_count == 0
+        assert not result.has_more
+        assert post.call_count == 0
+
+    def test_excluded_label_rows_are_dropped_case_insensitively(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        nodes = [_issue_node(1, ["ready", "HOLD"]), _issue_node(2, ["ready"])]
+        with patch.object(httpx.Client, "post", return_value=_search_response(nodes)):
+            client = IssueClient(token="test-token")
+            result = client.list_issues_by_author(
+                None, repos=["o/r"], labels=["ready"], not_labels=["hold"]
+            )
+            client.close()
+        assert [i.number for i in result.issues] == [2]
+
+    def test_dropped_rows_do_not_use_up_the_limit(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        nodes = [_issue_node(1, ["hold"]), _issue_node(2, []), _issue_node(3, [])]
+        with patch.object(httpx.Client, "post", return_value=_search_response(nodes)):
+            client = IssueClient(token="test-token")
+            result = client.list_issues_by_author(None, repos=["o/r"], not_labels=["hold"], limit=2)
+            client.close()
+        assert sorted(i.number for i in result.issues) == [2, 3]
+
 
 def _issue_node(number: int, labels: list[str]) -> dict:
     return {
@@ -171,9 +211,33 @@ def test_explicit_refs_are_rejected(args, stdin, monkeypatch, capsys):
     assert "--not-label cannot be combined with explicit refs" in captured.err
 
 
-def test_label_in_both_filters_is_not_an_error(stub_client, monkeypatch):  # noqa: ARG001
+@pytest.fixture
+def real_client(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    monkeypatch.setenv("GITHUB_USERNAME", "me-user")
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    assert main(["issue", "list", "-l", "ready", "--not-label", "ready"]) == 0
+    monkeypatch.setattr(issue_list, "console", Console(width=200, color_system=None))
+
+
+@pytest.mark.parametrize(("label", "not_label"), [("ready", "ready"), ("Ready", "READY")])
+def test_label_in_both_filters_lists_no_rows(label, not_label, real_client, capsys):  # noqa: ARG001
+    nodes = [_issue_node(11, ["bug"]), _issue_node(12, ["ready"])]
+    with patch.object(httpx.Client, "post", return_value=_search_response(nodes)):
+        args = ["issue", "list", "--repo", "o/r", "--all-authors", "-l", label]
+        assert main([*args, "--not-label", not_label]) == 0
+    out = capsys.readouterr().out
+    assert "#11" not in out
+    assert "#12" not in out
+
+
+def test_not_label_lists_only_issues_without_it(real_client, capsys):  # noqa: ARG001
+    nodes = [_issue_node(11, ["ready"]), _issue_node(12, ["ready", "hold"])]
+    with patch.object(httpx.Client, "post", return_value=_search_response(nodes)):
+        args = ["issue", "list", "--repo", "o/r", "--all-authors", "-l", "ready"]
+        assert main([*args, "--not-label", "Hold"]) == 0
+    out = capsys.readouterr().out
+    assert "11" in out
+    assert "12" not in out
 
 
 def test_help_lists_the_flag(capsys):

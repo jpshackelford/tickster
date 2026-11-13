@@ -164,12 +164,17 @@ class IssueClient:
         Returns:
             IssueListResult with processed issue info
         """
+        # Parse label filters
+        and_labels, or_groups = parse_label_filters(labels or [])
+
+        # GitHub search drops a positive label that is also excluded, so answer here
+        excluded = {lbl.lower() for lbl in not_labels or []}
+        if any(lbl.lower() in excluded for lbl in and_labels):
+            return IssueListResult()
+
         if author == "me":
             author = self.get_current_user()
         reference_user = author or self.get_current_user()
-
-        # Parse label filters
-        and_labels, or_groups = parse_label_filters(labels or [])
 
         # Build search query (AND and excluded labels go in query, OR handled client-side)
         search_query = _build_search_query(
@@ -182,6 +187,7 @@ class IssueClient:
             limit,
             or_groups=or_groups,
             sort_by_activity=sort_by_activity,
+            excluded_labels=excluded,
         )
 
     def get_issues_by_ref(
@@ -233,8 +239,13 @@ class IssueClient:
         limit: int,
         or_groups: list[list[str]] | None = None,
         sort_by_activity: bool = False,
+        excluded_labels: set[str] | None = None,
     ) -> IssueListResult:
-        """Execute a search query and process results."""
+        """Execute a search query and process results.
+
+        ``excluded_labels`` (lowercase) is also enforced on the returned rows, before
+        ``limit`` is applied, so the search cannot let an excluded issue through.
+        """
         from src.issue.history import process_issue_data
 
         query = f"""
@@ -279,6 +290,11 @@ class IssueClient:
                         continue
                     complete_issue_connections(self._client, node)
                     issue_info = process_issue_data(node, reference_user)
+
+                    if excluded_labels and excluded_labels & {
+                        lbl.lower() for lbl in issue_info.labels
+                    }:
+                        continue
 
                     # Apply OR label filters client-side
                     if or_groups and not _matches_or_labels(issue_info.labels, or_groups):
