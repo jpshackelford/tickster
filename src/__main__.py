@@ -33,6 +33,15 @@ load_dotenv(find_dotenv(usecwd=True))
 console = Console()
 
 
+ISSUE_LIST_EPILOG = """\
+Which issues can I start now? (the labels are yours; the rank order is [labels] rank):
+  tkt issue list --all-authors -l ready --not-label hold --unblocked --no-pr \\
+    --sort rank,blocking,number --limit 2 --format json
+The waiting list (open_blockers names what each issue waits on):
+  tkt issue list --all-authors -l ready --blocked --format json
+"""
+
+
 def _issue_sort_keys(text: str) -> tuple[str, ...]:
     from src.issue.sort import parse_sort
 
@@ -896,6 +905,8 @@ Examples:
         "--no-pr / --has-pr keep issues without / with a linked PR. "
         "--unblocked / --blocked keep issues without / with an open blocker. "
         "Accepts issue references as arguments (owner/repo#number).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=ISSUE_LIST_EPILOG,
     )
     issue_list_parser.add_argument(
         "issue_refs",
