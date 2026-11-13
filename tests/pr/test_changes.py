@@ -160,7 +160,7 @@ class TestParseSince:
 
     @pytest.mark.parametrize("since", INVALID_SINCE)
     def test_rejects_anything_else(self, since):
-        with pytest.raises(InvalidSince, match="--since needs a commit SHA"):
+        with pytest.raises(InvalidSince, match="--since-sha needs a commit SHA"):
             parse_since(since)
 
     @pytest.mark.parametrize("since", INVALID_SINCE)
@@ -489,7 +489,7 @@ class TestPrChanges:
 def run(capsys):
     def _run(fake: FakeGitHub, *args: str, since: str = SINCE) -> tuple[int, str, str]:
         with patch("src.pr.cli.changes_cmd.ChangesClient", return_value=fake.client()):
-            code = main(["pr", "changes", "o/r#7", "--since", since, *args])
+            code = main(["pr", "changes", "o/r#7", "--since-sha", since, *args])
         captured = capsys.readouterr()
         return code, captured.out, captured.err
 
@@ -579,7 +579,7 @@ class TestCli:
 
         assert "significant: yes (history rewritten)" in out
 
-    @pytest.mark.parametrize("since", ["notasha", "main"])
+    @pytest.mark.parametrize("since", ["notasha", "main", "v1.2.3", "abc12", "zzzzzzz"])
     @pytest.mark.parametrize("fmt", ["text", "json"])
     def test_malformed_since_exits_2_with_empty_stdout(self, run, since, fmt):
         fake = FakeGitHub()
@@ -588,7 +588,7 @@ class TestCli:
 
         assert code == 2
         assert out == ""
-        assert err.strip() == "Error: --since needs a commit SHA"
+        assert err.strip() == "Error: --since-sha needs a commit SHA"
         assert fake.requests == []
 
     def test_well_formed_unknown_sha_still_reports_history_rewritten(self, run):
@@ -609,7 +609,7 @@ class TestCli:
 
     def test_error_exits_1_and_keeps_stdout_empty(self, capsys):
         with patch("src.pr.cli.changes_cmd.ChangesClient", return_value=FakeGitHub().client()):
-            code = main(["pr", "changes", "o/r#404", "--since", SINCE, "--format", "json"])
+            code = main(["pr", "changes", "o/r#404", "--since-sha", SINCE, "--format", "json"])
 
         captured = capsys.readouterr()
         assert code == 1
@@ -617,12 +617,8 @@ class TestCli:
         assert "PR not found" in captured.err
 
     def test_invalid_ref_exits_1(self, capsys):
-        assert main(["pr", "changes", "nonsense", "--since", SINCE]) == 1
+        assert main(["pr", "changes", "nonsense", "--since-sha", SINCE]) == 1
         assert "Invalid PR reference" in capsys.readouterr().err
-
-    def test_since_is_required(self):
-        with pytest.raises(SystemExit):
-            main(["pr", "changes", "o/r#7"])
 
 
 def _norms(commits_toml: str) -> Norms:
@@ -794,3 +790,72 @@ class TestCliNorms:
         data = self._json(run, self.DOCS_PAGE, "--explain")
 
         assert data["settings"]["ignore_paths"] == ["doc/**"]
+
+
+class TestSinceShaFlag:
+    @pytest.mark.parametrize("since", ["a" * 40, "ABCDEF0"])
+    def test_accepts_full_length_and_uppercase_sha(self, run, since):
+        code, _, _ = run(FakeGitHub(), since=since)
+
+        assert code == 0
+
+    def test_missing_since_sha_is_an_argparse_usage_error(self, capsys):
+        with (
+            patch("src.pr.cli.changes_cmd.ChangesClient") as client,
+            pytest.raises(SystemExit) as exc,
+        ):
+            main(["pr", "changes", "o/r#7"])
+
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "the following arguments are required: --since-sha" in err
+        client.assert_not_called()
+
+
+class TestRemovedSinceFlag:
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["--since", SINCE],
+            ["--since"],
+            [f"--since={SINCE}"],
+            ["--since", SINCE, "--since-sha", SINCE],
+            ["--since-sha", SINCE, "--since"],
+        ],
+    )
+    def test_exits_2_naming_the_replacement_without_a_github_call(self, args, capsys):
+        with (
+            patch("src.pr.cli.changes_cmd.ChangesClient") as client,
+            pytest.raises(SystemExit) as exc,
+        ):
+            main(["pr", "changes", "o/r#7", *args])
+
+        captured = capsys.readouterr()
+        assert exc.value.code == 2
+        assert captured.out == ""
+        assert "--since was removed on pr changes: use --since-sha SHA" in captured.err
+        client.assert_not_called()
+
+    def test_fires_even_when_nothing_else_is_valid(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "changes", "--since", "x"])
+
+        assert exc.value.code == 2
+        assert "--since was removed on pr changes" in capsys.readouterr().err
+
+    def test_help_lists_since_sha_and_hides_since(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "changes", "--help"])
+
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        option_lines = [line.strip() for line in out.splitlines() if line.strip().startswith("--")]
+        assert any(line.startswith("--since-sha SHA") for line in option_lines)
+        assert not any(line.split()[0].rstrip(",") == "--since" for line in option_lines)
+
+    def test_pr_show_since_still_has_its_own_stub(self, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "show", "o/r#7", "--since", "2026-11-05T10:35:00Z"])
+
+        assert exc.value.code == 2
+        assert "--since was removed on show: use --since-time TS" in capsys.readouterr().err
