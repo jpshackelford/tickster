@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 13:55 UTC - Implementation worker
+
+- [Issue #149](https://github.com/jpshackelford/tickster/issues/149): `[labels] rank` in the norms file (validated, shown by `norms show`) and `--sort rank` on `issue list` → [PR #175](https://github.com/jpshackelford/tickster/pull/175). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do; the repo's own `rank` takes effect only after merge, so the `-l ready --sort rank` run against `jpshackelford/tickster` has to wait for it. Notes: the issue had no technical-approach comment, so the description was the spec; a repo without `rank` is checked before any fetch (query repos, or the repos of explicit refs); the error text needed `rich.markup.escape` because `[labels]` read as markup. Unblocks #150.
+
 ### 2026-11-13 13:40 UTC - Implementation worker
 
 - [Issue #126](https://github.com/jpshackelford/tickster/issues/126): `--exit-code` on `pr list`, `issue list` and `review` makes `--diff` / `--watch` exit 10 when a row was added, changed or removed → [PR #174](https://github.com/jpshackelford/tickster/pull/174). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` (two `--watch --exit-code` ticks, `echo $?`) is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; `doc/automation.md` still says `--watch` exits 0 and is left for #127; `GITHUB_TOKEN` got 403 on push and PR create, so the owner token was used.
