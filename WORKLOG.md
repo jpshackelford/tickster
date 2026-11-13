@@ -256,3 +256,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 07:00 UTC - Expansion Worker
+
+✅ **Expanded Issue #137**
+
+- Issue: [docs: Upgrading to 2.0 section and docs sweep for the renamed date flags](https://github.com/jpshackelford/tickster/issues/137)
+- Status: Ready, but waiting on #133, #134, #135 and #136. I set the formal "blocked by" relation on #137 (it was empty), so it is skipped until all four close.
+- Approach: add "Upgrading to 2.0" and "Recipes" to `doc/usage.md`; rewrite the stale option tables and the Date-window filtering section; sweep README, `doc/automation.md`, `doc/board.md` and `--help`; add `tests/test_docs_flags.py` as a guard. Copy stub messages from merged code, not from the issue text.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
