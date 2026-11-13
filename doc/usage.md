@@ -1110,8 +1110,8 @@ query and name and `--snapshot`:
 tkt pr list --repo OWNER/NAME --all --snapshot NAME
 ```
 
-A job that polls with `--watch` can also skip the deltas that have `history-rewritten` on
-that first run ([`doc/automation.md`](automation.md#1-poll-what-moved-since-the-last-run)).
+A job that polls can also skip the deltas that have `history-rewritten` on that first run
+([`doc/automation.md`](automation.md#the-recipe-poll-act-ack)).
 
 ## Upgrading to 2.0
 
