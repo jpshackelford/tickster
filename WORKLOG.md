@@ -344,3 +344,18 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 07:50 UTC - Implementation worker
+
+- PR: [feat(review): explicit date flags on review](https://github.com/jpshackelford/tickster/pull/159), ready for review, CI green (Lint, Test, Type Check), head `94021de`.
+- Issue: #132 (part of #129); #130 and #131 had merged, so the shared helper and `resolve_field_flags` were reused.
+- Done: the 12 `--{created,updated,closed,merged}-{since,after,before}` flags on `tkt review`; `cmd_list` takes `field_dates`.
+- Decision: new `has_all_flag` option on `build_date_window` (default `True`). `review` passes `False`, because its `--all` is not a state flag, so state errors say `add --merged` / `add --closed (or --merged)` and never suggest `--all`. `issue list` and `pr list` text is unchanged.
+- Tests: `tests/snapshot/test_review_date_flags.py` (45): flag parsing, query mapping, old/new spelling equivalence, every error, scope/fingerprint equality, `--diff` and `--watch`. Removed the old "review rejects the flags" tests in the issue and PR flag files.
+- Docs: `doc/usage.md` `tkt review` table and examples, plus Date flags by field. No legend change; default output is unchanged.
+- Next: docs check, manual test (8 scenarios in #132), review. Merge is a separate conversation.
+- Note: `GITHUB_TOKEN` could not push or edit the PR; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
