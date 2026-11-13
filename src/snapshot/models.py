@@ -442,6 +442,9 @@ class ItemDelta:
     reviewer_changes: tuple[str, ...] = ()  # per-reviewer transitions, e.g. "bob ↻ re-requested"
     step_changes: tuple[str, ...] = ()  # e.g. "request re-review: done → needed"
     blocker_note: str = ""  # issue: "unblocked" | "blocked" | "blockers changed"
+    events_since: tuple[dict, ...] | None = None  # `pr list --format json`: new timeline events
+    events_truncated: bool = False  # the timeline fetch hit its cap
+    steps: tuple[dict, ...] | None = None  # `pr list --format json`: step results with evidence
 
     @property
     def display_item(self) -> ItemSnapshot:
@@ -517,4 +520,10 @@ def _delta_to_dict(d: ItemDelta) -> dict:
         data["step_changes"] = list(d.step_changes)
     if d.blocker_note:
         data["blocker_note"] = d.blocker_note
+    if d.events_since is not None:
+        data["events_since"] = list(d.events_since)
+    if d.events_truncated:
+        data["events_truncated"] = True
+    if d.steps is not None:
+        data["steps"] = list(d.steps)
     return data

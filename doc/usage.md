@@ -246,6 +246,8 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--reviewers` | Add a **Reviewers** column with one count per [reviewer state](#reviewer-state), e.g. `✓2 ✗1 •1`, and a legend under the table. Off by default so the table stays narrow |
 | `--reviewer-names` | Like `--reviewers`, but names each reviewer: `all-hands-bot✓ bob↻` |
 | `--steps` | Add a **Steps** column, one character per [step](#tkt-pr-steps) (review, CI, findings, re-review, manual test, test findings, retest), and a legend under the table. Off by default so the table stays narrow. The cell is always the full 7 characters; on a narrow terminal Repo and History give up width instead. The column is all `--steps` does: snapshots (`--snapshot`, `--watch`) and `--format json` always record the statuses, so `--diff` / `--watch` with `--format json` report a step that moved without it. The default diff table marks the row and adds a Note for a step transition only with `--steps`. A plain table without `--steps` makes no step-related requests |
+| `--events {brief,full,none}` | With `--diff` / `--watch` and `--format json`: how much of each added or changed PR's new timeline events the delta carries (default `brief`). See [Events and steps in a PR diff](#events-and-steps-in-a-pr-diff) |
+| `--max-body N` | With `--events brief`: cut each event body at `N` characters instead of 160 |
 | `--since DAYS` | Only PRs since the start of the UTC day N days ago |
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
@@ -1300,6 +1302,39 @@ errors go to stderr.
 ```bash
 tkt pr list octocat/hello-world#7 --format json | python -m json.tool
 tkt pr list --author me --snapshot mine --format json   # save and print
+```
+
+### Events and steps in a PR diff
+
+With `--diff` or `--watch` and `--format json`, `tkt pr list` adds two fields to every
+`added` or `changed` delta, so a poll loop needs no `tkt pr show` or `tkt pr steps` call:
+
+| Field | Meaning |
+| --- | --- |
+| `events_since` | The PR's timeline events after the cutoff, oldest first. The cutoff is `prev.last_activity` for a `changed` row; an `added` row has no earlier state, so it gets the whole timeline. Each event has the fields of an event in [`tkt pr show --format json`](#tkt-pr-show) (`at`, `kind`, `char`, `actor`, `actor_class`, `text`, `body`, `more_chars`, and `threads` for a review) |
+| `events_truncated` | `true`, and only then present, when the timeline fetch cap was hit and events past the cap are missing (`timeline_truncated` in `pr show`) |
+| `steps` | What `tkt pr steps --format json` prints for the PR: a list of `step`, `status` and `evidence`. Snapshots keep only the statuses, so evidence is in the diff output only |
+
+`removed` and `unchanged` deltas have none of these fields and cost no GitHub call. The other
+delta fields (`new_history_tail`, `changed_fields`, `prev`, `curr`, `step_changes`,
+`reviewer_changes`) are as before. `issue list` and `review` are unchanged.
+
+`--events` and `--max-body` set the size:
+
+| Option | Effect |
+| --- | --- |
+| `--events brief` (default) | Each event body is cut to 160 characters and ends `…(N more chars)`, as in `pr show` |
+| `--events full` | Whole bodies |
+| `--events none` | No `events_since` and no timeline fetch at all. The cheapest mode: read `new_history_tail` and call `tkt pr show --since-time` for the rows you care about |
+| `--max-body N` | With `brief`, cut bodies at `N` characters instead of 160. With `full` or `none` it is a usage error (exit 2) |
+
+Both options are usage errors (exit 2) without `--diff` / `--watch` or without `--format json`.
+Each row costs one `pr show` query, so a tick with many moved PRs costs that many more requests;
+use `--events none` to avoid them.
+
+```bash
+tkt pr list --watch hourly --format json --max-body 400   # bodies cut at 400
+tkt pr list --diff poll --format json --events none       # steps only, no timeline requests
 ```
 
 ### Scope matching

@@ -23,6 +23,7 @@ from src.date_window import (
     field_flag,
     field_flag_dest,
 )
+from src.show.delta import BRIEF_BODY, EVENTS_BRIEF, EVENTS_FULL, EVENTS_MODES, EVENTS_NONE
 from src.show.models import DEFAULT_MAX_BODY
 
 # Search from the working directory; the default searches from this file's
@@ -630,6 +631,8 @@ Examples:
     _add_removed_date_flag_stubs(pr_list_parser, PR_DATE_FIELDS)
     _add_field_date_args(pr_list_parser, PR_DATE_FIELDS, noun="PRs")
     _add_snapshot_flags(pr_list_parser)
+    _add_diff_evidence_flags(pr_list_parser)
+    pr_list_parser.set_defaults(list_parser=pr_list_parser)
 
     # pr show
     pr_show_parser = pr_subparsers.add_parser(
@@ -1179,6 +1182,7 @@ Examples:
     args = parser.parse_args(argv)
     _validate_snapshot_args(parser, args)
     _validate_checks_args(args)
+    _validate_diff_evidence_args(args)
 
     # Handle board command
     if args.command == "board":
@@ -1362,6 +1366,8 @@ Examples:
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
+                events=args.events or EVENTS_BRIEF,
+                max_body=args.max_body,
                 field_dates=_field_date_values(args, PR_DATE_FIELDS),
             )
 
@@ -1596,6 +1602,46 @@ def _add_snapshot_flags(parser) -> None:
     )
 
 
+def _add_diff_evidence_flags(parser) -> None:
+    """Attach `--events` / `--max-body`: how much `pr list --diff --format json` carries per row."""
+    group = parser.add_argument_group("diff evidence (with --diff / --watch and --format json)")
+    group.add_argument(
+        "--events",
+        dest="events",
+        choices=EVENTS_MODES,
+        default=None,
+        help=(
+            "Each added or changed PR's new timeline events (events_since): brief (default) "
+            f"cuts each body at {BRIEF_BODY} characters, full keeps whole bodies, none omits "
+            "events_since and fetches no timeline"
+        ),
+    )
+    group.add_argument(
+        "--max-body",
+        dest="max_body",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=f"With --events brief, cut event bodies at N characters (default: {BRIEF_BODY})",
+    )
+
+
+def _validate_diff_evidence_args(args: argparse.Namespace) -> None:
+    """Reject `--events` / `--max-body` outside a JSON diff, and `--max-body` without brief."""
+    parser = getattr(args, "list_parser", None)
+    if parser is None:
+        return
+    if args.events is None and args.max_body is None:
+        return
+    flag = "--events" if args.events is not None else "--max-body"
+    if args.diff_name is None and args.watch_name is None:
+        parser.error(f"{flag} needs --diff or --watch")
+    if args.output_format != "json":
+        parser.error(f"{flag} needs --format json")
+    if args.max_body is not None and args.events in (EVENTS_FULL, EVENTS_NONE):
+        parser.error(f"--max-body only applies to --events brief, not --events {args.events}")
+
+
 def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     """Validate --snapshot/--diff/--watch mutex, routing errors through parser.error.
 
@@ -1666,6 +1712,13 @@ def _show_kwargs(args: argparse.Namespace) -> dict:
         "max_body": args.max_body,
         "output_format": args.output_format,
     }
+
+
+def _positive_int(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return n
 
 
 def _non_negative_int(value: str) -> int:

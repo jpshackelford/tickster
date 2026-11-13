@@ -3,6 +3,7 @@
 import logging
 import traceback
 from collections.abc import Mapping
+from functools import partial
 
 from rich import box
 from rich.console import Console
@@ -29,6 +30,7 @@ from src.pr.github_api import PRClient
 from src.pr.models import CIStatus, PRInfo, PRState
 from src.pr.reviewers import REVIEWER_LEGEND, compact_reviewers, named_reviewers
 from src.pr.steps import STEP_LETTERS, STEPS_LEGEND, StepResult, steps_mark
+from src.show.delta import EVENTS_BRIEF, add_pr_evidence
 from src.snapshot.convert import snapshot_from_prs
 from src.snapshot.integration import SnapshotPlan
 from src.snapshot.models import KIND_PR, SnapshotScope
@@ -60,6 +62,8 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
+    events: str = EVENTS_BRIEF,
+    max_body: int | None = None,
     field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List PRs with history visualization.
@@ -80,6 +84,9 @@ def cmd_list(
         reviewer_names: Like show_reviewers, but naming each reviewer
         show_steps: Add a Steps column: one character per pending-step (see STEPS_LEGEND).
             Only the table column: snapshots and JSON always record the statuses
+        events: With a JSON diff, how much of each added or changed PR's new timeline
+            events to carry: brief (bodies cut), full, or none (no timeline fetch)
+        max_body: With ``events="brief"``, cut event bodies at this many characters
         field_dates: Per-field flag values keyed by dest, e.g. ``merged_since``
 
     Returns:
@@ -207,6 +214,9 @@ def cmd_list(
                         window=window,
                     ),
                     fetch_by_ref=lambda refs: client.get_prs_by_ref(refs).prs,
+                    enrich=partial(
+                        add_pr_evidence, events=events, max_body=max_body, steps=steps or {}
+                    ),
                 )
 
             # Show graph above table if requested

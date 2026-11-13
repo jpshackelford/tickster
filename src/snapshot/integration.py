@@ -36,8 +36,10 @@ from src.cli_errors import print_error
 from src.snapshot import diff as diff_module
 from src.snapshot import render as render_module
 from src.snapshot import store
-from src.snapshot.models import VALID_KINDS, Snapshot
+from src.snapshot.models import VALID_KINDS, DiffResult, Snapshot
 from src.snapshot.resolve import FetchByRef, resolve_removed
+
+EnrichDiff = Callable[[DiffResult], DiffResult]
 
 
 def _without_steps(snapshot: Snapshot) -> Snapshot:
@@ -127,10 +129,12 @@ class SnapshotPlan:
         console: Console,
         print_table: Callable[[], None],
         fetch_by_ref: FetchByRef | None = None,
+        enrich: EnrichDiff | None = None,
     ) -> int:
         """Diff and/or save `curr` per the plan. Returns exit code.
 
         `fetch_by_ref` looks up gone rows when the plan has `resolve` set.
+        `enrich` adds per-row evidence to a JSON diff.
 
         With a diff, the diff output replaces the normal table, and the
         baseline is only overwritten when the diff succeeded so that a
@@ -143,7 +147,7 @@ class SnapshotPlan:
         the table.
         """
         if self.wants_diff:
-            rc = self.render_diff(curr, console, fetch_by_ref)
+            rc = self.render_diff(curr, console, fetch_by_ref, enrich)
             if rc == 0:
                 if self.wants_save:
                     self.save(curr)
@@ -159,7 +163,11 @@ class SnapshotPlan:
         return 0
 
     def render_diff(
-        self, curr: Snapshot, console: Console, fetch_by_ref: FetchByRef | None = None
+        self,
+        curr: Snapshot,
+        console: Console,
+        fetch_by_ref: FetchByRef | None = None,
+        enrich: EnrichDiff | None = None,
     ) -> int:
         """Load the baseline, diff, render. Returns exit code."""
         if self.diff_name is None:
@@ -197,6 +205,8 @@ class SnapshotPlan:
             if prev.scope.window != curr.scope.window:
                 msg.print(f"[dim]{render_module.window_note(prev, curr)}[/]")
             return 2
+        if enrich is not None and self.output_format == "json":
+            result = enrich(result)
         render_module.render_diff(
             result,
             console=console,
