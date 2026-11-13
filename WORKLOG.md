@@ -381,3 +381,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Needing expansion next: #143
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+### 2026-11-13 08:00 UTC - Expansion worker
+
+- Issue: [feat(list): --format json for issue list](https://github.com/jpshackelford/tickster/issues/142)
+- Status: Not ready; labelled `needs-info`. No open blockers.
+- Why: `issue list --format {table,json}` already exists (#121) and prints the snapshot document (`scope`, `items`). #142 assumes it does not, and asks for a second schema (`filters`, `issues`), `text` instead of `table`, and an error for `--snapshot`/`--diff`/`--watch` that #121 supports. #145, #123 and #124 build on the snapshot document.
+- Asked: Option A (extend the snapshot document with `total_count`, item `url`/`created_at`/`closed_at`/`linked_prs`, fuller `scope`; recommended) or Option B (new schema, breaks #121). The comment also covers conflicts with #139, #140 and #130 and the `closed_at` change for `issue show`.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
