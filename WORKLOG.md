@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 14:05 UTC - Implementation worker
+
+- [Issue #157](https://github.com/jpshackelford/tickster/issues/157): the Steps column of `pr list --steps` shows `✓` for done and `·` for n/a (letters, `?` and `-` unchanged, still 7 cells); `STEPS_LEGEND` is built from `MARK_DONE` / `MARK_NA` and no longer says "dots"; `doc/usage.md` updated → [PR #176](https://github.com/jpshackelford/tickster/pull/176). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: `_mark` now handles every status explicitly (`assert_never`); `GITHUB_TOKEN` got 403 on push, so the owner token was used.
+
 ### 2026-11-13 13:55 UTC - Implementation worker
 
 - [Issue #149](https://github.com/jpshackelford/tickster/issues/149): `[labels] rank` in the norms file (validated, shown by `norms show`) and `--sort rank` on `issue list` → [PR #175](https://github.com/jpshackelford/tickster/pull/175). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do; the repo's own `rank` takes effect only after merge, so the `-l ready --sort rank` run against `jpshackelford/tickster` has to wait for it. Notes: the issue had no technical-approach comment, so the description was the spec; a repo without `rank` is checked before any fetch (query repos, or the repos of explicit refs); the error text needed `rich.markup.escape` because `[labels]` read as markup. Unblocks #150.
