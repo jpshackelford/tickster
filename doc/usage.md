@@ -107,6 +107,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--repo OWNER/REPO` | Filter by repo (repeatable) |
 | `--board, -b NAME` | Use repos from the named board |
 | `--label, -l LABEL` | Filter by label. Repeat for AND (`-l bug -l urgent`), comma for OR (`-l bug,stale`) |
+| `--not-label LABEL` | Leave out issues that have this label (case-insensitive). Repeat to leave out issues with any of several labels; commas are not special. Combines with `-l`; a label in both returns nothing. Not with explicit refs |
 | `--open, -O` | Show open issues (default) |
 | `--closed, -C` | Show closed issues |
 | `--all, -A` | Show all states (open + closed) |
@@ -128,6 +129,7 @@ tkt issue list                              # your open issues
 tkt issue list --repo octocat/hello-world   # one repo
 tkt issue list --all --title -l bug         # all states, titles, bug label
 tkt issue list --deps                       # which of my open issues are blocked
+tkt issue list --repo octocat/hello-world --all-authors -l ready --not-label hold   # ready, not on hold
 tkt issue list octocat/hello-world#42       # a specific issue
 tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
 tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
@@ -1054,7 +1056,7 @@ is the same dense table you already read, with two added visual channels:
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
-(same board, author or `--all-authors`, repos, refs, states, labels, limit). Exact capture
+(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, limit). Exact capture
 times are in `tkt snapshot show` and `--format json`.
 
 ```
@@ -1342,12 +1344,12 @@ tkt pr list --diff poll --format json --events none       # steps only, no timel
 ### Scope matching
 
 The query filter set (board, author or `--all-authors`, reviewer, repos, explicit
-`owner/repo#N` refs, states, labels, `--all`, limit, and the
+`owner/repo#N` refs, states, labels, `--not-label`, `--all`, limit, and the
 [date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
-counts as a scope change. Repos and refs are compared as sets, so their
-order doesn't matter. The window is recorded as typed, so `--since 14`
+counts as a scope change. Repos, refs and `--not-label` labels are compared as
+sets, so their order doesn't matter. The window is recorded as typed, so `--since 14`
 matches `--since 14` on any later day, while `--since 14` against
 `--since 3`, or against no window at all, is a scope change; the error
 (or the `window:` line under the summary) names both windows. If the

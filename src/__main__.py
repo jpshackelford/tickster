@@ -912,6 +912,14 @@ Examples:
         "-l bug -l urgent (AND), -l bug,stale (OR)",
     )
     issue_list_parser.add_argument(
+        "--not-label",
+        dest="not_labels",
+        action="append",
+        metavar="LABEL",
+        help="Leave out issues that have this label (case-insensitive). Repeat to leave out "
+        "issues with any of several labels; commas are not special. Not with explicit refs",
+    )
+    issue_list_parser.add_argument(
         "--open",
         "-O",
         dest="include_open",
@@ -1456,6 +1464,7 @@ Examples:
                 issue_refs=issue_refs if issue_refs else None,
                 states=issue_states,
                 labels=args.labels,
+                not_labels=args.not_labels,
                 board_name=args.board_name,
                 limit=args.limit,
                 show_title=args.show_title,
