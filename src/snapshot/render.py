@@ -123,6 +123,7 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
         window_note(prev, curr),
         pr_filter_note(prev, curr),
         blocked_filter_note(prev, curr),
+        sort_note(prev, curr),
     ):
         if note:
             print_note(console, f"[dim]{note}[/]")
@@ -151,6 +152,14 @@ def blocked_filter_note(prev: Snapshot, curr: Snapshot) -> str | None:
         return None
     before = prev.scope.blocked_filter or "none"
     return f"blocked filter: {before} → {curr.scope.blocked_filter or 'none'}"
+
+
+def sort_note(prev: Snapshot, curr: Snapshot) -> str | None:
+    """Name the `--sort` change that makes two scopes differ."""
+    if prev.scope.sort == curr.scope.sort:
+        return None
+    before = ",".join(prev.scope.sort or ()) or "none"
+    return f"sort: {before} → {','.join(curr.scope.sort or ()) or 'none'}"
 
 
 def _print_table(

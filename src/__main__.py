@@ -33,6 +33,33 @@ load_dotenv(find_dotenv(usecwd=True))
 console = Console()
 
 
+def _issue_sort_keys(text: str) -> tuple[str, ...]:
+    from src.issue.sort import parse_sort
+
+    try:
+        return parse_sort(text)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from e
+
+
+def _join_reversed_sort_keys(argv: Sequence[str]) -> list[str]:
+    """Turn `--sort -created` into `--sort=-created`; argparse reads a bare `-created` as a flag."""
+    out: list[str] = []
+    args = iter(argv)
+    for arg in args:
+        if arg == "--sort":
+            value = next(args, None)
+            if value is None:
+                out.append(arg)
+            elif value.startswith("-") and not value.startswith("--"):
+                out.append(f"--sort={value}")
+            else:
+                out.extend([arg, value])
+        else:
+            out.append(arg)
+    return out
+
+
 class _RemovedFlag(argparse.Action):
     """Hidden stub for a removed flag: exits 2 with a pointer to the replacement.
 
@@ -996,12 +1023,22 @@ Examples:
         help="Add Blocked by (open blockers) and Blocks (open issues this one blocks) columns. "
         "Only the table: snapshots and --format json always record the dependency facts",
     )
-    issue_list_parser.add_argument(
+    issue_sort_group = issue_list_parser.add_mutually_exclusive_group()
+    issue_sort_group.add_argument(
         "--activity",
         "-s",
         dest="sort_by_activity",
         action="store_true",
         help="Sort by recent activity instead of creation date",
+    )
+    issue_sort_group.add_argument(
+        "--sort",
+        dest="sort",
+        type=_issue_sort_keys,
+        metavar="KEY[,KEY...]",
+        help="Sort by number, created, updated or blocking; prefix a key with - to reverse "
+        "it; later keys break ties, then number. Fetches every match (at most 500), sorts, "
+        "then applies --limit. Not with --activity",
     )
     _add_removed_date_flag_stubs(issue_list_parser, ISSUE_DATE_FIELDS)
     _add_field_date_args(issue_list_parser, ISSUE_DATE_FIELDS, noun="issues")
@@ -1234,7 +1271,7 @@ Examples:
         "--write", action="store_true", help="Write the migrated file instead of printing it"
     )
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(_join_reversed_sort_keys(sys.argv[1:] if argv is None else argv))
     _validate_snapshot_args(parser, args)
     _validate_checks_args(args)
     _validate_diff_evidence_args(args)
@@ -1507,6 +1544,7 @@ Examples:
                 show_title=args.show_title,
                 show_deps=args.show_deps,
                 sort_by_activity=args.sort_by_activity,
+                sort=args.sort,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,
                 watch_name=args.watch_name,

@@ -23,6 +23,7 @@ from src.date_window import (
 from src.issue.dependencies import short_ref
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
+from src.issue.sort import TooManyCandidatesError, sort_issues
 from src.list_table import (
     add_shrinkable_column,
     print_filters,
@@ -54,6 +55,7 @@ def cmd_list(
     show_title: bool = False,
     show_deps: bool = False,
     sort_by_activity: bool = False,
+    sort: Sequence[str] | None = None,
     snapshot_name: str | None = None,
     diff_name: str | None = None,
     watch_name: str | None = None,
@@ -81,6 +83,7 @@ def cmd_list(
         show_title: Include issue titles in output
         show_deps: Add Blocked by and Blocks columns
         sort_by_activity: Sort by recent activity instead of creation date
+        sort: Sort keys (number, created, updated, blocking; `-` reverses); applied before limit
         field_dates: Per-field flag values keyed by dest, e.g. ``created_since``
 
     Returns:
@@ -134,6 +137,8 @@ def cmd_list(
             filters: list[tuple[str, str]]
             if issue_refs:
                 result = client.get_issues_by_ref(issue_refs)
+                if sort:
+                    result.issues = sort_issues(result.issues, sort)
                 filters = [("refs", str(len(issue_refs)))]
             else:
                 # Resolve "me" here so the Filters line can show the login
@@ -152,6 +157,7 @@ def cmd_list(
                     labels=labels,
                     not_labels=not_labels,
                     blocked_filter=blocked_filter,
+                    sort=sort,
                     limit=limit,
                 )
                 result = client.list_issues_by_author(
@@ -161,6 +167,7 @@ def cmd_list(
                     labels=labels,
                     limit=limit,
                     sort_by_activity=sort_by_activity,
+                    sort=sort,
                     date_qualifier=date_qualifier,
                     not_labels=not_labels,
                     pr_filter=pr_filter,
@@ -189,6 +196,7 @@ def cmd_list(
                     not_labels=not_labels,
                     pr_filter=pr_filter,
                     blocked_filter=blocked_filter,
+                    sort=sort,
                     limit=limit,
                     window=window,
                 )
@@ -246,6 +254,9 @@ def cmd_list(
 
     except BrokenPipeError:
         raise
+    except TooManyCandidatesError as e:
+        print_error(str(e))
+        return 1
     except Exception as e:
         logger.debug("Full traceback:\n%s", traceback.format_exc())
         print_error(str(e), hint=VERBOSE_HINT)
@@ -261,13 +272,14 @@ def _issue_filters(
     labels: Sequence[str] | None,
     not_labels: Sequence[str] | None,
     blocked_filter: str | None,
+    sort: Sequence[str] | None,
     limit: int,
 ) -> list[tuple[str, str]]:
     """The effective filters of a query listing, in display order.
 
     `author` is the resolved login (`None` = every author); `is_me` marks a login that
     came from the default or `me`. Repeated labels are AND (` & `), commas inside one
-    are OR (`|`). `not-label` and `blocked` appear only when given.
+    are OR (`|`). `not-label`, `blocked` and `sort` appear only when given.
     """
     author_text = "all authors" if author is None else author + (" (you)" if is_me else "")
     label_text = " & ".join(label.replace(",", "|") for label in labels) if labels else "any"
@@ -281,6 +293,8 @@ def _issue_filters(
         parts.append(("not-label", ",".join(not_labels)))
     if blocked_filter:
         parts.append(("blocked", "yes" if blocked_filter == "blocked" else "no"))
+    if sort:
+        parts.append(("sort", ",".join(sort)))
     parts.append(("limit", str(limit)))
     return parts
 
