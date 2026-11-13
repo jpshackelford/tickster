@@ -343,3 +343,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 07:30 UTC - Implementation worker
+
+- Issue: [feat(list): explicit date flags on issue list](https://github.com/jpshackelford/tickster/issues/130)
+- PR: [#154](https://github.com/jpshackelford/tickster/pull/154), CI green, marked ready.
+- Approach: `resolve_field_flags()` in `src/date_window.py` maps `--{created,updated,closed}-{since,after,before}` onto the existing `build_date_window()` inputs; a new `flag_names` kwarg makes errors name the typed flag, and old-path messages are byte-identical. `WindowScope`/fingerprints are untouched. `_add_field_date_args()` is generic for the later `pr list`/`review` issues.
+- Note: `--closed-*` without `--closed`/`--all` raises a new message naming the typed flag. CLI tests live in `tests/snapshot/test_issue_date_flags.py` (needs the `tkt_home` fixture). Manual test is left to the testing worker.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
