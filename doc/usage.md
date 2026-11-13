@@ -1857,7 +1857,38 @@ tkt issue list --all --created-since 14 --title
 ```
 
 `--author` defaults to you, so these are your issues. `--all` includes closed
-ones, and `--created-since` filters on the created date.
+ones, and `--created-since` filters on the created date (UTC day boundary).
+
+Which of those have no PR yet:
+
+```bash
+tkt issue list --all --created-since 14 --no-pr --title
+```
+
+`--no-pr` keeps issues with no linked PR. Linked means a PR closes or mentions
+the issue, in any PR state (see [Linked PRs](#linked-prs)). The `PR` column shows
+`--` for every row, and the `Window:` line under the table says which dates were
+searched. For the opposite, the issues a PR already links to, use `--has-pr`:
+
+```bash
+tkt issue list --all --created-since 14 --has-pr --title
+```
+
+Every open issue in a repo, whoever opened it, as one JSON document:
+
+```bash
+tkt issue list --repo octocat/hello-world --all-authors --format json
+```
+
+The document has `schema`, `filters`, `total_count`, `has_more` and `items`;
+each item is one issue with the keys `ref`, `title`, `state`, `linked_pr` and
+the rest of the [row fields](#row-fields). Read the rows from `.items[]`:
+
+```bash
+tkt issue list --repo octocat/hello-world --all-authors --format json | jq -r '.items[] | "\(.ref)  \(.title)"'
+```
+
+`tkt issue list --help` shows the same recipes, each with the question it answers.
 
 What merged in the last two weeks:
 
