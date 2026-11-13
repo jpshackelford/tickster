@@ -471,8 +471,8 @@ class ItemDelta:
     diff. Empty when the history string did not grow.
     """
 
-    key: str
-    kind: ChangeKind
+    ref: str
+    change: ChangeKind
     prev: ItemSnapshot | None
     curr: ItemSnapshot | None
     new_history_tail: str = ""
@@ -490,8 +490,13 @@ class ItemDelta:
         """The item to render for this delta (curr if present, else prev)."""
         item = self.curr or self.prev
         if item is None:
-            raise ValueError(f"delta {self.key} has no item")
+            raise ValueError(f"delta {self.ref} has no item")
         return item
+
+    @property
+    def kind(self) -> str:
+        """The row kind (`issue`, `pr` or `review`), not the change type."""
+        return self.display_item.kind
 
 
 @dataclass(frozen=True)
@@ -508,7 +513,7 @@ class DiffResult:
     def counts(self) -> dict[ChangeKind, int]:
         out: dict[ChangeKind, int] = dict.fromkeys(ChangeKind, 0)
         for d in self.deltas:
-            out[d.kind] += 1
+            out[d.change] += 1
         return out
 
     def to_dict(self) -> dict:
@@ -516,13 +521,11 @@ class DiffResult:
         return {
             "schema": SCHEMA_VERSION,
             "prev": {
-                "kind": self.prev.kind,
                 "name": self.prev.name,
                 "captured_at": self.prev.captured_at,
                 "scope_hash": self.prev.scope_hash,
             },
             "curr": {
-                "kind": self.curr.kind,
                 "name": self.curr.name,
                 "captured_at": self.curr.captured_at,
                 "scope_hash": self.curr.scope_hash,
@@ -543,10 +546,11 @@ def _delta_to_dict(d: ItemDelta) -> dict:
     Consumers can always re-load the baseline/current snapshots to recover
     the untouched rows.
     """
-    include_bodies = d.kind is not ChangeKind.UNCHANGED
+    include_bodies = d.change is not ChangeKind.UNCHANGED
     data = {
-        "key": d.key,
-        "kind": d.kind.value,
+        "ref": d.ref,
+        "kind": d.kind,
+        "change": d.change.value,
         "new_history_tail": d.new_history_tail,
         "changed_fields": list(d.changed_fields),
         "disappearance_reason": d.disappearance_reason,

@@ -228,7 +228,7 @@ class SnapshotPlan:
             output_format=self.output_format,
             detail=self.detail,
         )
-        if self.exit_code and any(d.kind is not ChangeKind.UNCHANGED for d in result.deltas):
+        if self.exit_code and any(d.change is not ChangeKind.UNCHANGED for d in result.deltas):
             return EXIT_CHANGED
         return 0
 

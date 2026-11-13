@@ -384,13 +384,13 @@ class TestDiff:
         prev = pr_info((approved(),))
         curr = pr_info((approved(on_head=False),), head_sha="f" * 40)
         delta = only_delta(prev, curr)
-        assert delta.kind.value == "changed"
+        assert delta.change.value == "changed"
         assert delta.reviewer_changes == ("bob review now on old head",)
         assert "reviewers" in delta.changed_fields
 
     def test_unchanged_reviewers_do_not_flag_the_row(self):
         delta = only_delta(pr_info((approved(),)), pr_info((approved(),)))
-        assert delta.kind.value == "unchanged" and delta.reviewer_changes == ()
+        assert delta.change.value == "unchanged" and delta.reviewer_changes == ()
 
     def test_json_lists_transitions_only_when_present(self):
         prev = snapshot_of(pr_info((state(requested=True),)))

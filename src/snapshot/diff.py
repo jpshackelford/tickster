@@ -6,7 +6,7 @@ both snapshots we compare the fields that drive the display and produce an
 
 - `changed_fields` — which row fields (history, state, ci, labels,
   unresolved_threads, draft, linked_pr, review_status) differ,
-  plus `"activity"` when `last_activity` moved. PR rows also compare
+  plus `"last_activity"` when `last_activity` moved. PR rows also compare
   `head`, `review_decision`, `merge_state` and `mergeable` (see
   `_compare_pr_detail`), `reviewers` when a reviewer's request or review
   moved (the transitions are in `ItemDelta.reviewer_changes`), `step_status` when a
@@ -80,8 +80,8 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
     for key in curr_items.keys() - prev_items.keys():
         deltas.append(
             ItemDelta(
-                key=key,
-                kind=ChangeKind.ADDED,
+                ref=key,
+                change=ChangeKind.ADDED,
                 prev=None,
                 curr=curr_items[key],
                 new_history_tail=curr_items[key].history,
@@ -93,8 +93,8 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
     for key in prev_items.keys() - curr_items.keys():
         deltas.append(
             ItemDelta(
-                key=key,
-                kind=ChangeKind.REMOVED,
+                ref=key,
+                change=ChangeKind.REMOVED,
                 prev=prev_items[key],
                 curr=None,
                 disappearance_reason=_infer_removal_reason(
@@ -124,8 +124,8 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
         if changed:
             deltas.append(
                 ItemDelta(
-                    key=key,
-                    kind=ChangeKind.CHANGED,
+                    ref=key,
+                    change=ChangeKind.CHANGED,
                     prev=p,
                     curr=c,
                     new_history_tail=tail,
@@ -138,8 +138,8 @@ def diff_snapshots(prev: Snapshot, curr: Snapshot) -> DiffResult:
         else:
             deltas.append(
                 ItemDelta(
-                    key=key,
-                    kind=ChangeKind.UNCHANGED,
+                    ref=key,
+                    change=ChangeKind.UNCHANGED,
                     prev=p,
                     curr=c,
                 )
@@ -162,7 +162,7 @@ def _delta_sort_key(d: ItemDelta) -> tuple:
         ChangeKind.REMOVED: 2,
         ChangeKind.UNCHANGED: 3,
     }
-    return (kind_order[d.kind], d.key)
+    return (kind_order[d.change], d.ref)
 
 
 def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
@@ -181,7 +181,7 @@ def _compare_fields(prev: ItemSnapshot, curr: ItemSnapshot) -> tuple[str, ...]:
             changed.append(field_name)
     changed.extend(_compare_pr_detail(prev, curr))
     if prev.last_activity != curr.last_activity:
-        changed.append("activity")
+        changed.append("last_activity")
     # History-rewritten tag: history changed but prev is not a prefix of curr.
     if "history" in changed and not curr.history.startswith(prev.history):
         changed.append("history-rewritten")

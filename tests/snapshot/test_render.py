@@ -261,7 +261,7 @@ def test_summary_has_no_window_line_without_a_window():
 
 def _note_for(**changes) -> str:
     item = make_item(ref="a/b#1")
-    delta = ItemDelta(key="a/b#1", kind=ChangeKind.CHANGED, prev=item, curr=item, **changes)
+    delta = ItemDelta(ref="a/b#1", change=ChangeKind.CHANGED, prev=item, curr=item, **changes)
     return _render_note(delta)
 
 
@@ -287,8 +287,8 @@ def test_note_with_a_single_part_has_no_separator():
 def test_json_step_changes_stay_a_list():
     item = make_item(ref="a/b#1")
     delta = ItemDelta(
-        key="a/b#1",
-        kind=ChangeKind.CHANGED,
+        ref="a/b#1",
+        change=ChangeKind.CHANGED,
         prev=item,
         curr=item,
         step_changes=("a: x → y", "b: y → z"),

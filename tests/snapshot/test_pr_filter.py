@@ -220,7 +220,7 @@ def _removed_reason(prev_state: str, pr_filter: str | None, states=("open",)) ->
     )
     curr = make_snapshot(kind="issue", scope=scope, items=[])
     (delta,) = diff_snapshots(prev, curr).deltas
-    assert delta.kind is ChangeKind.REMOVED
+    assert delta.change is ChangeKind.REMOVED
     return delta.disappearance_reason
 
 

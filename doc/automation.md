@@ -22,11 +22,11 @@ acts on each row, and `tkt snapshot ack` moves the baseline only after that. Sav
 REFS="jpshackelford/tickster#60 jpshackelford/tickster#62"   # or --board / --repo
 tkt pr list $REFS --diff doc-poll --format json --exit-code > poll.json; rc=$?
 [ $rc -eq 10 ] || exit $rc            # 0: nothing changed. Other than 10: tkt failed
-jq -r '.deltas[] | select(.kind == "added" or .kind == "changed")
-       | [.key, (.events_since | length), ([.steps[] | select(.status == "needed") | .step] | join(","))]
+jq -r '.deltas[] | select(.change == "added" or .change == "changed")
+       | [.ref, (.events_since | length), ([.steps[] | select(.status == "needed") | .step] | join(","))]
        | @tsv' poll.json |
-while IFS=$'\t' read -r key events needed; do
-  echo "$key: $events new events, needed: ${needed:-none}"   # act here: .events_since and .steps are in poll.json
+while IFS=$'\t' read -r ref events needed; do
+  echo "$ref: $events new events, needed: ${needed:-none}"   # act here: .events_since and .steps are in poll.json
 done
 tkt snapshot ack pr/doc-poll
 ```
@@ -60,13 +60,13 @@ acked pr/doc-poll
 The delta in `poll.json` (with `--max-body 40` added to the `tkt` line):
 
 ```bash
-jq -c '.deltas[] | select(.kind == "changed")
+jq -c '.deltas[] | select(.change == "changed")
        | del(.prev, .curr, .steps, .events_since, .disappearance_reason),
          (.events_since[] | {at, kind, actor, body})' poll.json
 ```
 
 ```json
-{"key":"jpshackelford/tickster#62","kind":"changed","new_history_tail":"Vm","changed_fields":["history","activity"]}
+{"ref":"jpshackelford/tickster#62","kind":"pr","change":"changed","new_history_tail":"Vm","changed_fields":["history","last_activity"]}
 {"at":"2026-11-05T11:39:10Z","kind":"comment","actor":"jpshackelford","body":"## Manual Test Results for PR #62\n\n_This…(14076 more chars)"}
 {"at":"2026-11-05T11:49:39Z","kind":"review","actor":"github-actions","body":"**Excellent implementation** — clean des…(2478 more chars)"}
 {"at":"2026-11-05T11:56:17Z","kind":"merged","actor":"jpshackelford","body":null}
@@ -81,14 +81,21 @@ Rule of use: one consumer per name, one tick at a time.
 ## The delta fields a script can rely on
 
 With `--diff` or `--watch` and `--format json`, stdout is one JSON document with
-`baseline` (`found` or `missing`), `counts` and `deltas`. Each delta has:
+`schema` (2), `prev` and `curr` (the `name`, `captured_at` and `scope_hash` of the two
+snapshots), `baseline` (`found` or `missing`), `scope_matches`, `counts` and `deltas`.
+With `baseline: "missing"` every row is `added` and `prev.captured_at` is the time of the
+run, so use `baseline`, not `prev`, to tell a first run. A delta uses the names of a row in
+a list document: `ref` and `kind`. Each delta has:
 
 | Field | Meaning |
 | --- | --- |
-| `kind` | `added`, `changed`, `removed` or `unchanged`. Act on `added` and `changed` |
-| `changed_fields` | For `changed`: what moved, such as `head`, `review_decision`, `activity`, `ci`, `step_status` ([why](usage.md#head-review-and-merge-changes)). `history-rewritten` means the new history does not start with the old one, so no event is new: skip the row |
+| `ref` | The row, as `owner/repo#N`. The same value as `ref` in `tkt pr list --format json` |
+| `kind` | The kind of the row: `pr`, `issue` or `review`. Present for every change, including `unchanged` and `removed` |
+| `change` | `added`, `changed`, `removed` or `unchanged`. Act on `added` and `changed` |
+| `changed_fields` | For `changed`: the row fields that moved, such as `head`, `review_decision`, `last_activity`, `ci`, `step_status` ([why](usage.md#head-review-and-merge-changes)). `history-rewritten` is a marker, not a row field: it means the new history does not start with the old one, so no event is new: skip the row |
 | `new_history_tail` | The characters appended to the [history string](usage.md#history-strings) since the baseline |
-| `prev`, `curr` | The row before and after. `prev` is `null` for `added`, `curr` is `null` for `removed`; both are `null` for `unchanged` |
+| `disappearance_reason` | For `removed`: a hint why the row left the result, such as `closed-or-gone` or `limit` ([values](usage.md#why-a-row-is-gone)). `null` for the other changes |
+| `prev`, `curr` | The row before and after, with the fields of a list row of that `kind`. `prev` is `null` for `added`, `curr` is `null` for `removed`; both are `null` for `unchanged` |
 | `events_since` | Timeline events after `prev.last_activity`, oldest first; the whole timeline for `added`. Same fields as an event in [`tkt pr show --format json`](usage.md#tkt-pr-show) |
 | `events_truncated` | Present, and `true`, only when the timeline fetch cap hid events |
 | `steps` | What [`tkt pr steps`](usage.md#tkt-pr-steps) prints: `step`, `status` and `evidence` for each step |

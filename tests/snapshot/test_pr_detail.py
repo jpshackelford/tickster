@@ -122,14 +122,14 @@ class TestDiff:
         prev, curr = _item(), _item(head=SHA_B)
         assert prev.ci == curr.ci and prev.history == curr.history
         [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[curr])).deltas
-        assert delta.kind is ChangeKind.CHANGED
+        assert delta.change is ChangeKind.CHANGED
         assert delta.changed_fields == ("head",)
 
     def test_identical_rows_are_unchanged(self):
         [delta] = diff_snapshots(
             make_snapshot(items=[_item()]), make_snapshot(items=[_item()])
         ).deltas
-        assert delta.kind is ChangeKind.UNCHANGED
+        assert delta.change is ChangeKind.UNCHANGED
 
     def test_approval_keeps_reported_decision_next_to_a_head_change(self):
         prev, curr = _item(), _item(head=SHA_B)
@@ -165,7 +165,7 @@ class TestDiff:
     def test_unknown_to_known_alone_leaves_the_row_unchanged(self):
         prev = _item(merge_state="UNKNOWN", mergeable="UNKNOWN")
         [delta] = diff_snapshots(make_snapshot(items=[prev]), make_snapshot(items=[_item()])).deltas
-        assert delta.kind is ChangeKind.UNCHANGED
+        assert delta.change is ChangeKind.UNCHANGED
 
     def test_unknown_does_not_hide_a_head_change(self):
         prev = _item(merge_state="UNKNOWN", mergeable="UNKNOWN")
