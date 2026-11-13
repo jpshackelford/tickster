@@ -151,6 +151,10 @@ class TestGetIssuesByRefWithUnresolvableRef:
             "author": {"login": "testuser"},
             "repository": {"nameWithOwner": "owner/repo"},
             "labels": {"nodes": []},
+            "blockedBy": {"totalCount": 0, "nodes": []},
+            "blocking": {"totalCount": 0, "nodes": []},
+            "parent": None,
+            "milestone": None,
             "timelineItems": {"nodes": []},
         }
         body = {
@@ -205,6 +209,10 @@ def _issue_node(number: int, author: str) -> dict:
         "author": {"login": author},
         "repository": {"nameWithOwner": "owner/repo"},
         "labels": {"nodes": []},
+        "blockedBy": {"totalCount": 0, "nodes": []},
+        "blocking": {"totalCount": 0, "nodes": []},
+        "parent": None,
+        "milestone": None,
         "timelineItems": {"nodes": []},
     }
 

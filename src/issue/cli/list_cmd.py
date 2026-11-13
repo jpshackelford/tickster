@@ -19,6 +19,7 @@ from src.date_window import (
     window_line,
     window_suffix,
 )
+from src.issue.dependencies import short_ref
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
 from src.list_table import add_shrinkable_column, print_fitted_table, print_note
@@ -41,6 +42,7 @@ def cmd_list(
     board_name: str | None = None,
     limit: int = 100,
     show_title: bool = False,
+    show_deps: bool = False,
     sort_by_activity: bool = False,
     snapshot_name: str | None = None,
     diff_name: str | None = None,
@@ -67,6 +69,7 @@ def cmd_list(
         board_name: Board to get repos from (default: default board)
         limit: Maximum number of issues to show
         show_title: Include issue titles in output
+        show_deps: Add Blocked by and Blocks columns
         sort_by_activity: Sort by recent activity instead of creation date
         since_days: Only include issues within the last N days
         after: Only include issues on/after this date (YYYY-MM-DD)
@@ -158,12 +161,14 @@ def cmd_list(
                     curr_snapshot,
                     console,
                     print_table=lambda: _print_issue_table(
-                        result.issues, show_title=show_title, window=window
+                        result.issues, show_title=show_title, show_deps=show_deps, window=window
                     ),
                     fetch_by_ref=lambda refs: client.get_issues_by_ref(refs).issues,
                 )
 
-            _print_issue_table(result.issues, show_title=show_title, window=window)
+            _print_issue_table(
+                result.issues, show_title=show_title, show_deps=show_deps, window=window
+            )
             if not result.issues:
                 return 0
 
@@ -175,6 +180,12 @@ def cmd_list(
                 "a=assigned, x=closed, r=reopened, p=PR linked[/]",
             )
             print_note(console, "[dim]lowercase=you, UPPERCASE=others[/]")
+            if show_deps:
+                print_note(
+                    console,
+                    "[dim]Blocked by: open blockers (? = one you cannot read); "
+                    "Blocks: open issues this one blocks[/]",
+                )
 
             if result.has_more:
                 print_note(
@@ -217,7 +228,11 @@ def _get_repos(
 
 
 def _print_issue_table(
-    issues: list[IssueInfo], *, show_title: bool = False, window: DateWindow | None = None
+    issues: list[IssueInfo],
+    *,
+    show_title: bool = False,
+    show_deps: bool = False,
+    window: DateWindow | None = None,
 ) -> None:
     """Print issues in a formatted table."""
     if not issues:
@@ -232,6 +247,9 @@ def _print_issue_table(
     history_col = len(table.columns)
     table.add_column("History", no_wrap=True)
     table.add_column("PR", no_wrap=True)
+    if show_deps:
+        add_shrinkable_column(table, "Blocked by", max_width=25)
+        table.add_column("Blocks", justify="right", no_wrap=True)
     add_shrinkable_column(table, "Labels", max_width=25)
     table.add_column("State", no_wrap=True)
     table.add_column("Age", no_wrap=True)
@@ -249,6 +267,12 @@ def _print_issue_table(
             [
                 issue.history,
                 _format_linked_pr(issue.linked_pr),
+            ]
+        )
+        if show_deps:
+            row.extend([_format_blockers(issue), str(issue.blocking)])
+        row.extend(
+            [
                 _format_labels(issue.labels),
                 _format_state(issue.state),
                 _format_duration(issue.age_seconds),
@@ -268,6 +292,13 @@ def _format_linked_pr(linked_pr: str | None) -> str:
     if "#" in linked_pr:
         return f"[green]#{linked_pr.split('#')[1]}[/]"
     return f"[green]{linked_pr}[/]"
+
+
+def _format_blockers(issue: IssueInfo) -> str:
+    """Open blockers, `#N` for the issue's own repo; `--` for none."""
+    if not issue.open_blockers:
+        return "[dim]--[/]"
+    return ",".join(short_ref(ref, issue.repo) for ref in issue.open_blockers)
 
 
 def _format_labels(labels: list[str]) -> str:

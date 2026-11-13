@@ -17,9 +17,12 @@ from enum import Enum
 
 from src.actors import HistoryEvent
 from src.date_window import DateWindow
+from src.issue.models import Milestone
 from src.pr.reviewers import ReviewerState
 
 SCHEMA_VERSION = 1
+
+_DEPENDENCY_KEYS = ("open_blockers", "blocking", "parent", "milestone")
 
 KIND_PR = "pr"
 KIND_ISSUE = "issue"
@@ -272,6 +275,12 @@ class ItemSnapshot:
         None  # pr: per-reviewer state; None = not recorded
     )
     steps: dict[str, str] | None = None  # pr: step name to status; None = not recorded
+    # issue: refs of open blockers ("?" = unreadable); None = the four dependency facts
+    # (this, blocking, parent, milestone) are not recorded
+    open_blockers: tuple[str, ...] | None = None
+    blocking: int = 0  # issue: open issues this one blocks
+    parent: str | None = None  # issue: parent issue ref
+    milestone: Milestone | None = None  # issue
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -284,6 +293,12 @@ class ItemSnapshot:
             d["reviewers"] = [r.to_dict() for r in self.reviewers]
         if self.steps is None:
             del d["steps"]
+        if self.open_blockers is None:
+            for name in _DEPENDENCY_KEYS:
+                del d[name]
+        else:
+            d["open_blockers"] = list(self.open_blockers)
+            d["milestone"] = self.milestone.to_dict() if self.milestone else None
         return d
 
     @classmethod
@@ -315,6 +330,12 @@ class ItemSnapshot:
                 else None
             ),
             steps=dict(data["steps"]) if data.get("steps") is not None else None,
+            open_blockers=(
+                tuple(data["open_blockers"]) if data.get("open_blockers") is not None else None
+            ),
+            blocking=int(data.get("blocking", 0)),
+            parent=data.get("parent"),
+            milestone=Milestone.from_dict(data["milestone"]) if data.get("milestone") else None,
         )
 
 
@@ -420,6 +441,7 @@ class ItemDelta:
     disappearance_reason: str | None = None  # for REMOVED
     reviewer_changes: tuple[str, ...] = ()  # per-reviewer transitions, e.g. "bob ↻ re-requested"
     step_changes: tuple[str, ...] = ()  # e.g. "request re-review: done → needed"
+    blocker_note: str = ""  # issue: "unblocked" | "blocked" | "blockers changed"
 
     @property
     def display_item(self) -> ItemSnapshot:
@@ -493,4 +515,6 @@ def _delta_to_dict(d: ItemDelta) -> dict:
         data["reviewer_changes"] = list(d.reviewer_changes)
     if d.step_changes:
         data["step_changes"] = list(d.step_changes)
+    if d.blocker_note:
+        data["blocker_note"] = d.blocker_note
     return data

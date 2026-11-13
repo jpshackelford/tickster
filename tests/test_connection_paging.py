@@ -84,7 +84,9 @@ def pr_node(
     }
 
 
-def issue_node(timeline: list[dict], labels: list[dict] | None = None) -> dict:
+def issue_node(
+    timeline: list[dict], labels: list[dict] | None = None, blockers: list[dict] | None = None
+) -> dict:
     return {
         "__typename": "Issue",
         "id": "I_1",
@@ -96,6 +98,10 @@ def issue_node(timeline: list[dict], labels: list[dict] | None = None) -> dict:
         "author": {"login": "alice"},
         "repository": {"nameWithOwner": "owner/repo"},
         "labels": {"nodes": labels or []},
+        "blockedBy": {"totalCount": len(blockers or []), "nodes": blockers or []},
+        "blocking": {"totalCount": 0, "nodes": []},
+        "parent": None,
+        "milestone": None,
         "timelineItems": {"nodes": timeline},
     }
 
@@ -109,7 +115,14 @@ class FakeGitHub:
 
     def __init__(self, node: dict, first: dict[str, int] | None = None):
         self.node = node
-        self.first = {"timelineItems": 100, "reviewThreads": 100, "labels": 20, **(first or {})}
+        self.first = {
+            "timelineItems": 100,
+            "reviewThreads": 100,
+            "labels": 20,
+            "blockedBy": 50,
+            "blocking": 50,
+            **(first or {}),
+        }
         self.follow_ups: list[dict] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -136,6 +149,7 @@ class FakeGitHub:
             if field in page:
                 nodes = page[field]["nodes"]
                 page[field] = {
+                    **page[field],
                     "nodes": nodes[:size],
                     "pageInfo": {
                         "hasNextPage": len(nodes) > size,
@@ -357,6 +371,36 @@ class TestIssue:
 
         assert issue.labels == sorted(lbl["name"] for lbl in labels)
 
+    def test_blockers_past_the_first_50_are_kept(self, monkeypatch):
+        blockers = [
+            {"number": n, "state": "OPEN", "repository": {"nameWithOwner": "owner/dep"}}
+            for n in range(1, 121)
+        ]
+        fake = FakeGitHub(issue_node(issue_chatter(1), blockers=blockers))
+        client = IssueClient.__new__(IssueClient)
+        client._client = serve(monkeypatch, fake)
+
+        [issue] = client._search_issues("is:issue", "alice", limit=10).issues
+
+        assert len(issue.open_blockers) == 120
+        assert "?" not in issue.open_blockers
+        assert [f["field"] for f in fake.follow_ups] == ["blockedBy"]
+
+    def test_blockers_past_the_cap_still_count_as_blocked(self, monkeypatch):
+        blockers = [
+            {"number": n, "state": "OPEN", "repository": {"nameWithOwner": "owner/dep"}}
+            for n in range(1, 701)
+        ]
+        fake = FakeGitHub(issue_node(issue_chatter(1), blockers=blockers))
+        client = IssueClient.__new__(IssueClient)
+        client._client = serve(monkeypatch, fake)
+
+        [issue] = client._search_issues("is:issue", "alice", limit=10).issues
+
+        assert len(issue.open_blockers) == 700
+        assert issue.open_blockers[-1] == "?"
+        assert issue.open_blockers.count("?") == 700 - 550
+
 
 class TestCompleteConnection:
     SPEC = ConnectionSpec(type_name="Thing", field="things", selection="        name", cap=150)
@@ -386,7 +430,7 @@ class TestCompleteConnection:
 class TestFragments:
     @pytest.mark.parametrize(
         ("fragment", "connections"),
-        [(PR_FIELDS_FRAGMENT, 4), (ISSUE_FIELDS_FRAGMENT, 2)],
+        [(PR_FIELDS_FRAGMENT, 4), (ISSUE_FIELDS_FRAGMENT, 4)],
         ids=["pr", "issue"],
     )
     def test_fragment_requests_id_and_page_info(self, fragment, connections):

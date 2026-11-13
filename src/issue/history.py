@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.actors import ActorClass, HistoryEvent, classify_actor, iso_utc
 from src.connection_paging import TRUNCATION_MARKER, is_truncated
+from src.issue import dependencies
 from src.issue.models import IssueActionType, IssueInfo, IssueState, TimelineEvent
 from src.norms.model import Norms
 from src.norms.store import get_repo_norms
@@ -74,6 +75,10 @@ def process_issue_data(issue_data: dict, reference_user: str) -> IssueInfo:
         last_activity=last_activity,
         author=author,
         events=history_events,
+        open_blockers=dependencies.open_blockers(issue_data),
+        blocking=dependencies.blocking_count(issue_data),
+        parent=dependencies.parent_ref(issue_data),
+        milestone=dependencies.milestone(issue_data),
     )
 
 

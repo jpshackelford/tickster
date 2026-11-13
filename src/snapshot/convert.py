@@ -72,6 +72,10 @@ def item_from_issue(issue: IssueInfo) -> ItemSnapshot:
         labels=tuple(issue.labels),
         linked_pr=issue.linked_pr,
         events=tuple(issue.events),
+        open_blockers=tuple(issue.open_blockers),
+        blocking=issue.blocking,
+        parent=issue.parent,
+        milestone=issue.milestone,
     )
 
 

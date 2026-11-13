@@ -138,5 +138,23 @@
     }
    }
   ]
- }
+ },
+ "blockedBy": {
+  "nodes": [],
+  "pageInfo": {
+   "endCursor": null,
+   "hasNextPage": false
+  },
+  "totalCount": 0
+ },
+ "blocking": {
+  "nodes": [],
+  "pageInfo": {
+   "endCursor": null,
+   "hasNextPage": false
+  },
+  "totalCount": 0
+ },
+ "parent": null,
+ "milestone": null
 }

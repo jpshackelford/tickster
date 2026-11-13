@@ -29,6 +29,7 @@ class ConnectionSpec:
     cap: int
     args: str = ""
     first: int = 100
+    total_count: bool = False
 
     def fragment_field(self) -> str:
         return self._field_body(self.first, after=None)
@@ -36,8 +37,10 @@ class ConnectionSpec:
     def _field_body(self, first: int, after: str | None) -> str:
         after_arg = ", after: $after" if after is not None else ""
         args = f", {self.args}" if self.args else ""
+        total = "    totalCount\n" if self.total_count else ""
         return (
             f"{self.field}(first: {first}{after_arg}{args}) {{\n"
+            f"{total}"
             f"    {PAGE_INFO}\n"
             f"    nodes {{\n{self.selection}\n    }}\n"
             f"}}"

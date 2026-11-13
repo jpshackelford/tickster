@@ -898,6 +898,13 @@ Examples:
         help="Show issue titles",
     )
     issue_list_parser.add_argument(
+        "--deps",
+        dest="show_deps",
+        action="store_true",
+        help="Add Blocked by (open blockers) and Blocks (open issues this one blocks) columns. "
+        "Only the table: snapshots and --format json always record the dependency facts",
+    )
+    issue_list_parser.add_argument(
         "--activity",
         "-s",
         dest="sort_by_activity",
@@ -1407,6 +1414,7 @@ Examples:
                 board_name=args.board_name,
                 limit=args.limit,
                 show_title=args.show_title,
+                show_deps=args.show_deps,
                 sort_by_activity=args.sort_by_activity,
                 snapshot_name=_resolve_snapshot_name(args.snapshot_name),
                 diff_name=args.diff_name,

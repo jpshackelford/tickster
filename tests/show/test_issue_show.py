@@ -402,3 +402,74 @@ class TestErrors:
 
         assert code == 1
         assert "Invalid issue reference" in err
+
+
+def dep(number: int, state: str = "OPEN", repo: str = "o/r") -> dict:
+    return {"number": number, "state": state, "repository": {"nameWithOwner": repo}}
+
+
+def blockers(*nodes: dict) -> dict:
+    return {"totalCount": len(nodes), "nodes": list(nodes)}
+
+
+class TestDependencies:
+    def test_json_carries_the_four_facts(self, show):
+        node = issue_node(
+            [],
+            blockedBy=blockers(dep(121), dep(122, "CLOSED"), dep(5, repo="x/y")),
+            blocking=blockers(dep(7), dep(8, "CLOSED")),
+            parent={"number": 120, "repository": {"nameWithOwner": "o/r"}},
+            milestone={"title": "v2", "dueOn": "2026-12-01T00:00:00Z"},
+        )
+
+        _, out, _ = show(node, "--format", "json")
+
+        data = json.loads(out)
+        assert data["open_blockers"] == ["o/r#121", "x/y#5"]
+        assert data["blocking"] == 1
+        assert data["parent"] == "o/r#120"
+        assert data["milestone"] == {"title": "v2", "due_on": "2026-12-01T00:00:00Z"}
+
+    def test_json_has_empty_facts_for_an_issue_without_any(self, show):
+        _, out, _ = show(issue_node([]), "--format", "json")
+
+        data = json.loads(out)
+        assert data["open_blockers"] == []
+        assert data["blocking"] == 0
+        assert data["parent"] is None
+        assert data["milestone"] is None
+
+    def test_text_prints_one_line_with_the_non_empty_parts(self, show):
+        node = issue_node(
+            [],
+            blockedBy=blockers(dep(121), dep(123), dep(122, "CLOSED")),
+            blocking=blockers(dep(7)),
+            parent={"number": 120, "repository": {"nameWithOwner": "o/r"}},
+            milestone={"title": "v2", "dueOn": None},
+        )
+
+        _, out, _ = show(node)
+
+        assert "blocked by: #121, #123  blocks: 1  parent: #120  milestone: v2" in out.splitlines()
+
+    def test_text_omits_the_line_when_there_is_nothing_to_say(self, show):
+        _, out, _ = show(issue_node([]))
+
+        starts = ("blocked by:", "blocks:", "parent:", "milestone:")
+        assert [line for line in out.splitlines() if line.startswith(starts)] == []
+
+    def test_an_unreadable_blocker_is_a_question_mark(self, show):
+        node = issue_node([], blockedBy={"totalCount": 2, "nodes": [dep(121)]})
+
+        _, out, _ = show(node)
+
+        assert "blocked by: #121, ?" in out.splitlines()
+
+    def test_more_than_50_blockers_are_paged_not_cut(self, show):
+        node = issue_node([], blockedBy=blockers(*(dep(n) for n in range(1, 131))))
+
+        _, out, _ = show(node, "--format", "json")
+
+        data = json.loads(out)
+        assert len(data["open_blockers"]) == 130
+        assert "?" not in data["open_blockers"]

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from src.issue.dependencies import deps_line
+from src.issue.models import Milestone
 from src.pr.detail import short_sha
 from src.pr.reviewers import ReviewerState, reviewer_mark
 from src.show.models import Entry, ReportStatus, Show, Thread
@@ -19,6 +21,7 @@ ISSUE_LEGEND = (
     "Legend: the letter is the event's history character (lowercase = you, uppercase = "
     "others; s n = AI opened, comment, B = bot comment; - = not in the history "
     "string). o opened, c comment, l labeled, a assigned, x closed, r reopened, p PR linked. "
+    "blocked by: open blockers (? = one you cannot read), blocks: open issues this one blocks. "
     "Class: me human bot agent me_agent."
 )
 
@@ -105,13 +108,18 @@ def _pr_header(show: Show) -> list[str]:
 def _issue_header(show: Show) -> list[str]:
     h = show.header
     linked = ", ".join(f"{p['ref']} ({p['state']})" for p in h["linked_prs"]) or "--"
-    return [
+    lines = [
         _item_row(show),
         f"history: {h['history'] or '--'}",
         f"author: {h['author']}  created: {h['created_at']}  last activity: {h['last_activity']}",
         f"labels: {', '.join(h['labels']) or '--'}  assignees: {', '.join(h['assignees']) or '--'}",
         f"linked PRs: {linked}",
     ]
+    milestone = Milestone.from_dict(h["milestone"]) if h["milestone"] else None
+    deps = deps_line(h["open_blockers"], h["blocking"], h["parent"], milestone, show.repo)
+    if deps:
+        lines.append(deps)
+    return lines
 
 
 def _lower(value: str | None) -> str:
