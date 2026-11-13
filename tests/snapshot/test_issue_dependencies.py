@@ -289,4 +289,4 @@ def test_snapshot_from_issues_scope_round_trip():
         [issue_info(open_blockers=["o/r#2"])], scope=SnapshotScope(), name="n"
     )
 
-    assert Snapshot.from_dict(snap.to_dict()).items == snap.items
+    assert Snapshot.from_dict(snap.to_dict(), "issue", "n").items == snap.items

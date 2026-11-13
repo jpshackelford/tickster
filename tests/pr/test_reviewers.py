@@ -362,7 +362,7 @@ def snapshot_of(*prs: PRInfo, name: str = "s") -> Snapshot:
 class TestSnapshot:
     def test_round_trip_keeps_reviewers(self):
         snap = snapshot_of(pr_info((approved(), state("zed", requested=True))))
-        again = Snapshot.from_dict(json.loads(json.dumps(snap.to_dict())))
+        again = Snapshot.from_dict(json.loads(snap.to_json()), "pr", "s")
         assert again.items[0].reviewers == snap.items[0].reviewers
         raw = snap.to_dict()["items"][0]["reviewers"]
         assert raw[0]["login"] == "bob" and raw[0]["on_head"] is True

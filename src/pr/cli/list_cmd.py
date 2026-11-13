@@ -142,6 +142,8 @@ def cmd_list(
 
         with PRClient() as client:
             filters: list[tuple[str, str]]
+            scope_author: str | None = None
+            scope_reviewer: str | None = None
             if pr_refs:
                 # Use case 3: Arbitrary PR list
                 result = client.get_prs_by_ref(pr_refs)
@@ -151,6 +153,7 @@ def cmd_list(
                 # Resolve "me" here so the Filters line can show the login
                 is_me = reviewer == "me"
                 target_reviewer = client.get_current_user() if is_me else reviewer
+                scope_reviewer = target_reviewer
                 filters = _pr_filters(
                     reviewer=target_reviewer,
                     is_me=is_me,
@@ -169,6 +172,7 @@ def cmd_list(
                 # (None = every author's, with --all-authors)
                 is_me = author in (None, "me") and not all_authors
                 target_author = client.get_current_user() if is_me else author
+                scope_author = target_author
                 filters = _pr_filters(
                     author=target_author,
                     is_me=is_me,
@@ -204,9 +208,9 @@ def cmd_list(
             if plan is not None:
                 scope = SnapshotScope.from_pr_args(
                     board=board_name,
-                    author=author,
+                    author=scope_author,
                     all_authors=all_authors,
-                    reviewer=reviewer,
+                    reviewer=scope_reviewer,
                     repos=target_repos,
                     refs=pr_refs,
                     states=states,
@@ -219,6 +223,7 @@ def cmd_list(
                     scope=scope,
                     name=save_name,
                     has_more=result.has_more,
+                    total_count=result.total_count,
                     steps=steps,
                 )
                 return plan.execute(
@@ -256,9 +261,8 @@ def cmd_list(
             print_filters(console, filters)
 
             if result.has_more:
-                print_note(
-                    console, f"\n[dim]Showing {len(result.prs)} of {result.total_count} PRs[/]"
-                )
+                of_total = "" if result.total_count is None else f" of {result.total_count}"
+                print_note(console, f"\n[dim]Showing {len(result.prs)}{of_total} PRs[/]")
 
             if window and result.prs:
                 print_note(console, f"[dim]{window_line(window)}[/]")

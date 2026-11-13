@@ -141,6 +141,7 @@ def cmd_list(
 
         with IssueClient() as client:
             filters: list[tuple[str, str]]
+            scope_author: str | None = None
             if issue_refs:
                 result = client.get_issues_by_ref(issue_refs)
                 if sort:
@@ -155,6 +156,7 @@ def cmd_list(
                     target_author = client.get_current_user()
                 else:
                     target_author = author
+                scope_author = target_author
                 filters = _issue_filters(
                     author=target_author,
                     is_me=is_me,
@@ -194,7 +196,7 @@ def cmd_list(
             if plan is not None:
                 scope = SnapshotScope.from_issue_args(
                     board=board_name,
-                    author=author,
+                    author=scope_author,
                     all_authors=all_authors,
                     repos=target_repos,
                     refs=issue_refs,
@@ -209,7 +211,11 @@ def cmd_list(
                 )
                 save_name = plan.save_name or plan.diff_name or ""
                 curr_snapshot = snapshot_from_issues(
-                    result.issues, scope=scope, name=save_name, has_more=result.has_more
+                    result.issues,
+                    scope=scope,
+                    name=save_name,
+                    has_more=result.has_more,
+                    total_count=result.total_count,
                 )
                 return plan.execute(
                     curr_snapshot,

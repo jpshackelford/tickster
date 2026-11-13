@@ -370,6 +370,7 @@ class PRClient:
         # to satisfy the limit after filtering
         fetch_multiplier = 2 if client_side_states else 1
         filtered_total = 0
+        more_matches = False
         page_size = SEARCH_PAGE_SIZE
 
         while len(all_prs) < limit:
@@ -381,7 +382,8 @@ class PRClient:
             )
             total_count = search_result["issueCount"]
 
-            for node in search_result["nodes"]:
+            nodes = search_result["nodes"]
+            for index, node in enumerate(nodes):
                 if node:  # Skip null nodes
                     complete_pr_connections(self._client, node)
                     pr_info = process_pr_data(node, reference_user)
@@ -392,23 +394,31 @@ class PRClient:
                         filtered_total += 1
                     all_prs.append(pr_info)
                     if len(all_prs) >= limit:
+                        more_matches = index + 1 < len(nodes)
                         break
 
             page_info = search_result["pageInfo"]
             if not page_info["hasNextPage"] or len(all_prs) >= limit:
+                more_matches = more_matches or page_info["hasNextPage"]
                 break
             cursor = page_info["endCursor"]
 
         # Sort by created_at descending (newest first)
         all_prs.sort(key=lambda p: p.created_at, reverse=True)
 
-        # Adjust total_count for client-side filtered results
-        effective_total = filtered_total if client_side_states else total_count
+        if client_side_states:
+            # issueCount is unfiltered: the count is exact only when the scan reached the end
+            return PRListResult(
+                prs=all_prs[:limit],
+                total_count=None if more_matches else filtered_total,
+                has_more=more_matches,
+                cursor=cursor,
+            )
 
         return PRListResult(
             prs=all_prs[:limit],
-            total_count=effective_total,
-            has_more=effective_total > len(all_prs),
+            total_count=total_count,
+            has_more=total_count > len(all_prs),
             cursor=cursor,
         )
 

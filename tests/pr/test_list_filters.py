@@ -164,6 +164,14 @@ def test_line_sits_after_the_table_and_before_the_footer(run):
     assert lines[line + 1 :] == ["", "Showing 1 of 6 PRs"]
 
 
+def test_footer_drops_the_total_when_it_is_unknown(run, monkeypatch):
+    Client.has_more = True
+    monkeypatch.setattr(
+        Client, "_result", lambda _self: PRListResult(prs=[_pr(1)], total_count=None, has_more=True)
+    )
+    assert run(limit=1)[-1] == "Showing 1 PRs"
+
+
 def test_empty_result_prints_no_prs_then_the_line(run):
     Client.numbers = []
     assert run() == ["No PRs found.", DEFAULT_LINE]

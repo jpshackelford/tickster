@@ -72,7 +72,8 @@ def test_show_json_format_is_parseable(seed, capsys):  # noqa: ARG001
     out = capsys.readouterr().out
     assert rc == 0
     data = json.loads(out)
-    assert data["kind"] == "pr"
+    assert data["snapshot"]["name"] == "hourly"
+    assert "kind" not in data
     assert len(data["items"]) == 2
 
 

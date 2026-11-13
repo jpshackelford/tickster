@@ -90,6 +90,7 @@ class FakeClient:
 
     numbers: list[int] = []
     has_more: bool = False
+    total_count: int | None = None
     lookup: dict[int, str] | None = None
     ref_calls: list[list[str]] = []
 
@@ -107,29 +108,44 @@ class FakeClient:
         return {n: self.lookup[n] for n in numbers if n in self.lookup}
 
     def list_prs_by_author(self, *_: Any, **__: Any) -> PRListResult:
-        return PRListResult(prs=[_pr(n) for n in self.numbers], has_more=self.has_more)
+        return PRListResult(
+            prs=[_pr(n) for n in self.numbers],
+            total_count=self.total_count,
+            has_more=self.has_more,
+        )
 
     def get_prs_by_ref(self, refs: list[str]) -> PRListResult:
         found = self._by_ref(refs)
-        return PRListResult(prs=[replace(_pr(n), state=PRState(s)) for n, s in found.items()])
+        return PRListResult(
+            prs=[replace(_pr(n), state=PRState(s)) for n, s in found.items()],
+            total_count=len(found),
+        )
 
     def get_current_user(self) -> str:
         return "octocat"
 
+    def list_prs_for_reviewer(self, *_: Any, **__: Any) -> PRListResult:
+        return self.list_prs_by_author()
+
     def list_issues_by_author(self, *_: Any, **__: Any) -> IssueListResult:
-        return IssueListResult(issues=[_issue(n) for n in self.numbers], has_more=self.has_more)
+        return IssueListResult(
+            issues=[_issue(n) for n in self.numbers],
+            total_count=self.total_count,
+            has_more=self.has_more,
+        )
 
     def get_issues_by_ref(self, refs: list[str]) -> IssueListResult:
         found = self._by_ref(refs)
         return IssueListResult(
-            issues=[replace(_issue(n), state=IssueState(s)) for n, s in found.items()]
+            issues=[replace(_issue(n), state=IssueState(s)) for n, s in found.items()],
+            total_count=len(found),
         )
 
     def list_reviews(self, *_: Any, **__: Any) -> ReviewListResult:
         reviews = [_review(n) for n in self.numbers]
         return ReviewListResult(
             reviews=reviews,
-            total_count=len(reviews),
+            total_count=self.total_count,
             has_more=self.has_more,
             action_count=len(reviews),
         )
@@ -139,6 +155,7 @@ class FakeClient:
 def fake_client(monkeypatch) -> type[FakeClient]:
     monkeypatch.setattr(FakeClient, "numbers", [])
     monkeypatch.setattr(FakeClient, "has_more", False)
+    monkeypatch.setattr(FakeClient, "total_count", None)
     monkeypatch.setattr(FakeClient, "lookup", None)
     monkeypatch.setattr(FakeClient, "ref_calls", [])
     monkeypatch.setattr(review_list, "PRClient", FakeClient)
@@ -868,9 +885,8 @@ def test_plain_json_list_prints_one_snapshot_document_and_nothing_else(
     captured = capsys.readouterr()
     doc = json.loads(captured.out)
     assert captured.err == ""
-    assert doc["kind"] == kind
-    assert doc["name"] == ""
-    assert {"scope", "captured_at"} <= doc.keys()
+    assert list(doc) == ["schema", "filters", "total_count", "has_more", "items"]
+    assert {i["kind"] for i in doc["items"]} == {kind}
     assert [(i["repo"], i["number"]) for i in doc["items"]] == [("o/r", 2), ("o/r", 1)]
     assert list(tkt_home.glob("snapshots/*")) == []
 
@@ -878,25 +894,27 @@ def test_plain_json_list_prints_one_snapshot_document_and_nothing_else(
 @pytest.mark.parametrize("command", list(COMMANDS))
 def test_plain_json_list_equals_the_saved_snapshot_shown_as_json(
     command,
-    tkt_home,  # noqa: ARG001
+    tkt_home,
     fake_client,
     capsys,
 ):
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [3, 1]
     assert cmd_list(snapshot_name="mine", output_format="json") == 0
-    printed = json.loads(capsys.readouterr().out)
-    assert printed["name"] == "mine"
+    printed_text = capsys.readouterr().out
+    printed = json.loads(printed_text)
+    assert printed["snapshot"]["name"] == "mine"
+    assert list(printed)[:2] == ["schema", "snapshot"]
+
+    [stored] = tkt_home.glob("snapshots/*.json")
+    assert stored.read_text() == printed_text.rstrip("\n")
 
     assert snapshot_cmd_show(f"{kind}/mine", output_format="json") == 0
-    shown = json.loads(capsys.readouterr().out)
-    assert printed == shown
+    assert capsys.readouterr().out == printed_text
 
     assert cmd_list(output_format="json") == 0
     plain = json.loads(capsys.readouterr().out)
-    for doc in (plain, printed):
-        doc.pop("name")
-        doc.pop("captured_at")
+    printed.pop("snapshot")
     assert plain == printed
 
 

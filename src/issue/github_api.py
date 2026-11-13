@@ -263,8 +263,9 @@ class IssueClient:
         ``excluded_labels`` (lowercase) is also enforced on the returned rows, before
         ``limit`` is applied, so the search cannot let an excluded issue through.
         ``pr_filter`` is applied client-side against ``IssueInfo.linked_pr`` and
-        ``blocked_filter`` against ``IssueInfo.open_blockers``; with either,
-        ``has_more`` comes from the scan, since ``issueCount`` counts unfiltered rows.
+        ``blocked_filter`` against ``IssueInfo.open_blockers``; with either, or with
+        ``or_groups``, ``has_more`` comes from the scan and ``total_count`` is exact or
+        ``None``, since ``issueCount`` counts unfiltered rows.
         With ``sort``, every match is fetched (up to ``SORT_CAP``) and sorted before
         ``limit`` is applied.
         """
@@ -294,7 +295,7 @@ class IssueClient:
         fetch_limit = SORT_CAP + 1 if sort else limit
 
         # If we have OR groups, we may need to fetch more and filter
-        client_filtered = bool(pr_filter or blocked_filter)
+        client_filtered = bool(or_groups or pr_filter or blocked_filter)
         fetch_multiplier = 2 if (or_groups or client_filtered) else 1
         page_size = SEARCH_PAGE_SIZE
         has_more_matches = False
@@ -363,7 +364,9 @@ class IssueClient:
 
         return IssueListResult(
             issues=all_issues[:limit],
-            total_count=total_count,
+            total_count=(None if has_more_matches else len(all_issues))
+            if client_filtered
+            else total_count,
             has_more=has_more_matches if client_filtered else total_count > len(all_issues),
             cursor=cursor,
         )

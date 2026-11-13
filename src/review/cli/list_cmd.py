@@ -168,7 +168,7 @@ def cmd_list(
                 scope = SnapshotScope.from_review_args(
                     board=board_name,
                     author=author,
-                    reviewer=reviewer,
+                    reviewer=resolved_reviewer,
                     repos=target_repos,
                     states=states,
                     exclude_authors=exclude_authors,
@@ -178,7 +178,11 @@ def cmd_list(
                 )
                 save_name = plan.save_name or plan.diff_name or ""
                 curr_snapshot = snapshot_from_reviews(
-                    result.reviews, scope=scope, name=save_name, has_more=result.has_more
+                    result.reviews,
+                    scope=scope,
+                    name=save_name,
+                    has_more=result.has_more,
+                    total_count=result.total_count,
                 )
                 return plan.execute(
                     curr_snapshot,

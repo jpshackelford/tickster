@@ -70,12 +70,12 @@ class TestLimitReason:
 class TestSnapshotHasMore:
     def test_round_trips(self):
         snap = make_snapshot(items=_items(1), has_more=True)
-        assert Snapshot.from_dict(snap.to_dict()).has_more is True
+        assert Snapshot.from_dict(snap.to_dict(), "pr", "n").has_more is True
 
     def test_is_always_written(self):
         data = make_snapshot(items=_items(1)).to_dict()
         assert data["has_more"] is False
-        assert Snapshot.from_dict(data).has_more is False
+        assert Snapshot.from_dict(data, "pr", "n").has_more is False
 
     def test_convert_records_has_more(self):
         assert snapshot_from_prs([], scope=SnapshotScope(), name="n", has_more=True).has_more

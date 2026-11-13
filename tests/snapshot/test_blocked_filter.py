@@ -152,7 +152,7 @@ def test_filters_line_names_the_filter(stub_client, capsys):  # noqa: ARG001
 
 def test_json_stays_valid_json(stub_client, capsys):  # noqa: ARG001
     assert main(["issue", "list", "--unblocked", "--snapshot", "j", "--format", "json"]) == 0
-    assert json.loads(capsys.readouterr().out)["scope"]["blocked_filter"] == "unblocked"
+    assert json.loads(capsys.readouterr().out)["filters"]["blocked_filter"] == "unblocked"
 
 
 # --- footer ------------------------------------------------------------------

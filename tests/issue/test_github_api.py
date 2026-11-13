@@ -374,7 +374,7 @@ class TestPrFilter:
         result, _ = self._list([page], monkeypatch, pr_filter="no-pr", limit=10)
         assert [i.number for i in result.issues] == [3, 1]
         assert result.has_more is False
-        assert result.total_count == 500
+        assert result.total_count == 2
 
     def test_without_a_filter_has_more_and_total_count_are_unchanged(self, monkeypatch):
         page = self._page(self._mixed(), has_next=False, count=500)
