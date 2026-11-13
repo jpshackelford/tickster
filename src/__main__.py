@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from dotenv import find_dotenv, load_dotenv
@@ -32,30 +32,63 @@ load_dotenv(find_dotenv(usecwd=True))
 console = Console()
 
 
-def _add_date_window_args(parser: argparse.ArgumentParser) -> None:
-    """Add the shared date-window options to a list subparser."""
-    parser.add_argument(
-        "--since",
-        type=int,
-        metavar="DAYS",
-        help="Only include items since the start of the UTC day N days ago",
-    )
-    parser.add_argument(
-        "--after",
-        metavar="YYYY-MM-DD",
-        help="Only include items on/after this date (inclusive)",
-    )
-    parser.add_argument(
-        "--before",
-        metavar="YYYY-MM-DD",
-        help="Only include items on/before this date (inclusive)",
-    )
-    parser.add_argument(
-        "--date-field",
-        dest="date_field",
-        choices=["created", "updated", "merged", "closed"],
-        help="Date field to filter on (default: inferred from state); requires --since/--after/--before",
-    )
+class _RemovedFlag(argparse.Action):
+    """Hidden stub for a removed flag: exits 2 with a pointer to the replacement.
+
+    ``message`` gets the typed value (None for a bare flag) and returns the error text.
+    """
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        message: Callable[[str | None], str],
+        **_kwargs: Any,
+    ) -> None:
+        self.message = message
+        super().__init__(
+            option_strings,
+            dest=argparse.SUPPRESS,
+            default=argparse.SUPPRESS,
+            nargs="?",
+            help=argparse.SUPPRESS,
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,  # noqa: ARG002
+        values: Any,
+        option_string: str | None = None,  # noqa: ARG002
+    ) -> None:
+        parser.error(self.message(values))
+
+
+def _or_list(items: Sequence[str]) -> str:
+    return items[-1] if len(items) == 1 else f"{', '.join(items[:-1])} or {items[-1]}"
+
+
+def _add_removed_date_flag_stubs(parser: argparse.ArgumentParser, fields: Sequence[str]) -> None:
+    """Make the pre-2.0 ``--since/--after/--before/--date-field`` fail fast with a pointer.
+
+    Without ``nargs="?"`` a bare flag or ``--since=14`` would get argparse's own error,
+    so the stubs take an optional value and always report ours.
+    """
+    plain = [f for f in fields if f != "merged"]
+    for kind, placeholder in (("since", "N"), ("after", "D"), ("before", "D")):
+        replacements = _or_list([f"{field_flag(f, kind)} {placeholder}" for f in plain])
+        if "merged" in fields:
+            replacements += f" ({field_flag('merged', kind)} {placeholder} on pr list and review)"
+        text = f"--{kind} was removed: use {replacements}"
+        parser.add_argument(f"--{kind}", action=_RemovedFlag, message=lambda _v, text=text: text)
+
+    def date_field_message(value: str | None) -> str:
+        field = value if value is not None and value in fields else "created"
+        return (
+            "--date-field was removed: put the field in the flag name, "
+            f"for example {field_flag(field, 'since')} N"
+        )
+
+    parser.add_argument("--date-field", action=_RemovedFlag, message=date_field_message)
 
 
 def _add_field_date_args(
@@ -64,8 +97,7 @@ def _add_field_date_args(
     """Add --{field}-since/-after/-before flags that name the date they filter."""
     group = parser.add_argument_group(
         "Date filters by field",
-        "Each flag names the date it filters on. Use one field per query; "
-        "they cannot be mixed with --since/--after/--before/--date-field.",
+        "Each flag names the date it filters on. Use one field per query.",
     )
     for field in fields:
         group.add_argument(
@@ -595,7 +627,7 @@ Examples:
         "? unknown, - not configured. Only the table column: snapshots and --format json always "
         "record the statuses; with --diff / --watch, --steps also reports step moves in the table",
     )
-    _add_date_window_args(pr_list_parser)
+    _add_removed_date_flag_stubs(pr_list_parser, PR_DATE_FIELDS)
     _add_field_date_args(pr_list_parser, PR_DATE_FIELDS, noun="PRs")
     _add_snapshot_flags(pr_list_parser)
 
@@ -802,7 +834,7 @@ Examples:
         action="store_true",
         help="Show closed (unmerged) PRs you've reviewed",
     )
-    _add_date_window_args(review_parser)
+    _add_removed_date_flag_stubs(review_parser, REVIEW_DATE_FIELDS)
     _add_field_date_args(review_parser, REVIEW_DATE_FIELDS, noun="PRs")
     _add_snapshot_flags(review_parser)
 
@@ -913,7 +945,7 @@ Examples:
         action="store_true",
         help="Sort by recent activity instead of creation date",
     )
-    _add_date_window_args(issue_list_parser)
+    _add_removed_date_flag_stubs(issue_list_parser, ISSUE_DATE_FIELDS)
     _add_field_date_args(issue_list_parser, ISSUE_DATE_FIELDS, noun="issues")
     _add_snapshot_flags(issue_list_parser)
 
@@ -1330,10 +1362,6 @@ Examples:
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
-                since_days=args.since,
-                after=args.after,
-                before=args.before,
-                date_field=args.date_field,
                 field_dates=_field_date_values(args, PR_DATE_FIELDS),
             )
 
@@ -1374,10 +1402,6 @@ Examples:
             diff_show_unchanged=args.diff_show_unchanged,
             diff_force=args.diff_force,
             diff_resolve=args.diff_resolve,
-            since_days=args.since,
-            after=args.after,
-            before=args.before,
-            date_field=args.date_field,
             field_dates=_field_date_values(args, REVIEW_DATE_FIELDS),
         )
 
@@ -1426,10 +1450,6 @@ Examples:
                 diff_show_unchanged=args.diff_show_unchanged,
                 diff_force=args.diff_force,
                 diff_resolve=args.diff_resolve,
-                since_days=args.since,
-                after=args.after,
-                before=args.before,
-                date_field=args.date_field,
                 field_dates=_field_date_values(args, ISSUE_DATE_FIELDS),
             )
 

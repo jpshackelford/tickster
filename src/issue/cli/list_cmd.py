@@ -51,10 +51,6 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
-    since_days: int | None = None,
-    after: str | None = None,
-    before: str | None = None,
-    date_field: str | None = None,
     field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List issues with history visualization.
@@ -71,10 +67,6 @@ def cmd_list(
         show_title: Include issue titles in output
         show_deps: Add Blocked by and Blocks columns
         sort_by_activity: Sort by recent activity instead of creation date
-        since_days: Only include issues within the last N days
-        after: Only include issues on/after this date (YYYY-MM-DD)
-        before: Only include issues on/before this date (YYYY-MM-DD)
-        date_field: Search date field to filter on (created/updated/closed)
         field_dates: Per-field flag values keyed by dest, e.g. ``created_since``
 
     Returns:
@@ -85,10 +77,6 @@ def cmd_list(
         resolved = resolve_field_flags(
             ISSUE_DATE_FIELDS,
             field_dates or {},
-            since_days=since_days,
-            after=after,
-            before=before,
-            date_field=date_field,
         )
         window = build_date_window(
             states,

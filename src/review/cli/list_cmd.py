@@ -58,10 +58,6 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
-    since_days: int | None = None,
-    after: str | None = None,
-    before: str | None = None,
-    date_field: str | None = None,
     field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List PRs needing review with status visualization.
@@ -76,11 +72,6 @@ def cmd_list(
         limit: Maximum number of PRs to show
         show_title: Include PR titles in output
         states: List of states to include ("open", "merged", "closed")
-        since_days: Only include PRs within the last N days
-        after: Only include PRs on/after this date (YYYY-MM-DD)
-        before: Only include PRs on/before this date (YYYY-MM-DD)
-        date_field: Search date field to filter on
-            (created/updated/merged/closed)
         field_dates: Per-field flag values keyed by dest, e.g. ``merged_since``
 
     Returns:
@@ -90,10 +81,6 @@ def cmd_list(
         resolved = resolve_field_flags(
             REVIEW_DATE_FIELDS,
             field_dates or {},
-            since_days=since_days,
-            after=after,
-            before=before,
-            date_field=date_field,
         )
         window = build_date_window(
             states,

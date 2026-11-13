@@ -258,11 +258,11 @@ def test_watch_flags_changed_window_as_scope_change_and_keeps_baseline(
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1, 2]
 
-    assert cmd_list(watch_name="win", since_days=14) == 0
+    assert cmd_list(watch_name="win", field_dates={"updated_since": 14}) == 0
     capsys.readouterr()
 
     fake_client.numbers = [1]
-    assert cmd_list(watch_name="win", since_days=3) == 2
+    assert cmd_list(watch_name="win", field_dates={"updated_since": 3}) == 2
     out = capsys.readouterr().out
     assert "scope mismatch" in out
     assert "window: updated since 14d ago → updated since 3d ago" in out
@@ -280,7 +280,7 @@ def test_watch_flags_adding_a_window_as_scope_change(
     assert cmd_list(watch_name="win") == 0
     capsys.readouterr()
 
-    assert cmd_list(watch_name="win", since_days=14) == 2
+    assert cmd_list(watch_name="win", field_dates={"updated_since": 14}) == 2
     assert "window: none → updated since 14d ago" in capsys.readouterr().out
 
 
@@ -293,10 +293,10 @@ def test_watch_with_same_rolling_window_matches_and_names_it(
 ):
     _, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
-    assert cmd_list(watch_name="win", since_days=14) == 0
+    assert cmd_list(watch_name="win", field_dates={"updated_since": 14}) == 0
     capsys.readouterr()
 
-    assert cmd_list(watch_name="win", since_days=14) == 0
+    assert cmd_list(watch_name="win", field_dates={"updated_since": 14}) == 0
     out = capsys.readouterr().out
     assert "scope-changed" not in out
     assert "window: updated since 14d ago" in out
@@ -309,7 +309,13 @@ def test_window_is_stored_in_the_snapshot_scope(
     fake_client,  # noqa: ARG001
 ):
     kind, cmd_list = COMMANDS[command]
-    assert cmd_list(snapshot_name="s", after="2026-08-01", before="2026-08-31") == 0
+    assert (
+        cmd_list(
+            snapshot_name="s",
+            field_dates={"updated_after": "2026-08-01", "updated_before": "2026-08-31"},
+        )
+        == 0
+    )
     window = store.load(kind, "s").scope.window
     assert window is not None
     assert (window.field, window.after, window.before) == ("updated", "2026-08-01", "2026-08-31")
@@ -323,35 +329,23 @@ def test_window_with_explicit_refs_is_an_error(
     capsys,
 ):
     _, cmd_list = COMMANDS[command]
-    assert cmd_list(since_days=7, **{refs_kwarg: ["o/r#1"]}) == 1
+    assert cmd_list(field_dates={"updated_since": 7}, **{refs_kwarg: ["o/r#1"]}) == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert "--since cannot narrow explicit refs" in captured.err
-    assert "Drop the refs to search by date, or drop --since." in captured.err
-
-
-@pytest.mark.parametrize("command", list(COMMANDS))
-def test_date_field_without_a_window_is_an_error(command, fake_client, capsys):  # noqa: ARG001
-    _, cmd_list = COMMANDS[command]
-    assert cmd_list(date_field="created") == 1
-    assert "--date-field needs --since, --after or --before" in capsys.readouterr().err
+    assert "--updated-since cannot narrow explicit refs" in captured.err
+    assert "Drop the refs to search by date, or drop --updated-since." in captured.err
 
 
 def test_open_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
-    assert pr_list.cmd_list(states=["open"], since_days=7, date_field="merged") == 1
+    assert pr_list.cmd_list(states=["open"], field_dates={"merged_since": 7}) == 1
     assert "add --merged" in capsys.readouterr().err
-
-
-def test_issue_listing_with_merged_date_field_is_an_error(fake_client, capsys):  # noqa: ARG001
-    assert issue_list.cmd_list(since_days=7, date_field="merged") == 1
-    assert "Issues have no merged date" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
 def test_empty_result_names_the_window(command, fake_client, capsys):
     _, cmd_list = COMMANDS[command]
     fake_client.numbers = []
-    assert cmd_list(after="2026-08-01") == 0
+    assert cmd_list(field_dates={"updated_after": "2026-08-01"}) == 0
     assert "(updated ≥ 2026-08-01, UTC)." in capsys.readouterr().out
 
 
@@ -359,7 +353,7 @@ def test_empty_result_names_the_window(command, fake_client, capsys):
 def test_listing_with_window_ends_with_a_window_line(command, fake_client, capsys):
     _, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
-    assert cmd_list(before="2026-08-31") == 0
+    assert cmd_list(field_dates={"updated_before": "2026-08-31"}) == 0
     assert capsys.readouterr().out.rstrip().splitlines()[-1] == "Window: updated ≤ 2026-08-31 (UTC)"
 
 
@@ -495,7 +489,7 @@ def _run_with_console(command, console, monkeypatch) -> int:
     _, cmd_list = COMMANDS[command]
     for module in (pr_list, issue_list, review_list):
         monkeypatch.setattr(module, "console", console)
-    return cmd_list(before="2026-08-31")
+    return cmd_list(field_dates={"updated_before": "2026-08-31"})
 
 
 def _piped(width: int) -> tuple[Console, io.StringIO]:
@@ -772,19 +766,19 @@ def test_scope_mismatch_writes_no_pending_and_keeps_an_existing_one(
 ):
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
-    assert cmd_list(snapshot_name="poll", since_days=14) == 0
+    assert cmd_list(snapshot_name="poll", field_dates={"updated_since": 14}) == 0
 
-    assert cmd_list(diff_name="poll", since_days=14) == 0
+    assert cmd_list(diff_name="poll", field_dates={"updated_since": 14}) == 0
     pending = store.pending_path_for(kind, "poll")
     staged = pending.read_bytes()
 
     fake_client.numbers = [1, 2, 3]
     capsys.readouterr()
-    assert cmd_list(diff_name="poll", since_days=3) == 2
+    assert cmd_list(diff_name="poll", field_dates={"updated_since": 3}) == 2
     assert pending.read_bytes() == staged
 
     assert store.delete_pending(kind, "poll")
-    assert cmd_list(diff_name="poll", since_days=3) == 2
+    assert cmd_list(diff_name="poll", field_dates={"updated_since": 3}) == 2
     assert not pending.exists()
 
 

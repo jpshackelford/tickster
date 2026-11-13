@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.date_window import build_date_window
+from src.date_window import build_date_window, field_flag_names
 from src.snapshot.models import ItemSnapshot, Snapshot, SnapshotScope, WindowScope
 
 
@@ -176,7 +176,13 @@ def test_window_changes_the_fingerprint():
 
 def test_rolling_window_fingerprint_does_not_depend_on_todays_date():
     def scope_on(day: datetime) -> SnapshotScope:
-        window = build_date_window(["merged"], since_days=14, now=day)
+        window = build_date_window(
+            ["merged"],
+            date_field="merged",
+            flag_names=field_flag_names("merged"),
+            since_days=14,
+            now=day,
+        )
         return SnapshotScope.from_pr_args(
             board="oh", author=None, reviewer=None, repos=None, refs=None,
             states=["merged"], limit=100, window=window,
@@ -188,7 +194,13 @@ def test_rolling_window_fingerprint_does_not_depend_on_todays_date():
 
 
 def test_absolute_window_is_stored_as_dates():
-    window = build_date_window(["open"], after="2026-08-01", before="2026-08-31")
+    window = build_date_window(
+        ["open"],
+        date_field="updated",
+        flag_names=field_flag_names("updated"),
+        after="2026-08-01",
+        before="2026-08-31",
+    )
     scope = WindowScope.from_window(window)
     assert scope is not None
     assert scope == WindowScope(field="updated", after="2026-08-01", before="2026-08-31")
@@ -209,7 +221,9 @@ def test_scope_with_window_roundtrips():
 
 @pytest.mark.parametrize("kind", ["pr", "issue", "review"])
 def test_factories_record_the_window(kind):
-    window = build_date_window(["open"], since_days=7)
+    window = build_date_window(
+        ["open"], date_field="updated", flag_names=field_flag_names("updated"), since_days=7
+    )
     common = {"board": None, "author": None, "repos": None, "states": ["open"], "limit": 100}
     if kind == "pr":
         scope = SnapshotScope.from_pr_args(reviewer=None, refs=None, window=window, **common)
