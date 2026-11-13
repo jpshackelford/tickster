@@ -76,7 +76,7 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
         return 2
     try:
         snap = store.load(kind, name)
-    except (FileNotFoundError, store.SnapshotFormatError) as e:
+    except FileNotFoundError as e:
         print_error(str(e))
         return 1
 
@@ -143,7 +143,7 @@ def cmd_ack(ref: str) -> int:
         return 2
     try:
         acked = store.ack(kind, name)
-    except (FileNotFoundError, store.SnapshotFormatError) as e:
+    except FileNotFoundError as e:
         print_error(str(e))
         return 1
     if not acked:
@@ -176,7 +176,7 @@ def cmd_diff(
     try:
         prev = store.load(p_kind, p_name)
         curr = store.load(c_kind, c_name)
-    except (FileNotFoundError, store.SnapshotFormatError) as e:
+    except FileNotFoundError as e:
         print_error(str(e))
         return 1
     result = diff_module.diff_snapshots(prev, curr)

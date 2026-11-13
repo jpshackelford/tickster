@@ -406,10 +406,14 @@ class TestReviewListResult:
 
         now = datetime.now(UTC)
         reviews = [
-            ReviewInfo("r", 1, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 2, "t", "h", ReviewStatus.RE_REVIEW, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 3, "t", "h", ReviewStatus.HOLD, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 4, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now),
+            ReviewInfo("r", 1, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo(
+                "r", 2, "t", "h", ReviewStatus.RE_REVIEW, 0, CIStatus.GREEN, 0, "a", now, now
+            ),
+            ReviewInfo("r", 3, "t", "h", ReviewStatus.HOLD, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo(
+                "r", 4, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now, now
+            ),
         ]
 
         result = ReviewListResult(

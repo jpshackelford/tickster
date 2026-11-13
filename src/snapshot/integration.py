@@ -32,7 +32,6 @@ from dataclasses import dataclass, replace
 
 from rich.console import Console
 
-from src.cli_errors import print_error
 from src.snapshot import diff as diff_module
 from src.snapshot import render as render_module
 from src.snapshot import store
@@ -45,7 +44,7 @@ EXIT_CHANGED = 10
 
 
 def _without_steps(snapshot: Snapshot) -> Snapshot:
-    return replace(snapshot, items=tuple(replace(it, steps=None) for it in snapshot.items))
+    return replace(snapshot, items=tuple(replace(it, step_status=None) for it in snapshot.items))
 
 
 @dataclass(frozen=True)
@@ -198,9 +197,6 @@ class SnapshotPlan:
             )
             prev = Snapshot.make(kind=self.kind, name=self.diff_name, scope=curr.scope, items=[])
             baseline_found = False
-        except store.SnapshotFormatError as e:
-            print_error(str(e))
-            return 1
         if self.output_format == "table" and not self.show_steps:
             # Snapshots always record step statuses; the table reports a move only with --steps.
             prev, curr = _without_steps(prev), _without_steps(curr)

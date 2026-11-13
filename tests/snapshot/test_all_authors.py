@@ -228,24 +228,6 @@ def test_all_authors_and_current_user_snapshots_never_match(
     assert store.load(command, "w").scope == before.scope
 
 
-def test_scope_hash_without_all_authors_is_unchanged():
-    """Golden hashes computed on main before --all-authors existed."""
-    issue = SnapshotScope.from_issue_args(
-        board=None, author=None, repos=["o/r"], refs=None, states=["open"], labels=None, limit=100
-    )
-    pr = SnapshotScope.from_pr_args(
-        board="oh",
-        author=None,
-        reviewer=None,
-        repos=["o/r", "o/s"],
-        refs=None,
-        states=["open"],
-        limit=100,
-    )
-    assert "all_authors" not in issue.to_dict()
-    assert (issue.fingerprint(), pr.fingerprint()) == ("ab1ab50d", "f7f27131")
-
-
 def test_all_authors_scope_round_trips_and_hashes_differently():
     kwargs: dict[str, Any] = {
         "board": None,

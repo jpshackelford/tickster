@@ -15,11 +15,11 @@ from .conftest import make_item, make_snapshot
 
 
 def test_added_item_marked_added_with_full_history_as_tail():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     curr = make_snapshot(
         items=[
-            make_item(key="a/b#1", history="oC"),
-            make_item(key="a/b#2", history="oCr"),
+            make_item(ref="a/b#1", history="oC"),
+            make_item(ref="a/b#2", history="oCr"),
         ]
     )
     result = diff_snapshots(prev, curr)
@@ -30,7 +30,7 @@ def test_added_item_marked_added_with_full_history_as_tail():
 
 
 def test_removed_item_marked_removed_with_reason():
-    prev = make_snapshot(items=[make_item(key="a/b#1", state="open")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", state="open")])
     curr = make_snapshot(items=[])
     result = diff_snapshots(prev, curr)
     delta = result.deltas[0]
@@ -41,13 +41,13 @@ def test_removed_item_marked_removed_with_reason():
 
 def test_removed_review_row_reason_is_left_queue():
     # Review rows leave the queue mostly because the reviewer acted, not because the PR closed.
-    prev = make_snapshot(kind="review", items=[make_item(key="a/b#1", state="open")])
+    prev = make_snapshot(kind="review", items=[make_item(ref="a/b#1", state="open")])
     curr = make_snapshot(kind="review", items=[])
     assert diff_snapshots(prev, curr).deltas[0].disappearance_reason == "left-queue"
 
 
 def test_removed_item_scope_mismatch_reason_is_scope():
-    prev = make_snapshot(items=[make_item(key="a/b#1")], scope=SnapshotScope(board="oh"))
+    prev = make_snapshot(items=[make_item(ref="a/b#1")], scope=SnapshotScope(board="oh"))
     curr = make_snapshot(items=[], scope=SnapshotScope(board="other"))
     result = diff_snapshots(prev, curr)
     assert result.scope_matches is False
@@ -55,8 +55,8 @@ def test_removed_item_scope_mismatch_reason_is_scope():
 
 
 def test_history_grew_tail_is_only_new_characters():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oRfA")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oRfAfR")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oRfA")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oRfAfR")])
     result = diff_snapshots(prev, curr)
     delta = result.deltas[0]
     assert delta.kind is ChangeKind.CHANGED
@@ -66,8 +66,8 @@ def test_history_grew_tail_is_only_new_characters():
 
 
 def test_history_rewritten_flagged_when_prev_not_prefix_of_curr():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oCxr")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oLx")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oCxr")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oLx")])
     delta = diff_snapshots(prev, curr).deltas[0]
     assert delta.kind is ChangeKind.CHANGED
     assert "history-rewritten" in delta.changed_fields
@@ -77,25 +77,25 @@ def test_history_rewritten_flagged_when_prev_not_prefix_of_curr():
 
 
 def test_label_set_equality_ignores_order():
-    prev = make_snapshot(items=[make_item(key="a/b#1", labels=("bug", "p1"))])
-    curr = make_snapshot(items=[make_item(key="a/b#1", labels=("p1", "bug"))])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", labels=("bug", "p1"))])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", labels=("p1", "bug"))])
     delta = diff_snapshots(prev, curr).deltas[0]
     assert delta.kind is ChangeKind.UNCHANGED
 
 
-def test_ci_status_change_detected():
-    prev = make_snapshot(items=[make_item(key="a/b#1", ci_status="green")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", ci_status="red")])
+def test_ci_change_detected():
+    prev = make_snapshot(items=[make_item(ref="a/b#1", ci="green")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", ci="red")])
     delta = diff_snapshots(prev, curr).deltas[0]
     assert delta.kind is ChangeKind.CHANGED
-    assert "ci_status" in delta.changed_fields
+    assert "ci" in delta.changed_fields
 
 
-def test_unresolved_thread_count_change_detected():
-    prev = make_snapshot(items=[make_item(key="a/b#1", unresolved=0)])
-    curr = make_snapshot(items=[make_item(key="a/b#1", unresolved=3)])
+def test_unresolved_threads_change_detected():
+    prev = make_snapshot(items=[make_item(ref="a/b#1", unresolved=0)])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", unresolved=3)])
     delta = diff_snapshots(prev, curr).deltas[0]
-    assert "unresolved_thread_count" in delta.changed_fields
+    assert "unresolved_threads" in delta.changed_fields
 
 
 def _issue_item(comments: list[tuple[str, str]]) -> ItemSnapshot:
@@ -143,22 +143,17 @@ def test_replies_folded_into_unchanged_history_are_reported_as_activity():
 
 
 def test_history_growth_also_reports_activity():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr", last_activity="2026-10-01T09:00:00Z")]
+        items=[make_item(ref="a/b#1", history="oCr", last_activity="2026-10-01T09:00:00Z")]
     )
     assert diff_snapshots(prev, curr).deltas[0].changed_fields == ("history", "activity")
 
 
-def test_item_from_existing_snapshot_json_is_unchanged_against_fresh_run():
-    on_disk = json.loads(
-        '{"key": "a/b#1", "repo": "a/b", "number": 1, "title": "t", "history": "oC",'
-        ' "state": "open", "author": "octocat", "last_activity": "2026-09-30T22:00:00Z",'
-        ' "labels": [], "ci_status": "green", "is_draft": false,'
-        ' "unresolved_thread_count": 0, "linked_pr": null, "review_status": null}'
-    )
+def test_item_read_back_from_its_json_is_unchanged_against_fresh_run():
+    on_disk = json.loads(json.dumps(make_item(ref="a/b#1").to_dict()))
     prev = make_snapshot(items=[ItemSnapshot.from_dict(on_disk)])
-    curr = make_snapshot(items=[make_item(key="a/b#1")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1")])
     assert diff_snapshots(prev, curr).deltas[0].kind is ChangeKind.UNCHANGED
 
 
@@ -172,14 +167,14 @@ def test_cross_kind_diff_rejected():
 def test_counts_match_deltas():
     prev = make_snapshot(
         items=[
-            make_item(key="a/b#1", history="oC"),
-            make_item(key="a/b#2", history="oC"),
+            make_item(ref="a/b#1", history="oC"),
+            make_item(ref="a/b#2", history="oC"),
         ]
     )
     curr = make_snapshot(
         items=[
-            make_item(key="a/b#2", history="oCr"),
-            make_item(key="a/b#3", history="o"),
+            make_item(ref="a/b#2", history="oCr"),
+            make_item(ref="a/b#3", history="o"),
         ]
     )
     result = diff_snapshots(prev, curr)
@@ -193,16 +188,16 @@ def test_counts_match_deltas():
 def test_deltas_sorted_added_changed_removed_unchanged():
     prev = make_snapshot(
         items=[
-            make_item(key="a/b#1"),
-            make_item(key="a/b#2", history="oC"),
-            make_item(key="a/b#4"),
+            make_item(ref="a/b#1"),
+            make_item(ref="a/b#2", history="oC"),
+            make_item(ref="a/b#4"),
         ]
     )
     curr = make_snapshot(
         items=[
-            make_item(key="a/b#1"),  # unchanged
-            make_item(key="a/b#2", history="oCr"),  # changed
-            make_item(key="a/b#3"),  # added
+            make_item(ref="a/b#1"),  # unchanged
+            make_item(ref="a/b#2", history="oCr"),  # changed
+            make_item(ref="a/b#3"),  # added
             # a/b#4 removed
         ]
     )
@@ -220,11 +215,11 @@ def test_deltas_sorted_added_changed_removed_unchanged():
 
 def test_diff_result_json_contains_counts_and_scope_match():
     prev = make_snapshot(
-        items=[make_item(key="a/b#1", history="oC")],
+        items=[make_item(ref="a/b#1", history="oC")],
         scope=SnapshotScope(board="oh"),
     )
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr")],
+        items=[make_item(ref="a/b#1", history="oCr")],
         scope=SnapshotScope(board="oh"),
     )
     out = diff_snapshots(prev, curr).to_dict()
@@ -240,14 +235,14 @@ def test_diff_result_json_skips_bodies_for_unchanged_deltas():
     # drop the bodies.
     prev = make_snapshot(
         items=[
-            make_item(key="a/b#1", history="oC"),
-            make_item(key="a/b#2", history="oCr"),
+            make_item(ref="a/b#1", history="oC"),
+            make_item(ref="a/b#2", history="oCr"),
         ]
     )
     curr = make_snapshot(
         items=[
-            make_item(key="a/b#1", history="oC"),  # unchanged
-            make_item(key="a/b#2", history="oCrfA"),  # changed
+            make_item(ref="a/b#1", history="oC"),  # unchanged
+            make_item(ref="a/b#2", history="oCrfA"),  # changed
         ]
     )
     deltas = diff_snapshots(prev, curr).to_dict()["deltas"]

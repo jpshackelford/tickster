@@ -85,7 +85,7 @@ def test_first_run_with_rows_exits_ten_and_saves_baseline(command, tkt_home, fak
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
     assert cmd_list(exit_code=True, watch_name="t") == CHANGED_EXIT
-    assert [it.key for it in store.load(kind, "t").items] == ["o/r#1"]
+    assert [it.ref for it in store.load(kind, "t").items] == ["o/r#1"]
 
     assert cmd_list(exit_code=True, watch_name="t") == 0
 
@@ -104,7 +104,7 @@ def test_exit_ten_still_saves_the_baseline_under_watch(command, tkt_home, fake_c
     cmd_list(watch_name="t")
     fake_client.numbers = [1, 2]
     assert cmd_list(exit_code=True, watch_name="t") == CHANGED_EXIT
-    assert [it.key for it in store.load(kind, "t").items] == ["o/r#1", "o/r#2"]
+    assert [it.ref for it in store.load(kind, "t").items] == ["o/r#1", "o/r#2"]
     capsys.readouterr()
 
     assert cmd_list(exit_code=True, watch_name="t") == 0
@@ -118,7 +118,7 @@ def test_exit_ten_under_diff_stages_the_pending_baseline(command, tkt_home, fake
     fake_client.numbers = [1, 2]
     assert cmd_list(exit_code=True, diff_name="t") == CHANGED_EXIT
     pending = store.load_pending(kind, "t")
-    assert [it.key for it in pending.items] == ["o/r#1", "o/r#2"]
+    assert [it.ref for it in pending.items] == ["o/r#1", "o/r#2"]
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -175,7 +175,7 @@ def test_scope_mismatch_with_the_flag_still_exits_two(command, tkt_home, fake_cl
     rc = cmd_list(exit_code=True, watch_name="t", field_dates={"updated_since": 3})
     assert rc == 2
     assert "scope mismatch" in capsys.readouterr().out
-    assert [it.key for it in store.load(kind, "t").items] == ["o/r#1"]
+    assert [it.ref for it in store.load(kind, "t").items] == ["o/r#1"]
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -204,13 +204,16 @@ def test_a_failing_query_with_the_flag_exits_one(
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
-def test_a_corrupt_baseline_with_the_flag_exits_one(command, tkt_home, fake_client, capsys):
+def test_a_corrupt_baseline_with_the_flag_acts_like_a_first_run(
+    command, tkt_home, fake_client, capsys
+):
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
     cmd_list(watch_name="t")
     next(tkt_home.rglob(f"{kind}-t.json")).write_text("{not json")
     capsys.readouterr()
-    assert cmd_list(exit_code=True, watch_name="t") == 1
+    assert cmd_list(exit_code=True, watch_name="t") == CHANGED_EXIT
+    assert [it.ref for it in store.load(kind, "t").items] == ["o/r#1"]
 
 
 def test_resolve_does_not_hide_a_removed_row(tkt_home, fake_client):

@@ -20,6 +20,7 @@ from src.snapshot.models import (
     Snapshot,
     SnapshotScope,
 )
+from src.snapshot.rows import item_url
 
 
 def _iso_utc(dt: datetime) -> str:
@@ -37,41 +38,46 @@ def _iso_utc(dt: datetime) -> str:
 
 def item_from_pr(pr: PRInfo, steps: tuple[StepResult, ...] | None = None) -> ItemSnapshot:
     return ItemSnapshot(
-        key=f"{pr.repo}#{pr.number}",
+        ref=f"{pr.repo}#{pr.number}",
+        kind=KIND_PR,
         repo=pr.repo,
         number=pr.number,
+        url=item_url(pr.repo, KIND_PR, pr.number),
         title=pr.title or "",
         history=pr.history,
         state=_pr_state_value(pr.state),
         author=pr.author,
+        labels=pr.labels,
+        created_at=_iso_utc(pr.created_at),
         last_activity=_iso_utc(pr.last_activity),
-        labels=(),  # pr list does not currently carry labels
-        ci_status=_ci_value(pr.ci_status),
-        is_draft=pr.is_draft,
-        unresolved_thread_count=pr.unresolved_thread_count,
-        head_sha=pr.head_sha,
+        draft=pr.is_draft,
+        ci=_ci_value(pr.ci_status),
+        unresolved_threads=pr.unresolved_thread_count,
+        head=pr.head_sha,
         review_decision=pr.review_decision,
         merge_state=pr.merge_state,
         mergeable=pr.mergeable,
-        events=tuple(pr.events),
-        reviewers=pr.reviewers,
-        steps=step_statuses(steps) if steps is not None else None,
+        reviewers=pr.reviewers or (),
+        step_status=step_statuses(steps) if steps is not None else None,
     )
 
 
 def item_from_issue(issue: IssueInfo) -> ItemSnapshot:
     return ItemSnapshot(
-        key=f"{issue.repo}#{issue.number}",
+        ref=f"{issue.repo}#{issue.number}",
+        kind=KIND_ISSUE,
         repo=issue.repo,
         number=issue.number,
+        url=item_url(issue.repo, KIND_ISSUE, issue.number),
         title=issue.title or "",
         history=issue.history,
         state=_issue_state_value(issue.state),
         author=issue.author,
-        last_activity=_iso_utc(issue.last_activity),
         labels=tuple(issue.labels),
+        created_at=_iso_utc(issue.created_at),
+        last_activity=_iso_utc(issue.last_activity),
         linked_pr=issue.linked_pr,
-        events=tuple(issue.events),
+        closed_at=_iso_utc(issue.closed_at) if issue.closed_at else None,
         open_blockers=tuple(issue.open_blockers),
         blocking=issue.blocking,
         parent=issue.parent,
@@ -81,21 +87,28 @@ def item_from_issue(issue: IssueInfo) -> ItemSnapshot:
 
 def item_from_review(review: ReviewInfo) -> ItemSnapshot:
     return ItemSnapshot(
-        key=f"{review.repo}#{review.number}",
+        ref=f"{review.repo}#{review.number}",
+        kind=KIND_REVIEW,
         repo=review.repo,
         number=review.number,
+        url=item_url(review.repo, KIND_REVIEW, review.number),
         title=review.title or "",
         history=review.history,
         state="open",  # review queue always-open rows; historical rows carry status
         author=review.author,
+        labels=review.labels,
+        created_at=_iso_utc(review.created_at),
         last_activity=_iso_utc(review.last_activity),
-        labels=(),
-        ci_status=_ci_value(review.ci_status),
-        unresolved_thread_count=review.unresolved_thread_count,
+        draft=review.draft,
+        ci=_ci_value(review.ci_status),
+        unresolved_threads=review.unresolved_thread_count,
+        head=review.head_sha,
+        review_decision=review.review_decision,
+        merge_state=review.merge_state,
         mergeable=review.mergeable,
+        reviewers=review.reviewers,
         review_status=_review_status_value(review.status),
         wait_seconds=review.wait_seconds,
-        events=tuple(review.events),
     )
 
 

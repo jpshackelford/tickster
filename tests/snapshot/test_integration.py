@@ -43,7 +43,7 @@ def test_save_persists_under_requested_name(tkt_home):  # noqa: ARG001
         kind=KIND_PR, snapshot_name="nightly", diff_name=None, watch_name=None
     )
     assert plan is not None
-    snap = make_snapshot(name="whatever", items=[make_item(key="a/b#1")])
+    snap = make_snapshot(name="whatever", items=[make_item(ref="a/b#1")])
     plan.save(snap)
     loaded = store.load(KIND_PR, "nightly")
     assert loaded.name == "nightly"
@@ -55,7 +55,7 @@ def test_render_diff_with_missing_baseline_treats_all_as_new(tkt_home, capsys): 
     )
     assert plan is not None
     console = Console(width=200, color_system=None)
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     rc = plan.render_diff(curr, console)
     out = capsys.readouterr().out
     assert rc == 0
@@ -72,7 +72,7 @@ def test_json_missing_baseline_notice_goes_to_stderr(tkt_home, capsys):  # noqa:
         output_format="json",
     )
     assert plan is not None
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     rc = plan.render_diff(curr, Console(width=200, color_system=None))
     captured = capsys.readouterr()
     assert rc == 0
@@ -90,7 +90,7 @@ def test_scope_mismatch_blocks_without_force_in_both_formats(
     baseline = make_snapshot(
         kind=KIND_PR,
         name="hourly",
-        items=[make_item(key="a/b#1", history="oC")],
+        items=[make_item(ref="a/b#1", history="oC")],
         scope=SnapshotScope(board="A"),
     )
     store.save(baseline)
@@ -103,7 +103,7 @@ def test_scope_mismatch_blocks_without_force_in_both_formats(
     )
     assert plan is not None
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr")],
+        items=[make_item(ref="a/b#1", history="oCr")],
         scope=SnapshotScope(board="B"),
     )
     rc = plan.render_diff(curr, Console(width=200, color_system=None))
@@ -120,7 +120,7 @@ def test_scope_mismatch_renders_with_force(tkt_home, capsys):  # noqa: ARG001
     baseline = make_snapshot(
         kind=KIND_PR,
         name="hourly",
-        items=[make_item(key="a/b#1", history="oC")],
+        items=[make_item(ref="a/b#1", history="oC")],
         scope=SnapshotScope(board="A"),
     )
     store.save(baseline)
@@ -133,7 +133,7 @@ def test_scope_mismatch_renders_with_force(tkt_home, capsys):  # noqa: ARG001
     )
     assert plan is not None
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr")],
+        items=[make_item(ref="a/b#1", history="oCr")],
         scope=SnapshotScope(board="B"),
     )
     rc = plan.render_diff(curr, Console(width=200, color_system=None))
@@ -155,12 +155,12 @@ def test_execute_scope_mismatch_leaves_baseline_for_force_retry(tkt_home, capsys
         make_snapshot(
             kind=KIND_PR,
             name="hourly",
-            items=[make_item(key="a/b#1", history="oC")],
+            items=[make_item(ref="a/b#1", history="oC")],
             scope=SnapshotScope(board="A"),
         )
     )
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr")],
+        items=[make_item(ref="a/b#1", history="oCr")],
         scope=SnapshotScope(board="B"),
     )
     console = Console(width=200, color_system=None)
@@ -184,8 +184,8 @@ def test_execute_snapshot_only_prints_table_and_saves(tkt_home):  # noqa: ARG001
     )
     assert plan is not None
     printed: list[bool] = []
-    curr = make_snapshot(items=[make_item(key="a/b#1")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1")])
     rc = plan.execute(curr, Console(), print_table=lambda: printed.append(True))
     assert rc == 0
     assert printed == [True]
-    assert [it.key for it in store.load(KIND_PR, "nightly").items] == ["a/b#1"]
+    assert [it.ref for it in store.load(KIND_PR, "nightly").items] == ["a/b#1"]

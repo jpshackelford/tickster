@@ -321,13 +321,6 @@ def _scope(sort: list[str] | None) -> SnapshotScope:
     )
 
 
-def test_scope_hash_without_sort_is_unchanged():
-    scope = _scope(None)
-    assert "sort" not in scope.to_dict()
-    assert scope.fingerprint() == "ab1ab50d"
-    assert _scope([]).fingerprint() == "ab1ab50d"
-
-
 def test_scope_with_sort_differs_by_keys_and_order_and_round_trips():
     plain, a, b, c = (
         _scope(None),
@@ -367,7 +360,7 @@ def test_snapshot_flow_matches_with_the_flag_and_not_without_it(stub_client, tkt
 def test_sort_note_names_the_change():
     def snap(sort):
         return make_snapshot(
-            kind="issue", name="a", items=[make_item(key="o/r#1")], scope=_scope(sort)
+            kind="issue", name="a", items=[make_item(ref="o/r#1")], scope=_scope(sort)
         )
 
     assert sort_note(snap(None), snap(["number"])) == "sort: none → number"

@@ -78,16 +78,6 @@ class HistoryEvent:
             "at": self.at,
         }
 
-    @classmethod
-    def from_dict(cls, data: dict) -> HistoryEvent:
-        return cls(
-            char=data["char"],
-            action=data["action"],
-            actor=data["actor"],
-            actor_class=ActorClass(data["actor_class"]),
-            at=data["at"],
-        )
-
 
 def iso_utc(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

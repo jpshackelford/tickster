@@ -25,7 +25,7 @@ DEPS = ("open_blockers", "blocking", "parent", "milestone")
 
 
 def issue_item(key: str = "o/r#1", **deps) -> ItemSnapshot:
-    return replace(make_item(key=key), **{"open_blockers": (), **deps})
+    return replace(make_item(ref=key, kind="issue"), **deps)
 
 
 def issue_snapshot(*items: ItemSnapshot) -> Snapshot:
@@ -50,24 +50,6 @@ def issue_info(number: int = 1, **overrides) -> IssueInfo:
 
 
 class TestSnapshotItem:
-    def test_an_item_without_recorded_facts_has_none_of_the_keys(self):
-        data = make_item().to_dict()
-
-        assert not set(DEPS) & set(data)
-
-    def test_an_old_snapshot_file_loads_and_resaves_byte_for_byte(self):
-        old = make_snapshot(
-            kind="issue",
-            items=[make_item(key="o/r#1"), make_item(key="o/r#2")],
-            scope=SnapshotScope(states=("open",)),
-        )
-        text = json.dumps(old.to_dict(), indent=2)
-
-        reloaded = Snapshot.from_dict(json.loads(text))
-
-        assert all(it.open_blockers is None for it in reloaded.items)
-        assert json.dumps(reloaded.to_dict(), indent=2) == text
-
     def test_recorded_facts_round_trip(self):
         item = issue_item(
             open_blockers=("o/r#2", "?"),
@@ -150,14 +132,6 @@ class TestDiff:
 
         assert delta.kind is ChangeKind.UNCHANGED
         assert delta.changed_fields == ()
-
-    def test_a_baseline_without_the_facts_does_not_flag_every_row(self):
-        prev = issue_snapshot(make_item(key="o/r#1"))
-        curr = issue_snapshot(issue_item(open_blockers=("o/r#5",)))
-
-        [delta] = diff_snapshots(prev, curr).deltas
-
-        assert delta.kind is ChangeKind.UNCHANGED
 
     def test_json_diff_names_the_field_and_the_note(self):
         prev = issue_snapshot(issue_item(open_blockers=("o/r#121",)))

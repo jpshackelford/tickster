@@ -155,6 +155,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is True
 
@@ -171,6 +172,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is True
 
@@ -187,6 +189,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is False
 
@@ -203,6 +206,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is False
 
@@ -212,10 +216,14 @@ class TestReviewInfo:
 
         now = datetime.now(UTC)
         infos = [
-            ReviewInfo("r", 1, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 2, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 3, "t", "h", ReviewStatus.HOLD, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 4, "t", "h", ReviewStatus.RE_REVIEW, 0, CIStatus.GREEN, 0, "a", now),
+            ReviewInfo(
+                "r", 1, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now, now
+            ),
+            ReviewInfo("r", 2, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo("r", 3, "t", "h", ReviewStatus.HOLD, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo(
+                "r", 4, "t", "h", ReviewStatus.RE_REVIEW, 0, CIStatus.GREEN, 0, "a", now, now
+            ),
         ]
 
         # Sort by status_priority
@@ -240,6 +248,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is False
 
@@ -256,6 +265,7 @@ class TestReviewInfo:
             unresolved_thread_count=0,
             author="alice",
             last_activity=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
         assert info.needs_action is False
 
@@ -265,10 +275,12 @@ class TestReviewInfo:
 
         now = datetime.now(UTC)
         infos = [
-            ReviewInfo("r", 1, "t", "h", ReviewStatus.MERGED, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 2, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 3, "t", "h", ReviewStatus.CLOSED, 0, CIStatus.GREEN, 0, "a", now),
-            ReviewInfo("r", 4, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now),
+            ReviewInfo("r", 1, "t", "h", ReviewStatus.MERGED, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo("r", 2, "t", "h", ReviewStatus.REVIEW, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo("r", 3, "t", "h", ReviewStatus.CLOSED, 0, CIStatus.GREEN, 0, "a", now, now),
+            ReviewInfo(
+                "r", 4, "t", "h", ReviewStatus.APPROVED, 0, CIStatus.GREEN, 0, "a", now, now
+            ),
         ]
 
         # Sort by status_priority

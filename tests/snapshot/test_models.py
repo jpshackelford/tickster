@@ -116,17 +116,20 @@ def test_snapshot_roundtrip_preserves_items_and_scope_hash():
     scope = SnapshotScope(board="oh", repos=("a/b",), states=("open",))
     items = [
         ItemSnapshot(
-            key="a/b#1",
+            ref="a/b#1",
+            kind="pr",
             repo="a/b",
             number=1,
+            url="https://github.com/a/b/pull/1",
             title="hi",
             history="oCr",
             state="open",
             author="octocat",
+            created_at="2026-09-01T00:00:00Z",
             last_activity="2026-09-30T22:00:00Z",
             labels=("bug",),
-            ci_status="green",
-            unresolved_thread_count=2,
+            ci="green",
+            unresolved_threads=2,
         )
     ]
     snap = Snapshot.make(kind="pr", name="hourly", scope=scope, items=items)
@@ -141,26 +144,63 @@ def test_snapshot_roundtrip_preserves_items_and_scope_hash():
     assert restored.items == snap.items
 
 
-def test_from_dict_rejects_unknown_schema_version():
-    import pytest
-
+def test_from_dict_rejects_another_schema_version():
     data = Snapshot.make(kind="pr", name="x", scope=SnapshotScope(), items=[]).to_dict()
-    data["schema"] = 999
-    with pytest.raises(ValueError, match="unsupported snapshot schema version"):
+    data["schema"] = 1
+    with pytest.raises(ValueError, match="schema 1, this tkt writes schema 2"):
         Snapshot.from_dict(data)
 
 
-def test_scope_without_window_keeps_fingerprint_of_snapshots_saved_before_windows():
-    # Hashes computed by the code before `window` existed; changing them would
-    # flag every saved snapshot as scope-changed.
-    plain = SnapshotScope(board="oh", repos=("a/b",), states=("open",), limit=100)
-    assert plain.fingerprint() == "d5c00e30"
-    assert "window" not in plain.to_dict()
-    richer = SnapshotScope(board="oh", author="me", refs=("a/b#1",), labels=("bug",), limit=50)
-    assert richer.fingerprint() == "3840b3fe"
+def test_scope_to_dict_always_has_every_key():
+    assert set(SnapshotScope().to_dict()) == {
+        "board",
+        "author",
+        "all_authors",
+        "reviewer",
+        "repos",
+        "refs",
+        "states",
+        "labels",
+        "not_labels",
+        "exclude_authors",
+        "include_all",
+        "pr_filter",
+        "blocked_filter",
+        "sort",
+        "limit",
+        "window",
+    }
+    assert SnapshotScope().to_dict()["window"] is None
 
 
-def test_scope_without_window_in_stored_data_loads_with_none():
+def test_scope_from_dict_requires_every_key():
+    data = SnapshotScope().to_dict()
+    del data["not_labels"]
+    with pytest.raises(ValueError, match="missing field 'not_labels'"):
+        SnapshotScope.from_dict(data)
+
+
+def test_scope_from_dict_rejects_a_wrong_type():
+    data = SnapshotScope().to_dict()
+    data["limit"] = "100"
+    with pytest.raises(ValueError, match="field 'limit' has the wrong type"):
+        SnapshotScope.from_dict(data)
+
+
+def test_window_scope_to_dict_has_every_key_and_requires_them():
+    window = WindowScope(field="merged", since_days=14)
+    assert window.to_dict() == {
+        "field": "merged",
+        "since_days": 14,
+        "after": None,
+        "before": None,
+    }
+    assert WindowScope.from_dict(window.to_dict()) == window
+    with pytest.raises(ValueError, match="missing field 'before'"):
+        WindowScope.from_dict({"field": "merged", "since_days": 14, "after": None})
+
+
+def test_scope_without_window_roundtrips_as_none():
     data = SnapshotScope(board="oh").to_dict()
     assert SnapshotScope.from_dict(data).window is None
 
@@ -204,7 +244,12 @@ def test_absolute_window_is_stored_as_dates():
     scope = WindowScope.from_window(window)
     assert scope is not None
     assert scope == WindowScope(field="updated", after="2026-08-01", before="2026-08-31")
-    assert scope.to_dict() == {"field": "updated", "after": "2026-08-01", "before": "2026-08-31"}
+    assert scope.to_dict() == {
+        "field": "updated",
+        "since_days": None,
+        "after": "2026-08-01",
+        "before": "2026-08-31",
+    }
 
 
 def test_scope_with_window_roundtrips():

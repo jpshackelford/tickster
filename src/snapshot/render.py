@@ -198,13 +198,13 @@ def _print_pr_like_table(
             item.repo,
             f"#{item.number}",
             _render_history(item.history, d),
-            _render_field(item.ci_status or "--", "ci_status" in d.changed_fields),
+            _render_field(item.ci or "--", "ci" in d.changed_fields),
         ]
         if show_detail:
             changed = d.changed_fields
             row.extend(
                 [
-                    _render_field(short_sha(item.head_sha), "head_sha" in changed),
+                    _render_field(short_sha(item.head), "head" in changed),
                     _render_field(review_label(item.review_decision), "review_decision" in changed),
                     _render_field(
                         merge_label(item.merge_state, item.mergeable),
@@ -219,7 +219,7 @@ def _print_pr_like_table(
         row.extend(
             [
                 _render_field(item.state, "state" in d.changed_fields),
-                _render_thread_count(item.unresolved_thread_count, d),
+                _render_thread_count(item.unresolved_threads, d),
                 _render_last_activity(item.last_activity, d),
                 _render_note(d, show_pr_detail=not show_detail),
             ]
@@ -291,7 +291,7 @@ def _render_field(value: str, changed: bool) -> str:
 
 
 def _render_thread_count(count: int, d: ItemDelta) -> str:
-    changed = "unresolved_thread_count" in d.changed_fields
+    changed = "unresolved_threads" in d.changed_fields
     text = "--" if count == 0 else str(count)
     return _render_field(text, changed)
 
@@ -351,7 +351,7 @@ def _pr_detail_tags(changed_fields: tuple[str, ...]) -> list[str]:
     Without `--detail` there is no column to carry the `!`, so the Note does.
     """
     tags = []
-    if "head_sha" in changed_fields:
+    if "head" in changed_fields:
         tags.append("head!")
     if "review_decision" in changed_fields:
         tags.append("review!")

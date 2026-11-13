@@ -754,7 +754,7 @@ def only_delta(prev: Snapshot, curr: Snapshot):
 class TestSnapshots:
     def test_statuses_are_recorded_and_round_trip(self):
         snap = snapshot_of(stale_pr())
-        assert snap.items[0].steps == {
+        assert snap.items[0].step_status == {
             STEP_REVIEW: "done",
             STEP_CI: "done",
             STEP_FINDINGS: "done",
@@ -762,23 +762,23 @@ class TestSnapshots:
             **dict.fromkeys(MANUAL_TEST_STEPS, "not configured"),
         }
         again = Snapshot.from_dict(json.loads(json.dumps(snap.to_dict())))
-        assert again.items[0].steps == snap.items[0].steps
+        assert again.items[0].step_status == snap.items[0].step_status
 
-    def test_not_recorded_stays_out_of_the_json(self):
+    def test_not_evaluated_is_null_in_the_json(self):
         item = item_from_pr(stale_pr())
-        assert item.steps is None and "steps" not in item.to_dict()
-        assert ItemSnapshot.from_dict(item.to_dict()).steps is None
+        assert item.step_status is None and item.to_dict()["step_status"] is None
+        assert ItemSnapshot.from_dict(item.to_dict()).step_status is None
 
     def test_item_records_the_given_results(self):
         results = evaluate_steps(stale_pr(), None)
-        assert item_from_pr(stale_pr(), results).steps == step_statuses(results)
+        assert item_from_pr(stale_pr(), results).step_status == step_statuses(results)
 
     def test_diff_reports_the_transition(self):
         done = pr_info((reviewed("enyst", "COMMENTED", HEAD),))
         delta = only_delta(snapshot_of(done), snapshot_of(stale_pr()))
         assert delta.kind.value == "changed"
         assert delta.step_changes == ("request re-review: done → needed",)
-        assert "steps" in delta.changed_fields
+        assert "step_status" in delta.changed_fields
 
     def test_unchanged_statuses_do_not_flag_the_row(self):
         delta = only_delta(snapshot_of(stale_pr()), snapshot_of(stale_pr()))
@@ -810,17 +810,17 @@ class TestSnapshots:
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(watch_name="w", show_steps=True) == 0
         assert "request re-review: done → needed" in capsys.readouterr().out
-        assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
+        assert store.load("pr", "w").items[0].step_status[STEP_REREVIEW] == "needed"
 
     def test_watch_without_steps_still_records_the_statuses(self, fake_client):
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(watch_name="w") == 0
-        assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
+        assert store.load("pr", "w").items[0].step_status[STEP_REREVIEW] == "needed"
 
     def test_snapshot_without_steps_records_the_statuses(self, fake_client):
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(snapshot_name="s") == 0
-        assert store.load("pr", "s").items[0].steps[STEP_REREVIEW] == "needed"
+        assert store.load("pr", "s").items[0].step_status[STEP_REREVIEW] == "needed"
 
 
 class TestStepsAlwaysRecorded:
@@ -830,9 +830,9 @@ class TestStepsAlwaysRecorded:
         fake_client.prs = [stale_pr(), pr_info(number=2)]
         assert pr_list.cmd_list(output_format="json") == 0
         items = json.loads(capsys.readouterr().out)["items"]
-        assert [it["key"] for it in items] == ["o/r#1", "o/r#2"]
-        assert items[0]["steps"][STEP_REREVIEW] == "needed"
-        assert all(set(it["steps"]) == {*STEP_NAMES, *MANUAL_TEST_STEPS} for it in items)
+        assert [it["ref"] for it in items] == ["o/r#1", "o/r#2"]
+        assert items[0]["step_status"][STEP_REREVIEW] == "needed"
+        assert all(set(it["step_status"]) == {*STEP_NAMES, *MANUAL_TEST_STEPS} for it in items)
 
     def test_json_keeps_stdout_clean_and_hides_the_column(self, fake_client, capsys):
         fake_client.prs = [stale_pr()]
@@ -845,7 +845,7 @@ class TestStepsAlwaysRecorded:
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
         capsys.readouterr()
-        assert store.load("pr", "w").items[0].steps[STEP_REREVIEW] == "needed"
+        assert store.load("pr", "w").items[0].step_status[STEP_REREVIEW] == "needed"
 
     def test_a_step_move_shows_in_watch_json_without_steps_flag(self, fake_client, capsys):
         fake_client.prs = [pr_info((reviewed("enyst", "COMMENTED", HEAD),))]
@@ -857,7 +857,7 @@ class TestStepsAlwaysRecorded:
             d for d in json.loads(capsys.readouterr().out)["deltas"] if d["kind"] == "changed"
         ]
         assert delta["step_changes"] == ["request re-review: done → needed"]
-        assert "steps" in delta["changed_fields"]
+        assert "step_status" in delta["changed_fields"]
 
     def test_watch_table_without_steps_ignores_a_step_move(self, fake_client, capsys):
         fake_client.prs = [pr_info(checks_state="SUCCESS")]
@@ -868,7 +868,7 @@ class TestStepsAlwaysRecorded:
         out = capsys.readouterr().out
         assert "+0 new, *0 changed, -0 gone, 1 unchanged" in out
         assert "fix CI" not in out
-        assert store.load("pr", "w").items[0].steps[STEP_CI] == "needed"
+        assert store.load("pr", "w").items[0].step_status[STEP_CI] == "needed"
 
     def test_watch_table_with_steps_still_reports_the_move(self, fake_client, capsys):
         fake_client.prs = [pr_info(checks_state="SUCCESS")]

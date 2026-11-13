@@ -1,8 +1,7 @@
-"""`tkt issue list` defaults to open issues, and old state-less snapshots stay comparable."""
+"""`tkt issue list` defaults to open issues."""
 
 from __future__ import annotations
 
-import json
 import sys
 
 import pytest
@@ -11,7 +10,6 @@ from src.__main__ import main
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueListResult
 from src.snapshot import store
-from src.snapshot.models import Snapshot, SnapshotScope
 
 
 @pytest.fixture
@@ -62,34 +60,3 @@ def test_all_flag_is_a_different_watch_scope_than_the_default(queries, tkt_home,
 
     assert main(["issue", "list", "--repo", "o/r", "--all", "--watch", "w"]) == 2
     assert "scope mismatch" in capsys.readouterr().out
-
-
-def _saved_without_states(kind: str) -> dict:
-    data = Snapshot.make(kind=kind, name="old", scope=SnapshotScope(board="oh"), items=[]).to_dict()
-    data["scope"]["states"] = None
-    return data
-
-
-def test_stored_issue_scope_without_states_loads_as_open():
-    snap = Snapshot.from_dict(_saved_without_states("issue"))
-    assert snap.scope.states == ("open",)
-    assert snap.scope_hash == SnapshotScope(board="oh", states=("open",)).fingerprint()
-
-
-@pytest.mark.parametrize("kind", ["pr", "review"])
-def test_stored_scope_without_states_is_untouched_for_other_kinds(kind):
-    assert Snapshot.from_dict(_saved_without_states(kind)).scope.states is None
-
-
-def test_old_stateless_issue_watch_matches_after_the_fix(queries, tkt_home, capsys):  # noqa: ARG001
-    assert main(["issue", "list", "--repo", "o/r", "--watch", "w"]) == 0
-    path = store.path_for("issue", "w")
-    capsys.readouterr()
-    assert path.exists()
-
-    data = json.loads(path.read_text())
-    data["scope"]["states"] = None
-    path.write_text(json.dumps(data))
-
-    assert main(["issue", "list", "--repo", "o/r", "--watch", "w"]) == 0
-    assert "scope mismatch" not in capsys.readouterr().out

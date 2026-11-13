@@ -77,6 +77,7 @@ def _review(number: int) -> ReviewInfo:
         unresolved_thread_count=0,
         author="alice",
         last_activity=NOW,
+        created_at=NOW,
     )
 
 
@@ -170,7 +171,7 @@ def test_watch_reports_last_item_going_away(
 
     fake_client.numbers = [1]
     assert cmd_list(watch_name="hourly") == 0
-    assert [it.key for it in store.load(kind, "hourly").items] == ["o/r#1"]
+    assert [it.ref for it in store.load(kind, "hourly").items] == ["o/r#1"]
     capsys.readouterr()
 
     fake_client.numbers = []
@@ -217,7 +218,7 @@ def test_watch_flags_changed_refs_as_scope_change_and_keeps_baseline(
     out = capsys.readouterr().out
     assert "scope mismatch" in out
     assert "closed?" not in out
-    keys = [it.key for it in store.load(kind, "refs").items]
+    keys = [it.ref for it in store.load(kind, "refs").items]
     assert keys == ["o/r#1", "o/r#2"]
 
     # Reordering the same refs is the same scope.
@@ -269,7 +270,7 @@ def test_watch_flags_changed_window_as_scope_change_and_keeps_baseline(
     out = capsys.readouterr().out
     assert "scope mismatch" in out
     assert "window: updated since 14d ago → updated since 3d ago" in out
-    assert [it.key for it in store.load(kind, "win").items] == ["o/r#1", "o/r#2"]
+    assert [it.ref for it in store.load(kind, "win").items] == ["o/r#1", "o/r#2"]
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -624,27 +625,59 @@ def test_failed_save_leaves_the_json_document_alone_on_stdout(
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
-def test_corrupt_baseline_is_one_error_line_and_is_left_alone(
+def test_corrupt_baseline_is_discarded_with_a_notice_and_the_run_goes_on(
     command,
     tkt_home,  # noqa: ARG001
     fake_client,
     capsys,
+    caplog,
 ):
     kind, cmd_list = COMMANDS[command]
     fake_client.numbers = [1]
     path = store.snapshots_dir() / f"{kind}-hourly.json"
     path.write_text("{")
 
-    assert cmd_list(watch_name="hourly", output_format="json") == 1
+    assert cmd_list(watch_name="hourly", output_format="json") == 0
 
     captured = capsys.readouterr()
-    assert captured.out == ""
+    assert json.loads(captured.out)["baseline"] == "missing"
     assert captured.err.splitlines() == [
-        f"Error: snapshot {kind}/hourly cannot be read ({path}): "
-        f"invalid JSON at line 1 column 2: Expecting property name enclosed in double quotes. "
-        f"Delete it with: tkt snapshot rm {kind}/hourly"
+        f"No snapshot {kind}/hourly found; treating all current rows as new."
     ]
-    assert path.read_text() == "{"
+    [notice] = [r.getMessage() for r in caplog.records if "discarded" in r.getMessage()]
+    assert notice == (f"tkt: discarded snapshot {kind}/hourly: invalid JSON at line 1 column 2")
+    assert [it.ref for it in store.load(kind, "hourly").items] == ["o/r#1"]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+@pytest.mark.parametrize("output_format", ["table", "json"])
+def test_diff_against_a_schema_1_baseline_discards_it_and_reports_it_missing(
+    command,
+    output_format,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+    caplog,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    path = store.snapshots_dir() / f"{kind}-poll.json"
+    path.write_text(json.dumps({"schema": 1, "kind": kind, "name": "poll", "items": []}))
+
+    assert cmd_list(diff_name="poll", output_format=output_format) == 0
+
+    captured = capsys.readouterr()
+    assert not path.exists()
+    assert [r.getMessage() for r in caplog.records if "discarded" in r.getMessage()] == [
+        f"tkt: discarded snapshot {kind}/poll: schema 1, this tkt writes schema 2"
+    ]
+    if output_format == "json":
+        document = json.loads(captured.out)
+        assert document["baseline"] == "missing"
+        assert [d["kind"] for d in document["deltas"]] == ["added"]
+        assert f"No snapshot {kind}/poll found" in captured.err
+    else:
+        assert f"No snapshot {kind}/poll found" in captured.out
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -690,7 +723,7 @@ def test_bare_diff_stages_pending_and_leaves_baseline_untouched(
     pending = store.pending_path_for(kind, "poll")
     assert pending.parent.name == "pending"
     assert pending.name == f"{kind}-poll.json"
-    assert [it.key for it in store.load_pending(kind, "poll").items] == ["o/r#1", "o/r#2"]
+    assert [it.ref for it in store.load_pending(kind, "poll").items] == ["o/r#1", "o/r#2"]
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))
@@ -711,7 +744,7 @@ def test_diff_reports_rows_again_until_acked(
         assert _json_out(capsys)["counts"]["added"] == 1
 
     assert store.ack(kind, "poll")
-    assert [it.key for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2"]
+    assert [it.ref for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2"]
     assert not store.has_pending(kind, "poll")
 
     capsys.readouterr()
@@ -736,7 +769,7 @@ def test_two_diffs_and_one_ack_leave_the_second_result_as_baseline(
     assert cmd_list(diff_name="poll") == 0
     assert store.ack(kind, "poll")
 
-    assert [it.key for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2", "o/r#3"]
+    assert [it.ref for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2", "o/r#3"]
 
 
 @pytest.mark.parametrize("command", list(COMMANDS))

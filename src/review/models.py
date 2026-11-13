@@ -6,6 +6,7 @@ from enum import Enum
 
 from src.actors import HistoryEvent
 from src.pr.models import CIStatus
+from src.pr.reviewers import ReviewerState
 
 
 class ReviewStatus(Enum):
@@ -33,7 +34,14 @@ class ReviewInfo:
     unresolved_thread_count: int
     author: str
     last_activity: datetime
+    created_at: datetime
     mergeable: str | None = None
+    labels: tuple[str, ...] = ()
+    draft: bool = False
+    head_sha: str | None = None
+    review_decision: str | None = None
+    merge_state: str | None = None
+    reviewers: tuple[ReviewerState, ...] = ()
     events: list[HistoryEvent] = field(default_factory=list)  # one per history character
 
     @property

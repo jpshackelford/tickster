@@ -31,15 +31,15 @@ def _capture(diff, **kw) -> str:
 
 def test_table_renders_added_glyph_and_bracketed_history():
     prev = make_snapshot(items=[])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oCr")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oCr")])
     out = _capture(diff_snapshots(prev, curr))
     assert "+ " in out  # added glyph (color stripped)
     assert "[oCr]" in out  # whole history bracketed for new row
 
 
 def test_table_renders_only_new_tail_bracketed_for_changed_row():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oRfA")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oRfAfR")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oRfA")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oRfAfR")])
     out = _capture(diff_snapshots(prev, curr))
     assert "oRfA[fR]" in out
     assert "[oRfAfR]" not in out  # only tail, not whole
@@ -48,9 +48,9 @@ def test_table_renders_only_new_tail_bracketed_for_changed_row():
 @pytest.mark.parametrize("kind", ["pr", "issue", "review"])
 def test_activity_without_history_growth_marks_last_column_changed(kind):
     recent = (datetime.now(UTC) - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    prev = make_snapshot(kind=kind, items=[make_item(key="a/b#1", history="oc")])
+    prev = make_snapshot(kind=kind, items=[make_item(ref="a/b#1", history="oc")])
     curr = make_snapshot(
-        kind=kind, items=[make_item(key="a/b#1", history="oc", last_activity=recent)]
+        kind=kind, items=[make_item(ref="a/b#1", history="oc", last_activity=recent)]
     )
     out = _capture(diff_snapshots(prev, curr))
     row = next(line for line in out.splitlines() if "a/b" in line)
@@ -60,7 +60,7 @@ def test_activity_without_history_growth_marks_last_column_changed(kind):
 
 
 def test_table_shows_removed_glyph_and_gone_note():
-    prev = make_snapshot(items=[make_item(key="a/b#1")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1")])
     curr = make_snapshot(items=[])
     out = _capture(diff_snapshots(prev, curr))
     gone_row = next(line for line in out.splitlines() if line.lstrip().startswith("- "))
@@ -78,7 +78,7 @@ def test_table_shows_removed_glyph_and_gone_note():
     ],
 )
 def test_gone_row_note_is_a_short_hint_per_reason(kind, prev_state, curr_scope, label):
-    prev = make_snapshot(kind=kind, items=[make_item(key="a/b#1", state=prev_state)])
+    prev = make_snapshot(kind=kind, items=[make_item(ref="a/b#1", state=prev_state)])
     curr = make_snapshot(kind=kind, items=[], scope=curr_scope)
     out = _capture(diff_snapshots(prev, curr), output_format="table")
     gone_row = next(line for line in out.splitlines() if line.lstrip().startswith("- "))
@@ -92,10 +92,10 @@ def _ago(**delta) -> str:
 
 def test_summary_line_shows_relative_times_and_counts():
     prev = make_snapshot(
-        items=[make_item(key="a/b#1", history="oC")], name="hourly", captured_at=_ago(hours=2)
+        items=[make_item(ref="a/b#1", history="oC")], name="hourly", captured_at=_ago(hours=2)
     )
     curr = make_snapshot(
-        items=[make_item(key="a/b#1", history="oCr"), make_item(key="a/b#2")],
+        items=[make_item(ref="a/b#1", history="oCr"), make_item(ref="a/b#2")],
         name="hourly",
         captured_at=_ago(minutes=5),
     )
@@ -112,22 +112,22 @@ def test_summary_line_names_both_snapshots_when_they_differ():
 
 
 def test_unchanged_rows_hidden_by_default():
-    prev = make_snapshot(items=[make_item(key="a/b#1")])
-    curr = make_snapshot(items=[make_item(key="a/b#1")])  # unchanged
+    prev = make_snapshot(items=[make_item(ref="a/b#1")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1")])  # unchanged
     out = _capture(diff_snapshots(prev, curr))
     assert "No changes." in out
 
 
 def test_unchanged_rows_shown_with_show_unchanged():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     out = _capture(diff_snapshots(prev, curr), show_unchanged=True)
     assert "a/b" in out  # unchanged row rendered
 
 
 def test_json_format_emits_parseable_payload():
-    prev = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
-    curr = make_snapshot(items=[make_item(key="a/b#1", history="oCr")])
+    prev = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
+    curr = make_snapshot(items=[make_item(ref="a/b#1", history="oCr")])
     out = _capture(diff_snapshots(prev, curr), output_format="json")
     data = json.loads(out)
     assert data["counts"]["changed"] == 1
@@ -137,13 +137,13 @@ def test_json_format_emits_parseable_payload():
 def test_issue_table_rendered_with_labels_and_linked_pr():
     prev = make_snapshot(
         kind="issue",
-        items=[make_item(key="a/b#1", history="oC", labels=("bug",))],
+        items=[make_item(ref="a/b#1", history="oC", labels=("bug",))],
     )
     curr = make_snapshot(
         kind="issue",
         items=[
             make_item(
-                key="a/b#1",
+                ref="a/b#1",
                 history="oCL",
                 labels=("bug", "urgent"),
                 linked_pr="a/b#42",
@@ -160,12 +160,12 @@ def test_issue_table_rendered_with_labels_and_linked_pr():
 def _narrow_diff(kind: str):
     status = "review" if kind == "review" else None
     prev = [
-        make_item(key="OpenHands/OpenHands#11250", history="oCRfA", review_status=status),
-        make_item(key="OpenHands/infra#87", history="oCax", review_status=status),
+        make_item(ref="OpenHands/OpenHands#11250", history="oCRfA", review_status=status),
+        make_item(ref="OpenHands/infra#87", history="oCax", review_status=status),
     ]
     curr = [
-        make_item(key="OpenHands/OpenHands#11250", history="oCRfAfR", review_status=status),
-        make_item(key="OpenHands/docs#42", history="oCL", review_status=status),
+        make_item(ref="OpenHands/OpenHands#11250", history="oCRfAfR", review_status=status),
+        make_item(ref="OpenHands/docs#42", history="oCL", review_status=status),
     ]
     return diff_snapshots(
         make_snapshot(kind=kind, items=prev), make_snapshot(kind=kind, items=curr)
@@ -197,10 +197,10 @@ def test_80_columns_crops_a_long_history_with_the_crop_mark_not_rich_ellipsis(ki
     status = "review" if kind == "review" else None
     long_history = "o" + "cC" * 40
     prev = make_snapshot(
-        kind=kind, items=[make_item(key="o/r#1", history=long_history, review_status=status)]
+        kind=kind, items=[make_item(ref="o/r#1", history=long_history, review_status=status)]
     )
     curr = make_snapshot(
-        kind=kind, items=[make_item(key="o/r#1", history=long_history + "f", review_status=status)]
+        kind=kind, items=[make_item(ref="o/r#1", history=long_history + "f", review_status=status)]
     )
     buf = io.StringIO()
     console = Console(file=buf, width=80, color_system=None, force_terminal=True)
@@ -217,8 +217,8 @@ def test_80_columns_crops_a_long_history_with_the_crop_mark_not_rich_ellipsis(ki
 
 def test_wide_terminal_diff_has_no_crop_and_no_legend():
     long_history = "o" + "cC" * 40
-    prev = make_snapshot(items=[make_item(key="o/r#1", history=long_history)])
-    curr = make_snapshot(items=[make_item(key="o/r#1", history=long_history + "f")])
+    prev = make_snapshot(items=[make_item(ref="o/r#1", history=long_history)])
+    curr = make_snapshot(items=[make_item(ref="o/r#1", history=long_history + "f")])
     buf = io.StringIO()
     console = Console(file=buf, width=200, color_system=None, force_terminal=True)
     render_diff(diff_snapshots(prev, curr), console=console)
@@ -260,7 +260,7 @@ def test_summary_has_no_window_line_without_a_window():
 
 
 def _note_for(**changes) -> str:
-    item = make_item(key="a/b#1")
+    item = make_item(ref="a/b#1")
     delta = ItemDelta(key="a/b#1", kind=ChangeKind.CHANGED, prev=item, curr=item, **changes)
     return _render_note(delta)
 
@@ -285,7 +285,7 @@ def test_note_with_a_single_part_has_no_separator():
 
 
 def test_json_step_changes_stay_a_list():
-    item = make_item(key="a/b#1")
+    item = make_item(ref="a/b#1")
     delta = ItemDelta(
         key="a/b#1",
         kind=ChangeKind.CHANGED,
@@ -311,7 +311,7 @@ def test_piped_header_and_notes_do_not_depend_on_width(kind):
 
 
 def test_piped_no_changes_line_does_not_depend_on_width():
-    snap = make_snapshot(items=[make_item(key="a/b#1", history="oC")])
+    snap = make_snapshot(items=[make_item(ref="a/b#1", history="oC")])
     outs = []
     for width in (10, 200):
         buf = io.StringIO()

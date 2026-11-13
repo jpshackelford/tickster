@@ -14,7 +14,6 @@ from src.show.issue import build_issue_show
 from src.show.pr import build_pr_show
 from src.show.render import ISSUE_LEGEND, PR_LEGEND
 from src.snapshot.diff import diff_snapshots
-from src.snapshot.models import ItemSnapshot
 from tests.show.builders import comment, issue_node, login, pr_node, review, ts
 from tests.snapshot.conftest import make_item, make_snapshot
 
@@ -138,29 +137,7 @@ class TestLegendsAndFragments:
 
 class TestSnapshots:
     def test_history_character_change_is_reported_once(self):
-        prev = make_snapshot(items=[make_item(key="a/b#1", history="Oam")])
-        curr = make_snapshot(items=[make_item(key="a/b#1", history="Sam")])
+        prev = make_snapshot(items=[make_item(ref="a/b#1", history="Oam")])
+        curr = make_snapshot(items=[make_item(ref="a/b#1", history="Sam")])
         delta = diff_snapshots(prev, curr).deltas[0]
         assert "history-rewritten" in delta.changed_fields
-
-    def test_snapshot_without_events_still_loads(self):
-        item = ItemSnapshot.from_dict(
-            {
-                "key": "a/b#1",
-                "repo": "a/b",
-                "number": 1,
-                "title": "t",
-                "history": "Oam",
-                "state": "open",
-                "author": "octocat",
-                "last_activity": "2026-09-30T22:00:00Z",
-                "labels": [],
-                "ci_status": "green",
-                "is_draft": False,
-                "unresolved_thread_count": 0,
-                "linked_pr": None,
-                "review_status": None,
-            }
-        )
-        assert item.history == "Oam"
-        assert item.events == ()

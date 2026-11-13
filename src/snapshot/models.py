@@ -12,23 +12,34 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
-from src.actors import HistoryEvent
 from src.date_window import DateWindow
 from src.issue.models import Milestone
 from src.pr.reviewers import ReviewerState
+from src.snapshot.rows import (
+    KIND_ISSUE,
+    KIND_PR,
+    KIND_REVIEW,
+    ROW_FIELDS,
+    VALID_KINDS,
+    as_bool,
+    as_int,
+    as_opt_int,
+    as_opt_str,
+    as_opt_strs,
+    as_str,
+    decode_row,
+    encode_field,
+    read_field,
+)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
-_DEPENDENCY_KEYS = ("open_blockers", "blocking", "parent", "milestone")
-
-KIND_PR = "pr"
-KIND_ISSUE = "issue"
-KIND_REVIEW = "review"
-VALID_KINDS = (KIND_PR, KIND_ISSUE, KIND_REVIEW)
+__all__ = ["KIND_ISSUE", "KIND_PR", "KIND_REVIEW", "VALID_KINDS"]
 
 
 class ChangeKind(Enum):
@@ -66,15 +77,20 @@ class WindowScope:
         )
 
     def to_dict(self) -> dict:
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        return {
+            "field": self.field,
+            "since_days": self.since_days,
+            "after": self.after,
+            "before": self.before,
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> WindowScope:
         return cls(
-            field=data["field"],
-            since_days=data.get("since_days"),
-            after=data.get("after"),
-            before=data.get("before"),
+            field=read_field(data, "field", as_str),
+            since_days=read_field(data, "since_days", as_opt_int),
+            after=read_field(data, "after", as_opt_str),
+            before=read_field(data, "before", as_opt_str),
         )
 
     def describe(self) -> str:
@@ -123,54 +139,45 @@ class SnapshotScope:
     window: WindowScope | None = None
 
     def to_dict(self) -> dict:
-        data = {
+        return {
             "board": self.board,
             "author": self.author,
+            "all_authors": self.all_authors,
             "reviewer": self.reviewer,
             "repos": list(self.repos) if self.repos else None,
             "refs": list(self.refs) if self.refs else None,
             "states": list(self.states) if self.states else None,
             "labels": list(self.labels) if self.labels else None,
-            "exclude_authors": (list(self.exclude_authors) if self.exclude_authors else None),
+            "not_labels": list(self.not_labels) if self.not_labels else None,
+            "exclude_authors": list(self.exclude_authors) if self.exclude_authors else None,
             "include_all": self.include_all,
+            "pr_filter": self.pr_filter,
+            "blocked_filter": self.blocked_filter,
+            "sort": list(self.sort) if self.sort else None,
             "limit": self.limit,
+            "window": self.window.to_dict() if self.window else None,
         }
-        # Omitted when unset so scopes saved before these options keep their hash.
-        if self.all_authors:
-            data["all_authors"] = True
-        if self.not_labels:
-            data["not_labels"] = list(self.not_labels)
-        if self.pr_filter:
-            data["pr_filter"] = self.pr_filter
-        if self.blocked_filter:
-            data["blocked_filter"] = self.blocked_filter
-        if self.sort:
-            data["sort"] = list(self.sort)
-        if self.window:
-            data["window"] = self.window.to_dict()
-        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> SnapshotScope:
+        window = read_field(data, "window", lambda w: w)
         return cls(
-            board=data.get("board"),
-            author=data.get("author"),
-            all_authors=bool(data.get("all_authors", False)),
-            reviewer=data.get("reviewer"),
-            repos=tuple(data["repos"]) if data.get("repos") else None,
-            refs=tuple(data["refs"]) if data.get("refs") else None,
-            states=tuple(data["states"]) if data.get("states") else None,
-            labels=tuple(data["labels"]) if data.get("labels") else None,
-            not_labels=tuple(data["not_labels"]) if data.get("not_labels") else None,
-            exclude_authors=(
-                tuple(data["exclude_authors"]) if data.get("exclude_authors") else None
-            ),
-            include_all=bool(data.get("include_all", False)),
-            pr_filter=data.get("pr_filter") or None,
-            blocked_filter=data.get("blocked_filter") or None,
-            sort=tuple(data["sort"]) if data.get("sort") else None,
-            limit=int(data.get("limit", 100)),
-            window=WindowScope.from_dict(data["window"]) if data.get("window") else None,
+            board=read_field(data, "board", as_opt_str),
+            author=read_field(data, "author", as_opt_str),
+            all_authors=read_field(data, "all_authors", as_bool),
+            reviewer=read_field(data, "reviewer", as_opt_str),
+            repos=read_field(data, "repos", as_opt_strs),
+            refs=read_field(data, "refs", as_opt_strs),
+            states=read_field(data, "states", as_opt_strs),
+            labels=read_field(data, "labels", as_opt_strs),
+            not_labels=read_field(data, "not_labels", as_opt_strs),
+            exclude_authors=read_field(data, "exclude_authors", as_opt_strs),
+            include_all=read_field(data, "include_all", as_bool),
+            pr_filter=read_field(data, "pr_filter", as_opt_str),
+            blocked_filter=read_field(data, "blocked_filter", as_opt_str),
+            sort=read_field(data, "sort", as_opt_strs),
+            limit=read_field(data, "limit", as_int),
+            window=WindowScope.from_dict(window) if window is not None else None,
         )
 
     @classmethod
@@ -268,100 +275,57 @@ class SnapshotScope:
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
 
 
+def _as_list(value: Any) -> list:
+    if not isinstance(value, list):
+        raise TypeError(value)
+    return value
+
+
 @dataclass(frozen=True)
 class ItemSnapshot:
-    """Per-row fields persisted in a snapshot.
+    """One row: an issue, PR or review.
 
-    Only the fields the diff reasons about — not the raw GraphQL timeline.
-    `key` is "owner/repo#NNN" and uniquely identifies the row across runs.
+    The attributes are the row keys (see `rows.ROW_FIELDS`). A row serializes only
+    the keys of its `kind`; the attributes of other kinds keep their neutral defaults.
+    `ref` is "owner/repo#NNN" and identifies the row across runs.
     """
 
-    key: str
+    ref: str
+    kind: str
     repo: str
     number: int
+    url: str
     title: str
     history: str
     state: str
     author: str
+    created_at: str  # ISO-8601 UTC
     last_activity: str  # ISO-8601 UTC
     labels: tuple[str, ...] = ()
-    ci_status: str | None = None  # pr / review
-    is_draft: bool = False  # pr / review
-    unresolved_thread_count: int = 0  # pr / review
     linked_pr: str | None = None  # issue
-    review_status: str | None = None  # review
-    wait_seconds: float | None = None  # review
-    head_sha: str | None = None  # pr: full head commit SHA; None = not recorded
-    review_decision: str | None = None  # pr: GitHub reviewDecision; None = no decision
-    merge_state: str | None = None  # pr: GitHub mergeStateStatus
-    mergeable: str | None = None  # pr: GitHub mergeable
-    events: tuple[HistoryEvent, ...] = ()  # one per history character; () = not recorded
-    reviewers: tuple[ReviewerState, ...] | None = (
-        None  # pr: per-reviewer state; None = not recorded
-    )
-    steps: dict[str, str] | None = None  # pr: step name to status; None = not recorded
-    # issue: refs of open blockers ("?" = unreadable); None = the four dependency facts
-    # (this, blocking, parent, milestone) are not recorded
-    open_blockers: tuple[str, ...] | None = None
+    closed_at: str | None = None  # issue: ISO-8601 UTC; None while open
+    open_blockers: tuple[str, ...] = ()  # issue: refs of open blockers ("?" = unreadable)
     blocking: int = 0  # issue: open issues this one blocks
     parent: str | None = None  # issue: parent issue ref
     milestone: Milestone | None = None  # issue
+    draft: bool = False  # pr / review
+    ci: str = ""  # pr / review
+    unresolved_threads: int = 0  # pr / review
+    head: str | None = None  # pr / review: full head commit SHA
+    review_decision: str | None = None  # pr / review: GitHub reviewDecision
+    merge_state: str | None = None  # pr / review: GitHub mergeStateStatus
+    mergeable: str | None = None  # pr / review: GitHub mergeable
+    reviewers: tuple[ReviewerState, ...] = ()  # pr / review: per-reviewer state
+    step_status: dict[str, str] | None = None  # pr: step name to status; None = not evaluated
+    review_status: str = ""  # review
+    wait_seconds: float = 0.0  # review
 
     def to_dict(self) -> dict:
-        d = asdict(self)
-        d["labels"] = list(self.labels)
-        d["events"] = [e.to_dict() for e in self.events]
-        # Omitted when not recorded so older snapshots keep their bytes.
-        if self.reviewers is None:
-            del d["reviewers"]
-        else:
-            d["reviewers"] = [r.to_dict() for r in self.reviewers]
-        if self.steps is None:
-            del d["steps"]
-        if self.open_blockers is None:
-            for name in _DEPENDENCY_KEYS:
-                del d[name]
-        else:
-            d["open_blockers"] = list(self.open_blockers)
-            d["milestone"] = self.milestone.to_dict() if self.milestone else None
-        return d
+        return {name: encode_field(name, getattr(self, name)) for name in ROW_FIELDS[self.kind]}
 
     @classmethod
-    def from_dict(cls, data: dict) -> ItemSnapshot:
-        return cls(
-            key=data["key"],
-            repo=data["repo"],
-            number=int(data["number"]),
-            title=data.get("title", ""),
-            history=data.get("history", ""),
-            state=data.get("state", ""),
-            author=data.get("author", ""),
-            last_activity=data.get("last_activity", ""),
-            labels=tuple(data.get("labels", [])),
-            ci_status=data.get("ci_status"),
-            is_draft=bool(data.get("is_draft", False)),
-            unresolved_thread_count=int(data.get("unresolved_thread_count", 0)),
-            linked_pr=data.get("linked_pr"),
-            review_status=data.get("review_status"),
-            wait_seconds=data.get("wait_seconds"),
-            head_sha=data.get("head_sha"),
-            review_decision=data.get("review_decision"),
-            merge_state=data.get("merge_state"),
-            mergeable=data.get("mergeable"),
-            events=tuple(HistoryEvent.from_dict(e) for e in data.get("events", [])),
-            reviewers=(
-                tuple(ReviewerState.from_dict(r) for r in data["reviewers"])
-                if data.get("reviewers") is not None
-                else None
-            ),
-            steps=dict(data["steps"]) if data.get("steps") is not None else None,
-            open_blockers=(
-                tuple(data["open_blockers"]) if data.get("open_blockers") is not None else None
-            ),
-            blocking=int(data.get("blocking", 0)),
-            parent=data.get("parent"),
-            milestone=Milestone.from_dict(data["milestone"]) if data.get("milestone") else None,
-        )
+    def from_dict(cls, data: Any) -> ItemSnapshot:
+        return cls(**decode_row(data))
 
 
 @dataclass(frozen=True)
@@ -381,48 +345,46 @@ class Snapshot:
         return self.scope.fingerprint()
 
     @property
-    def items_by_key(self) -> dict[str, ItemSnapshot]:
-        return {it.key: it for it in self.items}
+    def items_by_ref(self) -> dict[str, ItemSnapshot]:
+        return {it.ref: it for it in self.items}
 
     def to_dict(self) -> dict:
-        data = {
+        return {
             "schema": self.schema,
             "kind": self.kind,
             "name": self.name,
             "captured_at": self.captured_at,
             "scope": self.scope.to_dict(),
             "scope_hash": self.scope_hash,
+            "has_more": self.has_more,
             "items": [it.to_dict() for it in self.items],
         }
-        # Omitted when false so snapshots that weren't truncated stay byte-identical.
-        if self.has_more:
-            data["has_more"] = True
-        return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> Snapshot:
-        schema = int(data.get("schema", SCHEMA_VERSION))
+    def from_dict(cls, data: Any) -> Snapshot:
+        """Read a snapshot; `ValueError` says why `data` is not one written by this tkt."""
+        if not isinstance(data, dict):
+            raise ValueError("the top level is not a JSON object")
+        schema = read_field(data, "schema", lambda v: v)
         if schema != SCHEMA_VERSION:
-            raise ValueError(
-                f"unsupported snapshot schema version: {schema} "
-                f"(this build understands {SCHEMA_VERSION}); upgrade or downgrade tkt"
-            )
-        kind = data["kind"]
+            raise ValueError(f"schema {schema}, this tkt writes schema {SCHEMA_VERSION}")
+        kind = read_field(data, "kind", as_str)
         if kind not in VALID_KINDS:
-            raise ValueError(f"invalid snapshot kind: {kind!r}")
-        scope = SnapshotScope.from_dict(data.get("scope", {}))
-        if kind == KIND_ISSUE and scope.states is None:
-            # `issue list` used to leave states unset (listing open and closed) when no
-            # state flag was given; it now defaults to open, so keep old scopes comparable.
-            scope = replace(scope, states=("open",))
+            raise ValueError(f"field 'kind' has the wrong type: {kind!r}")
+        scope = read_field(data, "scope", SnapshotScope.from_dict)
+        raw_items = read_field(data, "items", _as_list)
+        items = tuple(ItemSnapshot.from_dict(it) for it in raw_items)
+        for it in items:
+            if it.kind != kind:
+                raise ValueError(f"a {it.kind} row in a {kind} snapshot")
         return cls(
             schema=schema,
             kind=kind,
-            name=data["name"],
-            captured_at=data["captured_at"],
+            name=read_field(data, "name", as_str),
+            captured_at=read_field(data, "captured_at", as_str),
             scope=scope,
-            items=tuple(ItemSnapshot.from_dict(it) for it in data["items"]),
-            has_more=bool(data.get("has_more", False)),
+            items=items,
+            has_more=read_field(data, "has_more", as_bool),
         )
 
     @classmethod

@@ -23,6 +23,7 @@ from src.pr.history import (
     _history_text,
     _parse_datetime,
 )
+from src.pr.reviewers import build_reviewers
 from src.review.models import ReviewInfo, ReviewStatus
 from src.review.status import compute_review_status
 
@@ -322,7 +323,8 @@ class ReviewClient:
         ci_status = _determine_ci_status(pr_data)
 
         # Process timeline into events
-        events = _extract_timeline_events(pr_data, author, reviewer, get_repo_norms(repo))
+        norms = get_repo_norms(repo)
+        events = _extract_timeline_events(pr_data, author, reviewer, norms)
 
         # Build history string from reviewer's perspective
         history_events = _history_events(events, reviewer)
@@ -358,6 +360,13 @@ class ReviewClient:
             unresolved_thread_count=unresolved_thread_count,
             author=author,
             last_activity=last_activity,
+            created_at=created_at,
             mergeable=pr_data.get("mergeable"),
+            labels=tuple(n["name"] for n in (pr_data.get("labels") or {}).get("nodes", []) if n),
+            draft=pr_data.get("isDraft", False),
+            head_sha=pr_data.get("headRefOid"),
+            review_decision=pr_data.get("reviewDecision"),
+            merge_state=pr_data.get("mergeStateStatus"),
+            reviewers=build_reviewers(pr_data, reviewer, norms) or (),
             events=history_events,
         )

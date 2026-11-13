@@ -265,14 +265,6 @@ def _scope(not_labels: list[str] | None) -> SnapshotScope:
     )
 
 
-def test_scope_hash_without_not_label_is_unchanged():
-    """Golden hash computed on main before --not-label existed."""
-    scope = _scope(None)
-    assert "not_labels" not in scope.to_dict()
-    assert _scope([]).fingerprint() == scope.fingerprint()
-    assert scope.fingerprint() == "ab1ab50d"
-
-
 def test_scope_with_not_label_differs_and_round_trips():
     scope = _scope(["hold"])
     assert scope.to_dict()["not_labels"] == ["hold"]
