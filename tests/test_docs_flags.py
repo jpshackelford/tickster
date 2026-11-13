@@ -108,3 +108,12 @@ def test_upgrade_section_names_every_stub_message():
         "--since was removed: use --updated-since DAYS",
     ):
         assert message in section
+
+
+OLD_ROW_NAMES = ("ci_status", "is_draft", "head_sha", "unresolved_thread_count")
+
+
+@pytest.mark.parametrize("doc", ["usage.md", "automation.md"])
+def test_the_old_row_field_names_appear_nowhere_in_the_docs(doc):
+    text = (ROOT / "doc" / doc).read_text()
+    assert [name for name in OLD_ROW_NAMES if f"`{name}`" in text] == []
