@@ -466,3 +466,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:05 UTC - Expansion Worker
+
+✅ **Expanded Issue #130**
+
+- Issue: [feat(list): explicit date flags on issue list](https://github.com/jpshackelford/tickster/issues/130)
+- Type: Enhancement
+- Status: Ready for implementation
+- Approach: register `--{created,updated,closed}-{since,after,before}` on `issue list` only; resolve them to the existing `build_date_window` inputs (same `WindowScope`, so snapshots stay compatible); add a `flag_names` kwarg so errors name the typed flag. `--closed-*` keeps the "needs `--closed`" rule.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
