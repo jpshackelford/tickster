@@ -60,10 +60,6 @@ def cmd_list(
     diff_show_unchanged: bool = False,
     diff_force: bool = False,
     diff_resolve: bool = False,
-    since_days: int | None = None,
-    after: str | None = None,
-    before: str | None = None,
-    date_field: str | None = None,
     field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List PRs with history visualization.
@@ -84,11 +80,6 @@ def cmd_list(
         reviewer_names: Like show_reviewers, but naming each reviewer
         show_steps: Add a Steps column: one character per pending-step (see STEPS_LEGEND).
             Only the table column: snapshots and JSON always record the statuses
-        since_days: Only include PRs within the last N days
-        after: Only include PRs on/after this date (YYYY-MM-DD)
-        before: Only include PRs on/before this date (YYYY-MM-DD)
-        date_field: Search date field to filter on
-            (created/updated/merged/closed)
         field_dates: Per-field flag values keyed by dest, e.g. ``merged_since``
 
     Returns:
@@ -105,10 +96,6 @@ def cmd_list(
         resolved = resolve_field_flags(
             PR_DATE_FIELDS,
             field_dates or {},
-            since_days=since_days,
-            after=after,
-            before=before,
-            date_field=date_field,
         )
         window = build_date_window(
             states,

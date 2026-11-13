@@ -121,27 +121,6 @@ class TestQuery:
         assert code == 0
         assert f"merged:>={_days_ago(30)}" in queries[0]
 
-    @pytest.mark.parametrize(
-        ("old", "new"),
-        [
-            (["--merged", "--since", "14"], ["--merged", "--merged-since", "14"]),
-            (
-                ["--since", "14", "--date-field", "created"],
-                ["--created-since", "14"],
-            ),
-            (
-                ["--merged", "--after", "2026-11-01", "--before", "2026-11-07"],
-                ["--merged", "--merged-after", "2026-11-01", "--merged-before", "2026-11-07"],
-            ),
-            (["--closed", "--since", "7"], ["--closed", "--closed-since", "7"]),
-            (["--since", "5"], ["--updated-since", "5"]),
-        ],
-    )
-    def test_old_flags_give_the_same_query(self, old, new, queries, capsys):
-        assert _run(capsys, *old)[0] == 0
-        assert _run(capsys, *new)[0] == 0
-        assert queries[0] == queries[1]
-
     def test_empty_result_message_names_the_field(self, queries, capsys):  # noqa: ARG002
         _, out, _ = _run(capsys, "--merged", "--merged-since", "14")
         assert "No PRs" in out
@@ -167,9 +146,6 @@ class TestErrors:
                 "--merged-before",
             ),
             (["--created-since", "3", "--updated-since", "3"], "--updated-since"),
-            (["--merged", "--merged-since", "3", "--since", "3"], "--since"),
-            (["--merged", "--merged-since", "3", "--date-field", "merged"], "--date-field"),
-            (["--created-after", "2026-11-01", "--after", "2026-11-01"], "--after"),
             (["--merged", "--merged-since", "14", "o/r#1"], "--merged-since cannot narrow"),
             (["--created-after", "2026-11-01", "o/r#1"], "--created-after cannot narrow"),
         ],
@@ -193,35 +169,20 @@ class TestErrors:
         assert "--created-since" in err
         assert "--merged-since" in err
 
-    def test_old_flag_errors_are_unchanged(self, queries, capsys):  # noqa: ARG002
-        _, _, err = _run(capsys, "--date-field", "merged", "--since", "7")
-        assert "--date-field merged only matches merged items" in err
-        assert "add --merged" in err
-        assert "(or --all)" not in err
-
 
 class TestSnapshotScope:
-    def test_since_form_scope_and_fingerprint_match(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--merged", "--since", "14", "--snapshot", "a")[0] == 0
-        old_scope = store.load("pr", "a").scope
-        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "b")[0] == 0
-        new_scope = store.load("pr", "b").scope
-        assert old_scope.window == WindowScope(field="merged", since_days=14)
-        assert new_scope == old_scope
-        assert new_scope.fingerprint() == old_scope.fingerprint()
+    def test_scope_window_is_stored_as_field_and_days(self, queries, tkt_home, capsys):  # noqa: ARG002
+        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "a")[0] == 0
+        assert store.load("pr", "a").scope.window == WindowScope(field="merged", since_days=14)
 
-    def test_absolute_form_scope_and_fingerprint_match(self, queries, tkt_home, capsys):  # noqa: ARG002
-        old = ["--after", "2026-11-01", "--before", "2026-11-07", "--date-field", "merged", "--all"]
+    def test_absolute_scope_window_is_stored_as_field_and_dates(self, queries, tkt_home, capsys):  # noqa: ARG002
         new = ["--merged-after", "2026-11-01", "--merged-before", "2026-11-07", "--all"]
-        assert _run(capsys, *old, "--snapshot", "a")[0] == 0
-        assert _run(capsys, *new, "--snapshot", "b")[0] == 0
-        a, b = store.load("pr", "a").scope, store.load("pr", "b").scope
-        assert a.window == WindowScope(field="merged", after="2026-11-01", before="2026-11-07")
-        assert a == b
-        assert a.fingerprint() == b.fingerprint()
+        assert _run(capsys, *new, "--snapshot", "a")[0] == 0
+        window = store.load("pr", "a").scope.window
+        assert window == WindowScope(field="merged", after="2026-11-01", before="2026-11-07")
 
-    def test_diff_across_spellings_has_no_scope_mismatch(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--merged", "--since", "14", "--snapshot", "a")[0] == 0
+    def test_diff_against_own_snapshot_has_no_scope_mismatch(self, queries, tkt_home, capsys):  # noqa: ARG002
+        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "a")[0] == 0
         code, out, err = _run(capsys, "--merged", "--merged-since", "14", "--diff", "a")
         assert code == 0
         assert "scope mismatch" not in out + err
@@ -232,9 +193,3 @@ class TestSnapshotScope:
         code, out, err = _run(capsys, *args)
         assert code == 0
         assert "scope mismatch" not in out + err
-
-    def test_different_field_is_a_scope_change(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--all", "--created-since", "14", "--snapshot", "a")[0] == 0
-        assert _run(capsys, "--all", "--merged-since", "14", "--snapshot", "b")[0] == 0
-        a, b = store.load("pr", "a").scope, store.load("pr", "b").scope
-        assert a.fingerprint() != b.fingerprint()

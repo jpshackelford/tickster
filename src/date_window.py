@@ -1,9 +1,10 @@
 """Shared date-window filtering for pr/issue/review listings.
 
-Translates the CLI date-window options (``--since`` / ``--after`` /
-``--before`` / ``--date-field``) into a GitHub search date qualifier such as
-``merged:>=2026-08-25`` or ``created:2026-08-01..2026-08-25`` so that
-listings can be restricted to a recent time window.
+Translates the per-field CLI date flags (``--created-since``,
+``--merged-after``, ``--closed-before`` ...) into a GitHub search date
+qualifier such as ``merged:>=2026-08-25`` or
+``created:2026-08-01..2026-08-25`` so that listings can be restricted to a
+time window. A window always names the date field it filters on.
 """
 
 from __future__ import annotations
@@ -17,48 +18,20 @@ ISSUE_DATE_FIELDS = ("created", "updated", "closed")
 PR_DATE_FIELDS = VALID_DATE_FIELDS
 REVIEW_DATE_FIELDS = VALID_DATE_FIELDS
 FIELD_FLAG_KINDS = ("since", "after", "before")
-DEFAULT_FLAG_NAMES: Mapping[str, str] = {
-    "since": "--since",
-    "after": "--after",
-    "before": "--before",
-}
 
 
 class DateWindowError(ValueError):
     """Raised when date-window options are invalid or inconsistent."""
 
 
-def _parse_date(value: str, flag: str | None = None) -> date:
+def _parse_date(value: str, flag: str) -> date:
     """Parse a YYYY-MM-DD string into a date, raising DateWindowError."""
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
-        where = f" for {flag}" if flag else ""
         raise DateWindowError(
-            f"Invalid date '{value}'{where}: expected YYYY-MM-DD format"
+            f"Invalid date '{value}' for {flag}: expected YYYY-MM-DD format"
         ) from None
-
-
-def resolve_date_field(states: list[str] | None, explicit: str | None = None) -> str:
-    """Pick the search date field to filter on.
-
-    An explicit ``--date-field`` always wins. Otherwise the field is inferred
-    from the states being queried: a lone ``merged`` or ``closed`` listing uses
-    the matching field, everything else falls back to ``updated``.
-    """
-    if explicit:
-        if explicit not in VALID_DATE_FIELDS:
-            raise DateWindowError(
-                f"Invalid date field '{explicit}': choose from {', '.join(VALID_DATE_FIELDS)}"
-            )
-        return explicit
-
-    states_set = {s.lower() for s in (states or [])}
-    if states_set == {"merged"}:
-        return "merged"
-    if states_set == {"closed"}:
-        return "closed"
-    return "updated"
 
 
 def _check_field_can_match(
@@ -66,37 +39,35 @@ def _check_field_can_match(
     states: list[str] | None,
     *,
     merged_ok: bool,
-    typed_flag: str | None = None,
+    typed_flag: str,
     has_all_flag: bool = True,
 ) -> None:
-    """Reject an explicit date field that the queried states can never have.
+    """Reject a date field that the queried states can never have.
 
-    ``typed_flag`` is the per-field flag the user typed (``--closed-since``);
-    without it the message names ``--date-field``. ``has_all_flag`` is False
-    where ``--all`` does not widen the states, so errors must not suggest it.
+    ``typed_flag`` is the per-field flag the user typed (``--closed-since``).
+    ``has_all_flag`` is False where ``--all`` does not widen the states, so
+    errors must not suggest it.
     """
     states_set = {s.lower() for s in (states or [])} or {"open"}
     state_text = "/".join(sorted(states_set))
     if field == "merged" and not merged_ok:
-        raise DateWindowError(
-            "Issues have no merged date: use --date-field created, updated or closed"
-        )
+        raise DateWindowError(f"{typed_flag} cannot apply to issues: issues have no merged date")
     if field == "merged" and "merged" not in states_set:
-        name = typed_flag or "--date-field merged"
-        remedy = "add --merged (or --all)" if typed_flag and has_all_flag else "add --merged"
+        remedy = "add --merged (or --all)" if has_all_flag else "add --merged"
         raise DateWindowError(
-            f"{name} only matches merged items, but the state filter is {state_text}: {remedy}"
+            f"{typed_flag} only matches merged items, but the state filter is {state_text}: "
+            f"{remedy}"
         )
     if field == "closed" and not states_set & {"closed", "merged"}:
-        name = typed_flag or "--date-field closed"
-        if not typed_flag or not has_all_flag:
+        if not has_all_flag:
             remedy = "add --closed (or --merged)"
         elif merged_ok:
             remedy = "add --closed, --merged or --all"
         else:
             remedy = "add --closed (or --all)"
         raise DateWindowError(
-            f"{name} only matches closed items, but the state filter is {state_text}: {remedy}"
+            f"{typed_flag} only matches closed items, but the state filter is {state_text}: "
+            f"{remedy}"
         )
 
 
@@ -135,31 +106,31 @@ class DateWindow:
 def build_date_window(
     states: list[str] | None,
     *,
+    date_field: str | None,
+    flag_names: Mapping[str, str] | None,
     since_days: int | None = None,
     after: str | None = None,
     before: str | None = None,
-    date_field: str | None = None,
     refs: list[str] | None = None,
     merged_ok: bool = True,
     now: datetime | None = None,
-    flag_names: Mapping[str, str] | None = None,
     has_all_flag: bool = True,
 ) -> DateWindow | None:
-    """Build a DateWindow from the raw CLI options.
+    """Build a DateWindow from resolved per-field date flags.
 
     Args:
-        states: The states being queried (used to infer the date field).
+        states: The states being queried (a merged or closed field must be reachable).
+        date_field: The date field the typed flags name (created/updated/merged/closed).
+        flag_names: The flags the user typed, keyed ``since``/``after``/``before``,
+            so errors name them. Both this and ``date_field`` come from
+            ``resolve_field_flags`` and are None only when no flag was typed.
         since_days: Relative window - include items from the start of the UTC
             calendar day N days ago (``0`` means today, UTC).
         after: Absolute lower bound (YYYY-MM-DD, inclusive).
         before: Absolute upper bound (YYYY-MM-DD, inclusive).
-        date_field: Explicit field override (created/updated/merged/closed).
         refs: Explicit item references; a window cannot narrow these.
         merged_ok: False for item kinds that cannot be merged (issues).
         now: Reference time for ``since_days`` (defaults to current UTC time).
-        flag_names: The flags the user typed, keyed ``since``/``after``/``before``,
-            so errors name them. Set when the window came from per-field flags
-            such as ``--created-since``; ``date_field`` is then explicit.
         has_all_flag: False when ``--all`` does not widen the states (``review``),
             so state errors don't suggest it.
 
@@ -168,18 +139,19 @@ def build_date_window(
 
     Raises:
         DateWindowError: The options are invalid, contradict each other, or
-            cannot take effect (``--date-field`` alone, a window with refs).
+            cannot take effect (a window with refs, a field the states cannot match).
+        ValueError: A window was given without ``date_field`` and ``flag_names``.
     """
-    names = flag_names or DEFAULT_FLAG_NAMES
+    if since_days is None and after is None and before is None:
+        return None
+    if date_field is None or flag_names is None:
+        raise ValueError("a date window needs date_field and flag_names")
+
     window_flags = [
-        names[kind]
+        flag_names[kind]
         for kind, value in (("since", since_days), ("after", after), ("before", before))
         if value is not None
     ]
-    if not window_flags:
-        if date_field:
-            raise DateWindowError("--date-field needs --since, --after or --before")
-        return None
 
     if refs:
         flags = "/".join(window_flags)
@@ -189,51 +161,46 @@ def build_date_window(
         )
 
     if since_days is not None and (after is not None or before is not None):
-        if flag_names:
-            bounds = "/".join(
-                flag_names[kind]
-                for kind, value in (("after", after), ("before", before))
-                if value is not None
-            )
-        else:
-            bounds = "--after/--before"
-        raise DateWindowError(f"{names['since']} cannot be combined with {bounds}")
-
-    field = resolve_date_field(states, date_field)
-    if date_field:
-        _check_field_can_match(
-            field,
-            states,
-            merged_ok=merged_ok,
-            typed_flag=window_flags[0] if flag_names else None,
-            has_all_flag=has_all_flag,
+        bounds = "/".join(
+            flag_names[kind]
+            for kind, value in (("after", after), ("before", before))
+            if value is not None
         )
+        raise DateWindowError(f"{flag_names['since']} cannot be combined with {bounds}")
+
+    _check_field_can_match(
+        date_field,
+        states,
+        merged_ok=merged_ok,
+        typed_flag=window_flags[0],
+        has_all_flag=has_all_flag,
+    )
 
     after_date: date | None = None
     before_date: date | None = None
 
     if since_days is not None:
         if since_days < 0:
-            raise DateWindowError(f"{names['since']} must be a non-negative number of days")
+            raise DateWindowError(f"{flag_names['since']} must be a non-negative number of days")
         base = now or datetime.now(tz=UTC)
         after_date = (base - timedelta(days=since_days)).date()
 
     if after is not None:
-        after_date = _parse_date(after, flag_names["after"] if flag_names else None)
+        after_date = _parse_date(after, flag_names["after"])
     if before is not None:
-        before_date = _parse_date(before, flag_names["before"] if flag_names else None)
+        before_date = _parse_date(before, flag_names["before"])
 
     if after_date and before_date and after_date > before_date:
         raise DateWindowError(
-            f"{names['after']} date must not be later than {names['before']} date"
+            f"{flag_names['after']} date must not be later than {flag_names['before']} date"
         )
 
-    return DateWindow(field=field, after=after_date, before=before_date, since_days=since_days)
+    return DateWindow(field=date_field, after=after_date, before=before_date, since_days=since_days)
 
 
 @dataclass(frozen=True)
 class ResolvedDateFlags:
-    """The ``build_date_window`` inputs behind a set of date flags."""
+    """The ``build_date_window`` inputs behind a set of per-field date flags."""
 
     since_days: int | None = None
     after: str | None = None
@@ -252,25 +219,23 @@ def field_flag_dest(field: str, kind: str) -> str:
     return f"{field}_{kind}"
 
 
+def field_flag_names(field: str) -> dict[str, str]:
+    """The three flag spellings of one field, keyed ``since``/``after``/``before``."""
+    return {kind: field_flag(field, kind) for kind in FIELD_FLAG_KINDS}
+
+
 def resolve_field_flags(
     fields: Sequence[str],
     field_values: Mapping[str, int | str | None],
-    *,
-    since_days: int | None = None,
-    after: str | None = None,
-    before: str | None = None,
-    date_field: str | None = None,
 ) -> ResolvedDateFlags:
     """Map per-field flags (``--created-since`` ...) onto ``build_date_window`` inputs.
 
     Args:
         fields: The date fields that offer per-field flags.
         field_values: Parsed per-field values keyed by dest (``created_since``).
-        since_days, after, before, date_field: The old, unscoped flags.
 
     Raises:
-        DateWindowError: Per-field flags are mixed with the old flags, or name
-            more than one date field.
+        DateWindowError: The flags name more than one date field.
     """
     typed: dict[str, list[str]] = {}
     values: dict[str, int | str | None] = {}
@@ -281,25 +246,8 @@ def resolve_field_flags(
                 typed.setdefault(field, []).append(field_flag(field, kind))
                 values[kind] = value
 
-    old_typed = [
-        flag
-        for flag, value in (
-            ("--since", since_days),
-            ("--after", after),
-            ("--before", before),
-            ("--date-field", date_field),
-        )
-        if value is not None
-    ]
     if not typed:
-        return ResolvedDateFlags(since_days, after, before, date_field)
-
-    if old_typed:
-        first_new = next(iter(typed.values()))[0]
-        raise DateWindowError(
-            f"{first_new} cannot be combined with {old_typed[0]}: "
-            "use the per-field flags or the old flags, not both"
-        )
+        return ResolvedDateFlags()
     if len(typed) > 1:
         named = " and ".join(flags[0] for flags in typed.values())
         raise DateWindowError(
@@ -313,7 +261,7 @@ def resolve_field_flags(
         after=after_value if isinstance(after_value, str) else None,
         before=before_value if isinstance(before_value, str) else None,
         date_field=field,
-        flag_names={kind: field_flag(field, kind) for kind in FIELD_FLAG_KINDS},
+        flag_names=field_flag_names(field),
     )
 
 

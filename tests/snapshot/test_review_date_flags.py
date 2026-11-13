@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.__main__ import main
-from src.date_window import DateWindowError, build_date_window
+from src.date_window import DateWindowError, build_date_window, field_flag_names
 from src.review.github_api import ReviewClient
 from src.snapshot import store
 from src.snapshot.models import WindowScope
@@ -114,26 +114,6 @@ class TestQuery:
         assert _run(capsys)[0] == 0
         assert all("created:" not in q and "updated:" not in q for q in queries)
 
-    @pytest.mark.parametrize(
-        ("old", "new"),
-        [
-            (["--merged", "--since", "14"], ["--merged", "--merged-since", "14"]),
-            (["--closed", "--since", "7"], ["--closed", "--closed-since", "7"]),
-            (["--since", "14", "--date-field", "created"], ["--created-since", "14"]),
-            (["--since", "5"], ["--updated-since", "5"]),
-            (
-                ["--merged", "--after", "2026-11-01", "--before", "2026-11-07"],
-                ["--merged", "--merged-after", "2026-11-01", "--merged-before", "2026-11-07"],
-            ),
-        ],
-    )
-    def test_old_flags_give_the_same_queries(self, old, new, queries, capsys):
-        assert _run(capsys, *old)[0] == 0
-        first = list(queries)
-        queries.clear()
-        assert _run(capsys, *new)[0] == 0
-        assert queries == first
-
 
 class TestErrors:
     @pytest.mark.parametrize(
@@ -144,9 +124,6 @@ class TestErrors:
             (["--merged", "--merged-before", "nope"], "for --merged-before"),
             (["--created-since", "3", "--created-after", "2026-11-01"], "--created-since"),
             (["--created-since", "3", "--updated-since", "3"], "--updated-since"),
-            (["--created-since", "3", "--since", "3"], "--since"),
-            (["--created-since", "3", "--date-field", "created"], "--date-field"),
-            (["--created-after", "2026-11-01", "--after", "2026-11-01"], "--after"),
         ],
     )
     def test_error_names_the_typed_flag_and_exits_1(self, args, expected, queries, capsys):
@@ -192,17 +169,6 @@ class TestErrors:
         assert code == 1
         assert "state filter is closed: add --merged" in err
 
-    def test_old_flag_errors_are_unchanged(self, queries, capsys):  # noqa: ARG002
-        _, _, err = _run(capsys, "--date-field", "merged", "--since", "7")
-        assert "--date-field merged only matches merged items" in err
-        assert "add --merged" in err
-        assert "(or --all)" not in err
-
-    def test_old_flag_closed_error_is_unchanged(self, queries, capsys):  # noqa: ARG002
-        _, _, err = _run(capsys, "--date-field", "closed", "--since", "7")
-        assert "--date-field closed only matches closed items" in err
-        assert "add --closed (or --merged)" in err
-
 
 class TestBuildDateWindowAllFlag:
     NOW = datetime(2026, 11, 13, tzinfo=UTC)
@@ -210,7 +176,7 @@ class TestBuildDateWindowAllFlag:
     def test_default_still_suggests_all(self):
         with pytest.raises(DateWindowError, match=r"add --closed, --merged or --all"):
             build_date_window(
-                ["open"], since_days=3, date_field="closed", flag_names=_names("closed")
+                ["open"], since_days=3, date_field="closed", flag_names=field_flag_names("closed")
             )
 
     def test_has_all_flag_false_drops_all_from_both_remedies(self):
@@ -220,7 +186,7 @@ class TestBuildDateWindowAllFlag:
                     ["open"],
                     since_days=3,
                     date_field=field,
-                    flag_names=_names(field),
+                    flag_names=field_flag_names(field),
                     has_all_flag=False,
                 )
             assert str(exc.value).endswith(remedy)
@@ -230,7 +196,7 @@ class TestBuildDateWindowAllFlag:
             ["merged"],
             since_days=7,
             date_field="closed",
-            flag_names=_names("closed"),
+            flag_names=field_flag_names("closed"),
             has_all_flag=False,
             now=self.NOW,
         )
@@ -238,40 +204,19 @@ class TestBuildDateWindowAllFlag:
         assert window.describe().startswith("closed")
 
 
-def _names(field: str) -> dict[str, str]:
-    return {kind: f"--{field}-{kind}" for kind in ("since", "after", "before")}
-
-
 class TestSnapshotScope:
-    def test_since_form_scope_and_fingerprint_match(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--merged", "--since", "14", "--snapshot", "a")[0] == 0
-        old_scope = store.load("review", "a").scope
-        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "b")[0] == 0
-        new_scope = store.load("review", "b").scope
-        assert old_scope.window == WindowScope(field="merged", since_days=14)
-        assert new_scope == old_scope
-        assert new_scope.fingerprint() == old_scope.fingerprint()
+    def test_scope_window_is_stored_as_field_and_days(self, queries, tkt_home, capsys):  # noqa: ARG002
+        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "a")[0] == 0
+        assert store.load("review", "a").scope.window == WindowScope(field="merged", since_days=14)
 
-    def test_created_form_scope_and_fingerprint_match(self, queries, tkt_home, capsys):  # noqa: ARG002
-        old = ["--since", "14", "--date-field", "created"]
-        assert _run(capsys, *old, "--snapshot", "a")[0] == 0
-        assert _run(capsys, "--created-since", "14", "--snapshot", "b")[0] == 0
-        a, b = store.load("review", "a").scope, store.load("review", "b").scope
-        assert a.window == WindowScope(field="created", since_days=14)
-        assert a == b
-        assert a.fingerprint() == b.fingerprint()
-
-    def test_absolute_form_scope_and_fingerprint_match(self, queries, tkt_home, capsys):  # noqa: ARG002
-        old = ["--merged", "--after", "2026-11-01", "--before", "2026-11-07"]
+    def test_absolute_scope_window_is_stored_as_field_and_dates(self, queries, tkt_home, capsys):  # noqa: ARG002
         new = ["--merged", "--merged-after", "2026-11-01", "--merged-before", "2026-11-07"]
-        assert _run(capsys, *old, "--snapshot", "a")[0] == 0
-        assert _run(capsys, *new, "--snapshot", "b")[0] == 0
-        a, b = store.load("review", "a").scope, store.load("review", "b").scope
-        assert a.window == WindowScope(field="merged", after="2026-11-01", before="2026-11-07")
-        assert a == b
+        assert _run(capsys, *new, "--snapshot", "a")[0] == 0
+        window = store.load("review", "a").scope.window
+        assert window == WindowScope(field="merged", after="2026-11-01", before="2026-11-07")
 
-    def test_diff_across_spellings_has_no_scope_mismatch(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--merged", "--since", "14", "--snapshot", "a")[0] == 0
+    def test_diff_against_own_snapshot_has_no_scope_mismatch(self, queries, tkt_home, capsys):  # noqa: ARG002
+        assert _run(capsys, "--merged", "--merged-since", "14", "--snapshot", "a")[0] == 0
         code, out, err = _run(capsys, "--merged", "--merged-since", "14", "--diff", "a")
         assert code == 0
         assert "scope mismatch" not in out + err
@@ -282,9 +227,3 @@ class TestSnapshotScope:
         code, out, err = _run(capsys, *args)
         assert code == 0
         assert "scope mismatch" not in out + err
-
-    def test_different_field_is_a_scope_change(self, queries, tkt_home, capsys):  # noqa: ARG002
-        assert _run(capsys, "--created-since", "14", "--snapshot", "a")[0] == 0
-        assert _run(capsys, "--updated-since", "14", "--snapshot", "b")[0] == 0
-        a, b = store.load("review", "a").scope, store.load("review", "b").scope
-        assert a.fingerprint() != b.fingerprint()
