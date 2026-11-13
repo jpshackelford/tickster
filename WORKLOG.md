@@ -479,3 +479,17 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:15 UTC - Implementation Worker
+
+✅ **Implemented Issue #125**
+
+- Issue: [feat(snapshot): --diff stages the new baseline](https://github.com/jpshackelford/tickster/issues/125) (`priority:medium`, part of #120)
+- PR: [#151](https://github.com/jpshackelford/tickster/pull/151), CI green, moved from draft to ready.
+- Bare `--diff NAME` stages `snapshots/pending/<kind>-<name>.json`; `tkt snapshot ack KIND/NAME` commits it; `--snapshot`, `--watch` and `snapshot rm` clear it; `snapshot list` marks `(pending ack)`; diff JSON has `"baseline": "found"|"missing"`. `doc/usage.md` updated.
+- All acceptance criteria met except the manual test, which is left for the testing worker.
+- Follow-ups: a pending baseline with no saved baseline (first `--diff`, not yet acked) is not shown by `snapshot list`. #127 (`doc/automation.md` rewrite) is now unblocked once #151 merges.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
