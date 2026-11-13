@@ -204,6 +204,46 @@ the `--limit` behavior are as before. `--sort` works with the table, `--format j
 and explicit refs. It is part of a snapshot's scope: a `--diff` against a snapshot
 saved with a different `--sort` reports `scope mismatch` and names the change.
 
+### Which issues can I start now?
+
+A caller that picks the next issues to work on needs one command, not a script.
+Run this in the repos you work from (`--repo OWNER/REPO` or `--board NAME`, as
+with any list):
+
+```bash
+tkt issue list --all-authors -l ready --not-label hold --unblocked --no-pr \
+  --sort rank,blocking,number --limit 2 --format json
+```
+
+- `--all-authors -l ready` keeps everyone's open issues that carry the label `ready`.
+  The label name is yours: tickster has no built-in meaning for it.
+- `--not-label hold` drops the issues that carry `hold`. Again the name is yours.
+- `--unblocked` keeps issues with no open blocker. A closed blocker does not count.
+- `--no-pr` keeps issues with no linked PR, so work that has started is not picked twice.
+- `--sort rank,blocking,number` puts the best label first, in the order of the repo's
+  [`[labels] rank`](#tkt-norms) list, then the issues that block the most open issues,
+  then the oldest. See [Sorting](#sorting-issues).
+- `--limit 2` keeps the first two after the sort. You get fewer when fewer match.
+- `--format json` prints one document; the issues are in its `items` array.
+
+For the waiting list, the issues that are `ready` but cannot start yet:
+
+```bash
+tkt issue list --all-authors -l ready --blocked --format json
+```
+
+The `open_blockers` field of each item names what it waits on, as
+`owner/repo#number` refs (`?` for a blocker the token cannot read).
+See [Issue dependencies](#issue-dependencies).
+
+Close a blocker and run the first command again: the issue it blocked now
+qualifies. GitHub's search index can lag a few seconds behind a close or a label
+change, so an issue you just closed or labeled may still show for a moment.
+
+tickster does not decide which label means ready, how many issues to start, or
+what to do with an issue on hold. Those are your policy: you pass them as flags.
+`[labels] rank` has no default, and `--sort rank` exits 1 in a repo that has none.
+
 ### Effective filters line
 
 A plain `tkt issue list` prints one `Filters:` line under the table and its
