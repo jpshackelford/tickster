@@ -308,3 +308,16 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Needing expansion next: #141–#143
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+### 2026-11-13 07:30 UTC - Expansion Worker
+
+✅ **Expanded Issue #139**
+
+- Issue: [feat(list): --no-pr and --has-pr filters on issue list](https://github.com/jpshackelford/tickster/issues/139)
+- Status: Ready. No open blockers, so no "blocked by" relation was set. #130 only supplies `--created-since` for the target one-liner; expect a mechanical rebase conflict with it.
+- Approach: client-side filter on `IssueInfo.linked_pr` in `_search_issues()`; `has_more` computed from the scan, not the unfiltered `issueCount`; new `SnapshotScope.pr_filter` written only when set; `pr-linked` reasons for rows that leave a `--no-pr` diff.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
