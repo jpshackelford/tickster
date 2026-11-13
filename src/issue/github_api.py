@@ -1,6 +1,7 @@
 """GitHub API interactions for issue history."""
 
 import logging
+from collections.abc import Sequence
 
 from src.board.github_api import (
     SEARCH_PAGE_SIZE,
@@ -12,6 +13,7 @@ from src.board.github_api import (
 from src.connection_paging import ConnectionSpec, complete_connection
 from src.issue.dependencies import DEPENDENCY_FIELDS, ISSUE_BLOCKED_BY, ISSUE_BLOCKING
 from src.issue.models import IssueInfo, IssueListResult
+from src.issue.sort import SORT_CAP, TooManyCandidatesError, sort_issues
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +150,7 @@ class IssueClient:
         not_labels: list[str] | None = None,
         pr_filter: str | None = None,
         blocked_filter: str | None = None,
+        sort: Sequence[str] | None = None,
     ) -> IssueListResult:
         """List issues by author, optionally filtered by repos, states, and labels.
 
@@ -166,6 +169,8 @@ class IssueClient:
                 with one (the definition behind the PR column)
             blocked_filter: "unblocked" keeps issues with no open blocker, "blocked"
                 those with at least one (an unreadable blocker, "?", counts as open)
+            sort: Sort keys (see ``src.issue.sort``). Fetches every match, sorts, then
+                applies ``limit``; raises ``TooManyCandidatesError`` past ``SORT_CAP``
 
         Returns:
             IssueListResult with processed issue info
@@ -196,6 +201,7 @@ class IssueClient:
             excluded_labels=excluded,
             pr_filter=pr_filter,
             blocked_filter=blocked_filter,
+            sort=sort,
         )
 
     def get_issues_by_ref(
@@ -250,6 +256,7 @@ class IssueClient:
         excluded_labels: set[str] | None = None,
         pr_filter: str | None = None,
         blocked_filter: str | None = None,
+        sort: Sequence[str] | None = None,
     ) -> IssueListResult:
         """Execute a search query and process results.
 
@@ -258,6 +265,8 @@ class IssueClient:
         ``pr_filter`` is applied client-side against ``IssueInfo.linked_pr`` and
         ``blocked_filter`` against ``IssueInfo.open_blockers``; with either,
         ``has_more`` comes from the scan, since ``issueCount`` counts unfiltered rows.
+        With ``sort``, every match is fetched (up to ``SORT_CAP``) and sorted before
+        ``limit`` is applied.
         """
         from src.issue.history import process_issue_data
 
@@ -282,6 +291,7 @@ class IssueClient:
         all_issues: list[IssueInfo] = []
         cursor: str | None = None
         total_count = 0
+        fetch_limit = SORT_CAP + 1 if sort else limit
 
         # If we have OR groups, we may need to fetch more and filter
         client_filtered = bool(pr_filter or blocked_filter)
@@ -289,12 +299,12 @@ class IssueClient:
         page_size = SEARCH_PAGE_SIZE
         has_more_matches = False
 
-        while len(all_issues) < limit:
+        while len(all_issues) < fetch_limit:
             search_result, page_size = fetch_search_page(
                 self._client,
                 query,
                 {"query": search_query, "cursor": cursor},
-                min(page_size, (limit - len(all_issues)) * fetch_multiplier),
+                min(page_size, (fetch_limit - len(all_issues)) * fetch_multiplier),
             )
             total_count = search_result["issueCount"]
 
@@ -325,17 +335,27 @@ class IssueClient:
                         continue
 
                     all_issues.append(issue_info)
-                    if len(all_issues) >= limit:
+                    if len(all_issues) >= fetch_limit:
                         has_more_matches = index + 1 < len(nodes)
                         break
 
             page_info = search_result["pageInfo"]
-            if not page_info["hasNextPage"] or len(all_issues) >= limit:
+            if not page_info["hasNextPage"] or len(all_issues) >= fetch_limit:
                 has_more_matches = has_more_matches or page_info["hasNextPage"]
                 break
             cursor = page_info["endCursor"]
 
-        # Sort
+        if sort:
+            if len(all_issues) > SORT_CAP:
+                raise TooManyCandidatesError
+            ordered = sort_issues(all_issues, sort)
+            return IssueListResult(
+                issues=ordered[:limit],
+                total_count=len(ordered),
+                has_more=len(ordered) > limit,
+                cursor=cursor,
+            )
+
         if sort_by_activity:
             all_issues.sort(key=lambda i: i.last_activity, reverse=True)
         else:

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from enum import Enum
@@ -91,7 +92,7 @@ class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author or all-authors, repos, refs, states, labels, PR filter, limit,
+    (same board, author or all-authors, repos, refs, states, labels, PR filter, sort, limit,
     date window). `fingerprint`
     yields a stable short digest used to detect scope drift between runs.
 
@@ -117,6 +118,7 @@ class SnapshotScope:
     include_all: bool = False  # review: --all
     pr_filter: str | None = None  # issue list: "no-pr" (--no-pr) or "has-pr" (--has-pr)
     blocked_filter: str | None = None  # issue list: "blocked" (--blocked) or "unblocked"
+    sort: tuple[str, ...] | None = None  # issue list: --sort keys, in the order given
     limit: int = 100
     window: WindowScope | None = None
 
@@ -142,6 +144,8 @@ class SnapshotScope:
             data["pr_filter"] = self.pr_filter
         if self.blocked_filter:
             data["blocked_filter"] = self.blocked_filter
+        if self.sort:
+            data["sort"] = list(self.sort)
         if self.window:
             data["window"] = self.window.to_dict()
         return data
@@ -164,6 +168,7 @@ class SnapshotScope:
             include_all=bool(data.get("include_all", False)),
             pr_filter=data.get("pr_filter") or None,
             blocked_filter=data.get("blocked_filter") or None,
+            sort=tuple(data["sort"]) if data.get("sort") else None,
             limit=int(data.get("limit", 100)),
             window=WindowScope.from_dict(data["window"]) if data.get("window") else None,
         )
@@ -211,6 +216,7 @@ class SnapshotScope:
         not_labels: list[str] | None = None,
         pr_filter: str | None = None,
         blocked_filter: str | None = None,
+        sort: Sequence[str] | None = None,
     ) -> SnapshotScope:
         """Build the scope that `issue list` queries contribute to the hash."""
         return cls(
@@ -224,6 +230,7 @@ class SnapshotScope:
             not_labels=tuple(sorted({lbl.lower() for lbl in not_labels})) if not_labels else None,
             pr_filter=pr_filter,
             blocked_filter=blocked_filter,
+            sort=tuple(sort) if sort else None,
             limit=limit,
             window=WindowScope.from_window(window),
         )

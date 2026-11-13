@@ -120,7 +120,8 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--limit, -n N` | Max issues to show (default: 100) |
 | `--title, -t` | Show issue titles |
 | `--deps` | Add `Blocked by` (open blockers, `--` for none) and `Blocks` (open issues this one blocks) columns. See [Issue dependencies](#issue-dependencies) |
-| `--activity, -s` | Sort by recent activity instead of creation date |
+| `--activity, -s` | Sort by recent activity instead of creation date. Not with `--sort` |
+| `--sort KEY[,KEY...]` | Order the list by `number`, `created`, `updated` or `blocking`, then apply `--limit`. See [Sorting](#sorting-issues). Not with `--activity` |
 | `--created-since DAYS` | Only issues created since the start of the UTC day N days ago (`0` = today) |
 | `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only issues created on/after, on/before this UTC date (inclusive) |
 | `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
@@ -141,6 +142,7 @@ tkt issue list --all --created-since 14      # issues filed in the last 2 weeks
 tkt issue list --all --updated-since 14      # issues touched in the last 2 weeks
 tkt issue list --all --closed-after 2026-11-01 --closed-before 2026-11-07   # closed that week
 tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's open issues
+tkt issue list --repo octocat/hello-world --all-authors -l ready --unblocked --sort -blocking,number -n 2   # the two best issues to start
 ```
 
 `--no-pr`, `--has-pr`, `--blocked` and `--unblocked` filter after the search, so
@@ -164,6 +166,34 @@ with `name` set to the `--snapshot` name or `""`. See
 See [Date-window filtering](#date-window-filtering) for the semantics of the
 `--created-*` / `--updated-*` / `--closed-*` flags.
 
+### Sorting issues
+
+`--sort KEY[,KEY...]` orders the list. A `-` before a key reverses it.
+
+| Key | Order |
+| --- | --- |
+| `number` | Ascending |
+| `created` | Oldest first |
+| `updated` | Least recently updated first (the time in the `Last` column) |
+| `blocking` | Most open issues blocked first (the `Blocks` count) |
+
+Later keys break ties. A final tie is broken by `number`, then by repo.
+`--sort -created` puts the newest first; `--sort -blocking` puts the issues that
+block the fewest first. Write a reversed first key as `--sort -created` or
+`--sort=-created`; both work.
+
+With `--sort`, tickster fetches every issue that matches the filters, sorts them,
+and only then applies `--limit`. So `--sort blocking --limit 1` returns the issue
+that blocks the most open issues, even when GitHub would not list it on the first
+page. A query that matches more than 500 issues exits 1 with
+`more than 500 issues match; narrow the query`, and prints no rows: tickster never
+sorts part of the set.
+
+An unknown key exits 2 and lists the valid keys. Without `--sort`, the order and
+the `--limit` behavior are as before. `--sort` works with the table, `--format json`
+and explicit refs. It is part of a snapshot's scope: a `--diff` against a snapshot
+saved with a different `--sort` reports `scope mismatch` and names the change.
+
 ### Effective filters line
 
 A plain `tkt issue list` prints one `Filters:` line under the table, before the
@@ -182,6 +212,7 @@ Filters: author=octocat (you) · state=open · repos=all GitHub · label=any · 
 | `label` | `any`, or the `-l` values: repeated flags joined with ` & ` (AND), commas shown as `\|` (OR). `-l bug,stale -l urgent` prints `label=bug\|stale & urgent` |
 | `not-label` | Only with `--not-label`: the labels, comma-joined |
 | `blocked` | Only with `--blocked` (`yes`) or `--unblocked` (`no`) |
+| `sort` | Only with `--sort`: the keys, comma-joined, as typed |
 | `limit` | `--limit` (default 100) |
 
 With explicit refs the line is `Filters: refs=N`, since refs ignore the other
@@ -1132,7 +1163,7 @@ is the same dense table you already read, with two added visual channels:
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
-(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, limit). Exact capture
+(same board, author or `--all-authors`, repos, refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, `--sort`, limit). Exact capture
 times are in `tkt snapshot show` and `--format json`.
 
 ```
@@ -1428,7 +1459,7 @@ tkt pr list --diff poll --format json --events none       # steps only, no timel
 ### Scope matching
 
 The query filter set (board, author or `--all-authors`, reviewer, repos, explicit
-`owner/repo#N` refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, `--all`, limit, and the
+`owner/repo#N` refs, states, labels, `--not-label`, `--no-pr` / `--has-pr`, `--blocked` / `--unblocked`, `--sort`, `--all`, limit, and the
 [date window](#date-window-filtering)) is persisted with
 every snapshot. `repos` is the list actually queried (`--repo`, else the
 board's repos at run time), so adding or removing a repo on the board
