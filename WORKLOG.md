@@ -392,3 +392,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+### 2026-11-13 08:30 UTC - Expansion worker
+
+- Issue: [feat(list): print the effective filters under pr list and review](https://github.com/jpshackelford/tickster/issues/141)
+- Status: Expanded and labelled `ready`. It waits on #140 (the shared `Filters:` formatter); I added the formal "blocked by #140" relation, which was missing, so the orchestrator skips #141 until #140 closes.
+- Approach: a `_pr_filters` / `_review_filters` builder and one call site each, after the table and before the `Showing N of M` and `Window:` lines. Corrections to the issue: `pr list` / `review` have no `--label`, so no `label=` field; `review --all` is "include approved/hold", shown as `show=actionable|all`; `pr list --reviewer` is always open-only and ignores `--author`/`--merged`, so the line shows `reviewer=… · state=open`.
+- Note: that silent ignore and `review --reviewer me` (searches a user named "me") are existing quirks, not fixed here; follow-up issues are worth filing. Likely conflicts: #140 (formatter, `FakeClient`, docs), PR #153 (`pr list` call site), `doc/usage.md` with #139/#130.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
