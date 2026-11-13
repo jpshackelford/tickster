@@ -34,7 +34,7 @@ REFS="jpshackelford/tickster#60 jpshackelford/tickster#62"   # or --repo / --boa
 NAME=doc-first                                               # one snapshot per loop
 
 # 1. Poll. Save the result: --watch has already moved the baseline.
-tkt pr list $REFS --watch "$NAME" --format json --steps > poll.json
+tkt pr list $REFS --watch "$NAME" --format json > poll.json
 
 # 2-3. For each row that is new or changed: read what is new, then ask what is pending.
 jq -r '.deltas[] | select(.kind == "added" or .kind == "changed")
@@ -53,7 +53,7 @@ done
 `--watch NAME` diffs the current result against snapshot `pr/NAME`, prints the diff,
 and then overwrites `pr/NAME` with the current result. With `--format json`
 stdout is one JSON document ([`--watch` and `--format`](usage.md#snapshots--diffs)).
-`--steps` records each PR's step statuses, so a step that moved shows up in the diff.
+The snapshot always records each PR's step statuses, so a step that moved shows up in the diff without `--steps`.
 
 The first poll has no baseline. Every row is `added`, and the notice
 `No snapshot pr/doc-first found; treating all current rows as new.` goes to stderr.
@@ -368,7 +368,7 @@ are `not configured`.
 
 | Command | Keys it reads |
 | --- | --- |
-| `tkt pr list` (with `--watch`, `--diff`, `--format json`) | `[actors]` `agent_logins`, `bots` and `agent_disclosure`: the [actor class](usage.md#ai-actors) of every event and reviewer in a row. With `--steps`, also everything `tkt pr steps` reads |
+| `tkt pr list` (with `--watch`, `--diff`, `--format json`) | `[actors]` `agent_logins`, `bots` and `agent_disclosure`: the [actor class](usage.md#ai-actors) of every event and reviewer in a row. Also everything `tkt pr steps` reads, because the step statuses are always recorded |
 | `tkt pr show` | `[actors]`, as above. `[reports.NAME]` `marker` and `fail`: the `reports:` line and the JSON `reports` |
 | `tkt pr steps` | `[actors]`, so that classes decide who is a reviewer. `[review]` `count_reviews_from`, `rerequest_labels`. `[ci]` `ignore_checks`. `[commits]` `ignore_paths`, `min_changed_lines`. Every `[reports.NAME]`: `marker`, `required`, `only_paths`, `fail` and `[reports.NAME.impact_line]` `pattern`, `from`, `unassessed` |
 | `tkt pr changes` | `[commits]` `ignore_paths`, `min_changed_lines`, and only for a setting you did not give as `--ignore-path` or `--min-changed-lines`. The file is not fetched when you give both |

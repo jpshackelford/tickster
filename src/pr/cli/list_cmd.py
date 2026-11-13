@@ -78,7 +78,8 @@ def cmd_list(
         show_detail: Add head commit, review decision and merge state columns
         show_reviewers: Add a Reviewers column with a count per reviewer state
         reviewer_names: Like show_reviewers, but naming each reviewer
-        show_steps: Add a Steps column: one character per pending-step (see STEPS_LEGEND)
+        show_steps: Add a Steps column: one character per pending-step (see STEPS_LEGEND).
+            Only the table column: snapshots and JSON always record the statuses
         since_days: Only include PRs within the last N days
         after: Only include PRs on/after this date (YYYY-MM-DD)
         before: Only include PRs on/before this date (YYYY-MM-DD)
@@ -157,8 +158,6 @@ def cmd_list(
                     date_qualifier=date_qualifier,
                 )
 
-            steps = collect_steps(result.prs) if show_steps else None
-
             plan = SnapshotPlan.from_args(
                 kind=KIND_PR,
                 snapshot_name=snapshot_name,
@@ -169,7 +168,11 @@ def cmd_list(
                 force=diff_force,
                 resolve=diff_resolve,
                 detail=show_detail,
+                show_steps=show_steps,
             )
+
+            steps = collect_steps(result.prs) if show_steps or plan is not None else None
+            steps_column = steps if show_steps else None
 
             if plan is not None:
                 scope = SnapshotScope.from_pr_args(
@@ -199,7 +202,7 @@ def cmd_list(
                         show_title=show_title,
                         show_detail=show_detail,
                         reviewers=reviewers_mode,
-                        steps=steps,
+                        steps=steps_column,
                         window=window,
                     ),
                     fetch_by_ref=lambda refs: client.get_prs_by_ref(refs).prs,
@@ -217,7 +220,7 @@ def cmd_list(
                 show_title=show_title,
                 show_detail=show_detail,
                 reviewers=reviewers_mode,
-                steps=steps,
+                steps=steps_column,
                 window=window,
             )
 

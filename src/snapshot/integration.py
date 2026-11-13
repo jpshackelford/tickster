@@ -40,6 +40,10 @@ from src.snapshot.models import VALID_KINDS, Snapshot
 from src.snapshot.resolve import FetchByRef, resolve_removed
 
 
+def _without_steps(snapshot: Snapshot) -> Snapshot:
+    return replace(snapshot, items=tuple(replace(it, steps=None) for it in snapshot.items))
+
+
 @dataclass(frozen=True)
 class SnapshotPlan:
     """Decoded intent from `--snapshot`, `--diff`, `--watch` and `--format` flags."""
@@ -52,6 +56,7 @@ class SnapshotPlan:
     force: bool = False
     detail: bool = False
     resolve: bool = False
+    show_steps: bool = False  # `pr list --steps`: the table reports step moves
 
     @property
     def wants_diff(self) -> bool:
@@ -74,6 +79,7 @@ class SnapshotPlan:
         force: bool = False,
         detail: bool = False,
         resolve: bool = False,
+        show_steps: bool = False,
     ) -> SnapshotPlan | None:
         """Build a plan from parsed CLI arguments, or None if there is nothing to do.
 
@@ -112,6 +118,7 @@ class SnapshotPlan:
             force=force,
             detail=detail,
             resolve=resolve,
+            show_steps=show_steps,
         )
 
     def execute(
@@ -174,6 +181,9 @@ class SnapshotPlan:
         except store.SnapshotFormatError as e:
             print_error(str(e))
             return 1
+        if self.output_format == "table" and not self.show_steps:
+            # Snapshots always record step statuses; the table reports a move only with --steps.
+            prev, curr = _without_steps(prev), _without_steps(curr)
         result = replace(diff_module.diff_snapshots(prev, curr), baseline_found=baseline_found)
         if self.resolve:
             if fetch_by_ref is None:
