@@ -332,3 +332,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 07:00 UTC - Implementation worker
+
+- Issue: [feat(snapshot): always record step statuses in JSON output and snapshots](https://github.com/jpshackelford/tickster/issues/123)
+- PR: [#153](https://github.com/jpshackelford/tickster/pull/153), CI green, marked ready.
+- Approach: `pr list` calls `collect_steps` when `--steps`, a snapshot/diff/watch or `--format json` is requested; `--steps` only controls the table column. `SnapshotPlan.show_steps` strips steps from both snapshots before a table diff, so the default diff table is unchanged without `--steps`; the saved snapshot keeps them.
+- Note: the issue had no "technical approach" comment; worked from the issue body. `automation.md` got two minimal wording fixes (full rewrite is #127). Manual test (#60/#62) is left to the testing worker.
+- Note: `GITHUB_TOKEN` could not push or open PRs; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
