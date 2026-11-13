@@ -1344,3 +1344,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-13T13:00Z — PR #175 merged
+
+- [PR #175](https://github.com/jpshackelford/tickster/pull/175) squash-merged as `43813d5`, pinned to head `db251e8`: `[labels] rank` in norms and `tkt issue list --sort rank`. CI green, bot APPROVED, manual test (17 cases) posted. It did not conflict with #174, so no rebase was needed.
+- [Issue #149](https://github.com/jpshackelford/tickster/issues/149) closed. [#150](https://github.com/jpshackelford/tickster/issues/150) is unblocked.
+- Main after both merges: 2472 tests pass; ruff and basedpyright clean.
+- Follow-up: re-run `tkt issue list --all-authors -l ready --sort rank` without the loader harness (norms now on the default branch).
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
