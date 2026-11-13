@@ -627,3 +627,17 @@ Merging [PR #183](https://github.com/jpshackelford/tickster/pull/183): one compa
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 20:50 UTC - Merge worker
+
+✅ **Merged [PR #183](https://github.com/jpshackelford/tickster/pull/183)** (squash, `1b81b20`): `feat(list)!:` one compact JSON document for `issue list`, `pr list` and `review`
+
+- Head was still `6634bb9`; CI green, bot APPROVED, 23 manual tests passed. PR description updated to the final state.
+- Breaking change (`BREAKING CHANGE:` footer): JSON loses `kind`, `name`, `captured_at`, `scope`, `scope_hash`.
+- [#142](https://github.com/jpshackelford/tickster/issues/142) closed by the merge. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+- Follow-up note from manual test: the stored snapshot file has no trailing newline, while stdout has one. `doc/usage.md` says "byte for byte".
+- Unblocked: #143, #181.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
