@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 13:40 UTC - Implementation worker
+
+- [Issue #126](https://github.com/jpshackelford/tickster/issues/126): `--exit-code` on `pr list`, `issue list` and `review` makes `--diff` / `--watch` exit 10 when a row was added, changed or removed → [PR #174](https://github.com/jpshackelford/tickster/pull/174). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` (two `--watch --exit-code` ticks, `echo $?`) is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; `doc/automation.md` still says `--watch` exits 0 and is left for #127; `GITHUB_TOKEN` got 403 on push and PR create, so the owner token was used.
+
 ### 2026-11-13 12:27 UTC - Merge worker
 
 - [PR #173](https://github.com/jpshackelford/tickster/pull/173) squash-merged as `97b29da` (pinned to head `55ddf6c`): `History:` legend under `pr list`, `issue list` and `review`, shared `src/history_legend.py`, all-dots sentence in `STEPS_LEGEND`. CI green, 15 manual scenarios passed, bot review APPROVED. [Issue #155](https://github.com/jpshackelford/tickster/issues/155) closed. PR description updated with the manual test link. Unblocks #157. Note: `GITHUB_TOKEN` could not edit the PR or merge it (integration 403), so the owner token was used.
