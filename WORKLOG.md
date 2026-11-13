@@ -468,6 +468,13 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Unprioritized ready (assess when no prioritized work remains): #139, #140, #141, #137, #143
 - #142 `needs-info` (human decision)
 
+### 2026-11-13 10:00 UTC - Expansion worker
+
+- Issue: [feat(list): add a legend for the History and Steps columns](https://github.com/jpshackelford/tickster/issues/155)
+- Status: Expanded and labelled `ready`. It waits on #140 and #141 (formal "blocked by" relations added): they add a `Filters:` note under the same `issue list` and `pr list` tables, so the order of notes should settle once.
+- Approach: new `src/history_legend.py` holds one char table shared by the list legends and `show`; `pr list` and `issue list` print a `History:` legend of only the characters shown; `STEPS_LEGEND` gains an "all dots = nothing pending" sentence. `review` and diff tables are out of scope.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
