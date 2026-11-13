@@ -449,6 +449,9 @@ class FakePRClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_prs_by_author(self, *_: Any, **__: Any) -> PRListResult:
         return PRListResult(prs=list(self.prs))
 

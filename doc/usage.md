@@ -316,6 +316,31 @@ with `name` set to the `--snapshot` name or `""`. See
 See [Date-window filtering](#date-window-filtering) for the semantics of the
 `--created-*` / `--updated-*` / `--closed-*` / `--merged-*` flags.
 
+### Effective filters line (`tkt pr list`)
+
+A plain `tkt pr list` prints one `Filters:` line under the table, before the
+`Showing N of M` footer and the `Window:` line, naming every filter in effect,
+defaults included. An empty result prints `No PRs found.` and then the same line.
+
+```
+Filters: author=octocat (you) · state=open · repos=all GitHub · limit=100
+```
+
+| Field | Value |
+| --- | --- |
+| `author` | The login, with `(you)` when it is the current user (the default or `me`); `all authors` with `--all-authors` |
+| `reviewer` | With `--reviewer`, in place of `author`: the login, with `(you)` for `me` |
+| `state` | The states joined with `+`, in the order `open`, `merged`, `closed`: `open`, `merged`, `open+merged+closed`, … |
+| `repos` | `--repo` values, the board's repos (comma-joined), or `all GitHub` |
+| `limit` | `--limit` (default 100) |
+
+`--reviewer` runs a different search: open PRs with a review requested from that
+user. It ignores `--author`, `--merged` and `--closed`, so its
+line always shows `reviewer=… · state=open`. With explicit refs the line is
+`Filters: refs=N`. The line does not repeat the date window; that stays on the
+`Window:` line. `--diff`, `--watch`, `--snapshot` and `--format json` do not
+print it. When stdout is not a terminal the line is never wrapped.
+
 ### `tkt pr checks`
 
 Explain a `red` CI column: list the failing checks on one PR's head commit,
@@ -797,6 +822,31 @@ output — see [Snapshots & diffs](#snapshots--diffs).
 table, the same document `tkt snapshot show KIND/NAME --format json` prints,
 with `name` set to the `--snapshot` name or `""`. See
 [`--format json` on list commands](#--format-json-on-list-commands).
+
+### Effective filters line (`tkt review`)
+
+A plain `tkt review` prints one `Filters:` line under the table and its legend,
+before the `Showing N PRs …` footer and the `Window:` line. An empty result
+prints its message (`No PRs needing your review.`) and then the same line, so
+you can tell an empty queue from a mis-scoped one.
+
+```
+Filters: reviewer=octocat (you) · show=actionable · state=open · repos=all GitHub · limit=100
+```
+
+| Field | Value |
+| --- | --- |
+| `reviewer` | The queue's owner: the login with `(you)` by default, plain with `--reviewer USER`. `--reviewer me` prints `me` |
+| `author` | Only with `--author` |
+| `exclude` | Only with `--exclude-author`: the logins, comma-joined |
+| `show` | `actionable` by default; `all` with `--all` (approved and on-hold PRs included) |
+| `state` | `open` by default; `merged`, `closed` or `merged+closed` with `--merged` / `--closed` (no `open` then) |
+| `repos` | `--repo` values, the board's repos (comma-joined), or `all GitHub` |
+| `limit` | `--limit` (default 100) |
+
+The line does not repeat the date window; that stays on the `Window:` line.
+`--diff`, `--watch`, `--snapshot` and `--format json` do not print it. When
+stdout is not a terminal the line is never wrapped.
 
 ## `tkt board`
 
@@ -1505,8 +1555,10 @@ Semantics:
   picked, mostly "updated"; now `--updated-since 14` says so.
 - One date field per query. `--created-since 14 --updated-since 2` is an error
   naming both flags.
-- **The window is reported.** (`tkt issue list` also prints a separate
-  [`Filters:` line](#effective-filters-line); it does not repeat the window.)
+- **The window is reported.** (`tkt issue list`, `tkt pr list` and `tkt review` also print a separate
+  `Filters:` line ([issue](#effective-filters-line),
+  [pr](#effective-filters-line-tkt-pr-list),
+  [review](#effective-filters-line-tkt-review)); it does not repeat the window.)
   A listing that used a window ends with a
   `Window: merged ≥ 2026-09-26 (UTC)` line, and an empty result names it too
   (`No PRs found (merged ≥ 2026-09-26, UTC).`), so a window that is narrower
@@ -1747,7 +1799,10 @@ A login in `[actors] agent_logins` is an AI actor instead, even if it ends in `[
 
 `tkt issue list` also prints a one-line legend beneath the table, so the
 encoding is self-documenting at the terminal. A `Filters:` line sits between
-the table and the legend ([details](#effective-filters-line)).
+the table and the legend ([details](#effective-filters-line)). `tkt pr list`
+and `tkt review` print the same line under the table and its legends
+([pr](#effective-filters-line-tkt-pr-list),
+[review](#effective-filters-line-tkt-review)).
 
 ## Piping refs from stdin
 

@@ -512,6 +512,9 @@ class FakePRClient:
     def __exit__(self, *_: object) -> None:
         return None
 
+    def get_current_user(self) -> str:
+        return "octocat"
+
     def list_prs_by_author(self, *_: Any, **__: Any) -> PRListResult:
         return PRListResult(prs=list(self.prs))
 
@@ -692,7 +695,8 @@ class TestListColumn:
         monkeypatch.setattr(pr_list, "console", Console(width=80, color_system=None))
         fake_client.prs = [stale_pr()]
         assert pr_list.cmd_list() == 0
-        assert all(len(line) <= 80 for line in capsys.readouterr().out.splitlines())
+        lines = capsys.readouterr().out.splitlines()
+        assert all(len(line) <= 80 for line in lines if not line.startswith("Filters:"))
 
 
 def snapshot_of(*prs: PRInfo, with_steps: bool = True) -> Snapshot:
