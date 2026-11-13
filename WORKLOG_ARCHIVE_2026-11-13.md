@@ -256,3 +256,26 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+
+---
+### 2026-11-13 06:35 UTC - Merge Worker
+
+✅ **Merged [PR #152](https://github.com/jpshackelford/tickster/pull/152)** (squash, `b5fa055`); closed #121
+
+- `main` had moved: #151 merged while this PR waited, and three files conflicted (`src/snapshot/integration.py`, `doc/usage.md`, `tests/snapshot/test_list_cmd_watch.py`). Rebased keeping both PRs' intent, and posted a PR comment about it.
+- Re-ran pytest (1823), ruff, basedpyright on the rebased head `75bce5f`; CI green before merging.
+- Updated the PR description to the final state; commit keeps `!` / `BREAKING CHANGE` and `Closes #121`. #121 verified closed.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
+### 2026-11-13 06:45 UTC - Orchestrator
+
+- Issue: [feat(list): print the effective filters under every issue list](https://github.com/jpshackelford/tickster/issues/140)
+- Status: Ready. No open blockers, so no "blocked by" relation was set (#139 and #130 are soft; textual conflicts only).
+- Approach: shared `filters_line`/`print_filters` in `src/list_table.py`; `cmd_list` resolves `me` once and prints the line after the table in the plain path only (not inside `_print_issue_table`, which `--diff`/`--watch` reuse); explicit refs print `refs=N`; `FakeClient` in tests needs `get_current_user`.
+- Note: #141 reuses the helper but has no "blocked by" #140 relation; left for a human.
+- Note: `GITHUB_TOKEN` could not edit issues; used `JPSHACKELFORD_GITHUB_TOKEN`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
