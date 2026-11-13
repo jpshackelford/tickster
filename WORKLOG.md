@@ -541,3 +541,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 20:30 UTC - Implementation worker
+
+✅ **#142 implemented: [PR #183](https://github.com/jpshackelford/tickster/pull/183) ready for review**
+
+- `issue list`, `pr list`, `review` and `snapshot show` print one compact JSON document (`schema`, `filters`, `total_count`, `has_more`, `items`; `snapshot` when named). Stored file is the same document.
+- CI green (lint, type check, tests); `doc/usage.md` and `doc/automation.md` updated. Breaking change (`feat(list)!:`). Testing and review are separate conversations.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
