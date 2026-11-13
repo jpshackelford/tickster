@@ -130,6 +130,11 @@ tkt issue list --repo octocat/hello-world --all-authors --open   # everyone's op
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
 
+`--format json` prints the current result as one JSON document instead of the
+table, the same document `tkt snapshot show KIND/NAME --format json` prints,
+with `name` set to the `--snapshot` name or `""`. See
+[`--format json` on list commands](#--format-json-on-list-commands).
+
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
 `--since` / `--after` / `--before` / `--date-field`.
 
@@ -239,6 +244,11 @@ tkt pr list --board oh --all-authors --watch factory   # everyone's open PRs, di
 
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
+
+`--format json` prints the current result as one JSON document instead of the
+table, the same document `tkt snapshot show KIND/NAME --format json` prints,
+with `name` set to the `--snapshot` name or `""`. See
+[`--format json` on list commands](#--format-json-on-list-commands).
 
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
 `--since` / `--after` / `--before` / `--date-field`.
@@ -707,6 +717,11 @@ includes `hold` and `approved`.
 Also accepts `--snapshot`, `--diff`, `--watch` for change-since-last-run
 output — see [Snapshots & diffs](#snapshots--diffs).
 
+`--format json` prints the current result as one JSON document instead of the
+table, the same document `tkt snapshot show KIND/NAME --format json` prints,
+with `name` set to the `--snapshot` name or `""`. See
+[`--format json` on list commands](#--format-json-on-list-commands).
+
 ## `tkt board`
 
 Manage a GitHub Project board used to track development workflow.
@@ -985,13 +1000,13 @@ is the same dense table you already read, with two added visual channels:
 - A `!` after a value marks a field that changed. A `!` on **Last**
   (e.g. `5m ago!`) with no bracketed history means new events arrived
   but collapsed into the existing string (consecutive duplicates
-  collapse), e.g. replies after your comment. In `--diff-format json`
+  collapse), e.g. replies after your comment. In `--format json`
   this is `"activity"` in `changed_fields`.
 
 A one-line summary header shows how long ago each snapshot was captured,
 the counts, and whether the two snapshots were produced by the same scope
 (same board, author or `--all-authors`, repos, refs, states, labels, limit). Exact capture
-times are in `tkt snapshot show` and `--diff-format json`.
+times are in `tkt snapshot show` and `--format json`.
 
 ```
 diff pr/hourly: 1h ago → 4s ago  (+2 new, *5 changed, -1 gone, 29 unchanged)
@@ -1048,7 +1063,7 @@ instead of a Note.
 
 PR snapshots also record one record per reviewer, built from GitHub's pending
 review requests, each reviewer's latest review and the commit it covered. They
-are in the JSON outputs (`tkt snapshot show --format json`, `--diff-format json`)
+are in the JSON outputs (`tkt snapshot show --format json`, `--format json`)
 as `reviewers`:
 
 | Field | Meaning |
@@ -1127,7 +1142,7 @@ All three list commands accept the same snapshot flags:
 | `--snapshot [NAME]` | Save the result. With NAME, overwrites that snapshot. Without NAME, auto-timestamps. |
 | `--diff NAME` | Diff the current query result against snapshot NAME. Alone (without `--snapshot` or `--watch`), it leaves NAME as it is and stages the result; `tkt snapshot ack` makes it the new baseline. See [Staging a baseline with `--diff`](#staging-a-baseline-with---diff). |
 | `--watch NAME` | Shortcut for `--diff NAME --snapshot NAME` — the hourly-cron idiom. |
-| `--diff-format {table,json}` | Format for `--diff`/`--watch` output (default `table`). |
+| `--format {table,json}` | `json` prints one JSON document instead of the table: the diff with `--diff`/`--watch`, else the current result as a snapshot. Default `table`. |
 | `--diff-include-unchanged` | Include unchanged rows in the diff view (default: only changes shown). |
 | `--diff-force` | Proceed with the diff even if the snapshot scope doesn't match the current query. |
 | `--diff-resolve` | Look up each gone (`-`) row and say why (`closed`, `merged`, `still open`, `not found`) instead of guessing. See [Why a row is gone](#why-a-row-is-gone). |
@@ -1144,7 +1159,7 @@ A person at a terminal uses `--watch NAME`. A job uses `--diff NAME`, handles th
 rows, then runs `tkt snapshot ack`:
 
 ```bash
-tkt pr list --diff poll --diff-format json > poll.json   # diff against baseline "poll"
+tkt pr list --diff poll --format json > poll.json   # diff against baseline "poll"
 handle poll.json                                         # your code; may fail
 tkt snapshot ack pr/poll                                 # only now: "poll" becomes this result
 ```
@@ -1168,10 +1183,31 @@ read it as a snapshot.
   stages the result, so the first `ack` creates the baseline.
 - Rule of use: one consumer per name, one tick at a time.
 
-With `--diff-format json`, the document has a top-level `"baseline"`: `"found"`
+With `--format json`, the document has a top-level `"baseline"`: `"found"`
 or `"missing"`. When it is `"missing"`, the rows are all `added`, and the notice
 `No snapshot … found` goes to stderr. A job can treat a first run differently
 without parsing stderr.
+
+
+### `--format json` on list commands
+
+`--format {table,json}` (default `table`) is on `tkt pr list`, `tkt issue list`
+and `tkt review`. It replaces the old diff-only flag, which is now an argparse error.
+With `json`, stdout holds one JSON document and nothing else. Notices and
+errors go to stderr.
+
+- With `--diff` or `--watch`, the document is the diff.
+- Without them, it is the current result, in the same schema as
+  `tkt snapshot show KIND/NAME --format json`: `kind`, `name`, `captured_at`,
+  `scope`, `items`, and `has_more` when the query matched more rows than
+  `--limit`. `name` is the `--snapshot` name, or `""` when none is given.
+- `--snapshot NAME --format json` still saves the snapshot, and prints the
+  document instead of the table.
+
+```bash
+tkt pr list octocat/hello-world#7 --format json | python -m json.tool
+tkt pr list --author me --snapshot mine --format json   # save and print
+```
 
 ### Scope matching
 
@@ -1290,7 +1326,7 @@ tkt pr list    --board oh --all-authors --watch factory
 - Labels, states, date windows, `--limit`, `--activity` and the snapshot flags
   work as usual.
 - History case stays relative to you: `o` = you opened it, `O` = someone else
-  did. The author's login is in the JSON outputs (`--diff-format json`,
+  did. The author's login is in the JSON outputs (`--format json`,
   `tkt snapshot show --format json`).
 - A snapshot taken with `--all-authors` records it in its scope, so diffing it
   against one taken without the flag is a scope mismatch.

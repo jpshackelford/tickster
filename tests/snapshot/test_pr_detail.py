@@ -286,11 +286,11 @@ class TestPrList:
 
     def test_diff_json_stdout_is_only_json(self, fake_client, capsys):
         fake_client.prs = [_pr()]
-        assert pr_list.cmd_list(watch_name="w", diff_format="json") == 0
+        assert pr_list.cmd_list(watch_name="w", output_format="json") == 0
         capsys.readouterr()
 
         fake_client.prs = [_pr(head_sha=SHA_B)]
-        assert pr_list.cmd_list(watch_name="w", diff_format="json", show_detail=True) == 0
+        assert pr_list.cmd_list(watch_name="w", output_format="json", show_detail=True) == 0
         data = json.loads(capsys.readouterr().out)
         assert data["deltas"][0]["changed_fields"] == ["head_sha"]
 

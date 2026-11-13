@@ -34,7 +34,7 @@ REFS="jpshackelford/tickster#60 jpshackelford/tickster#62"   # or --repo / --boa
 NAME=doc-first                                               # one snapshot per loop
 
 # 1. Poll. Save the result: --watch has already moved the baseline.
-tkt pr list $REFS --watch "$NAME" --diff-format json --steps > poll.json
+tkt pr list $REFS --watch "$NAME" --format json --steps > poll.json
 
 # 2-3. For each row that is new or changed: read what is new, then ask what is pending.
 jq -r '.deltas[] | select(.kind == "added" or .kind == "changed")
@@ -51,8 +51,8 @@ done
 ### 1. Poll: what moved since the last run?
 
 `--watch NAME` diffs the current result against snapshot `pr/NAME`, prints the diff,
-and then overwrites `pr/NAME` with the current result. With `--diff-format json`
-stdout is one JSON document ([`--watch` and `--diff-format`](usage.md#snapshots--diffs)).
+and then overwrites `pr/NAME` with the current result. With `--format json`
+stdout is one JSON document ([`--watch` and `--format`](usage.md#snapshots--diffs)).
 `--steps` records each PR's step statuses, so a step that moved shows up in the diff.
 
 The first poll has no baseline. Every row is `added`, and the notice
@@ -368,7 +368,7 @@ are `not configured`.
 
 | Command | Keys it reads |
 | --- | --- |
-| `tkt pr list` (with `--watch`, `--diff`, `--diff-format json`) | `[actors]` `agent_logins`, `bots` and `agent_disclosure`: the [actor class](usage.md#ai-actors) of every event and reviewer in a row. With `--steps`, also everything `tkt pr steps` reads |
+| `tkt pr list` (with `--watch`, `--diff`, `--format json`) | `[actors]` `agent_logins`, `bots` and `agent_disclosure`: the [actor class](usage.md#ai-actors) of every event and reviewer in a row. With `--steps`, also everything `tkt pr steps` reads |
 | `tkt pr show` | `[actors]`, as above. `[reports.NAME]` `marker` and `fail`: the `reports:` line and the JSON `reports` |
 | `tkt pr steps` | `[actors]`, so that classes decide who is a reviewer. `[review]` `count_reviews_from`, `rerequest_labels`. `[ci]` `ignore_checks`. `[commits]` `ignore_paths`, `min_changed_lines`. Every `[reports.NAME]`: `marker`, `required`, `only_paths`, `fail` and `[reports.NAME.impact_line]` `pattern`, `from`, `unassessed` |
 | `tkt pr changes` | `[commits]` `ignore_paths`, `min_changed_lines`, and only for a setting you did not give as `--ignore-path` or `--min-changed-lines`. The file is not fetched when you give both |
@@ -384,7 +384,7 @@ Each claim below was checked by running the command.
 
 | Command | stdout | stderr | Exit code |
 | --- | --- | --- | --- |
-| `tkt pr list … --watch NAME --diff-format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …`, and errors | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed. Any other failure, such as a bad token or no network, exits 1 with the `Error:` line on stderr and empty stdout. If only the save fails, stdout still holds the document and the exit code is 1 |
+| `tkt pr list … --watch NAME --format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …`, and errors | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed. Any other failure, such as a bad token or no network, exits 1 with the `Error:` line on stderr and empty stdout. If only the save fails, stdout still holds the document and the exit code is 1 |
 | `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref, a bad time, an unknown snapshot or a snapshot with no row for the PR exits 1. `--since` with `--since-snapshot` exits 2 |
 | `tkt pr steps REF… --format json` | One JSON document | Notices and errors | 0 whatever the statuses. A PR that is not found exits 1, with empty stdout |
 | `tkt pr changes REF --since SHA --format json` | One JSON document | Errors | 0 whether or not the change is significant. A PR that is not found exits 1. A `--since` that is not a 7 to 40 character hex SHA, so also a branch or a tag, exits 2, with no GitHub call |
