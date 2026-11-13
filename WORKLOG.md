@@ -385,3 +385,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 08:05 UTC - Implementation Worker (#134)
+
+✅ **[PR #160](https://github.com/jpshackelford/tickster/pull/160) ready for review** for [#134](https://github.com/jpshackelford/tickster/issues/134): `show --since TS` → `--since-time TS`
+
+- `--since` is now a hidden stub on `pr show` and `issue show`: exit 2 at parse time, no GitHub call. The JSON key `since` is unchanged.
+- Tests renamed and added for both commands; docs (README, `doc/usage.md`, `doc/automation.md`) updated. pytest, ruff, basedpyright clean; CI green.
+- Commit is `feat(show)!:` with a `BREAKING CHANGE:` footer. Testing, review and merge are next.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
