@@ -5,6 +5,7 @@ exercising the actual code paths from commands through to cache updates.
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -171,6 +172,48 @@ class TestCmdScanIntegration:
         # Check that items were added to cache
         all_items = cache.get_all_items()
         assert len(all_items) >= 1
+
+    @pytest.mark.parametrize(
+        ("since_days", "expected_days_back"),
+        [(None, 90), (0, 0), (7, 7)],
+        ids=["no-flag-uses-lookback", "zero-means-today", "explicit"],
+    )
+    def test_scan_window(self, configured_board, monkeypatch, since_days, expected_days_back):
+        """The search date is today - N days; 0 is today, not scan_lookback_days."""
+        config, _cache = configured_board
+        assert config.scan_lookback_days == 90
+        queries: list[str] = []
+
+        def post_handler(_url, **kwargs):
+            body = kwargs.get("json", {})
+            query = body.get("query", "")
+            if "search(" in query and "issueCount" in query:
+                queries.append(body["variables"]["query"])
+                return MockResponse(
+                    {
+                        "data": {
+                            "search": {
+                                "issueCount": 0,
+                                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                                "nodes": [],
+                            }
+                        }
+                    }
+                )
+            if "items" in query:
+                return MockResponse({"data": {"node": {"items": {"nodes": []}}}})
+            return MockResponse({"data": {}})
+
+        mock_client = MockHttpxClient(post_handler=post_handler)
+        monkeypatch.setattr(httpx, "Client", lambda **_kw: mock_client)
+        monkeypatch.setattr("src.board.cli._helpers.get_github_username", lambda: "testuser")
+
+        from src.board.cli import cmd_scan
+
+        assert cmd_scan(since_days=since_days) == 0
+
+        expected = datetime.now(tz=UTC).date() - timedelta(days=expected_days_back)
+        assert queries == [f"involves:testuser repo:owner/repo updated:>={expected}"]
 
     def test_scan_skips_existing_items(self, configured_board, monkeypatch):
         """Test that scan doesn't re-add items already on board."""

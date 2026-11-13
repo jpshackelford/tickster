@@ -800,7 +800,7 @@ default board), `--dry-run, -n` (preview), `--verbose, -v`.
 
 ```bash
 tkt board init --create "Team Workflow"     # create a new project board
-tkt board scan --user octocat --since 30    # discover recent activity
+tkt board scan --user octocat --updated-since 30    # discover recent activity
 tkt board sync                              # incremental sync
 tkt board status --attention                # only items needing attention
 tkt board status --json                     # machine-readable status
@@ -1399,8 +1399,8 @@ Semantics:
 
 - `--since N` is shorthand for `--after <today minus N days>`, where "today" is
   the current **UTC** date. It reaches back to the start of that UTC day, not
-  to N × 24 hours ago, so `--since 0` means "today (UTC)". It mirrors the
-  `--since` flag already used by `tkt board scan`.
+  to N × 24 hours ago, so `--since 0` means "today (UTC)". `tkt board scan`
+  uses the same rule with `--updated-since`.
 - `--after` and `--before` may be combined to express a closed interval; using
   both renders as `field:AFTER..BEFORE`.
 - `--since` cannot be combined with `--after`/`--before`.

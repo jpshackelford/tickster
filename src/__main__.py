@@ -271,10 +271,16 @@ Examples:
         help="Scan all repos in this organization (auto-discovers repos with activity)",
     )
     board_scan_parser.add_argument(
-        "--since",
-        type=int,
+        "--updated-since",
+        dest="updated_since",
+        type=_non_negative_int,
         metavar="DAYS",
-        help="Only include items updated in last N days",
+        help="Only include items updated in the last N days (UTC day boundary; 0 = today)",
+    )
+    board_scan_parser.add_argument(
+        "--since",
+        action=_RemovedFlag,
+        message=lambda _v: "--since was removed: use --updated-since DAYS",
     )
     board_scan_parser.add_argument(
         "--board",
@@ -1228,7 +1234,7 @@ Examples:
                 repos=repos,
                 scan_user=args.user,
                 scan_org=args.org,
-                since_days=args.since,
+                since_days=args.updated_since,
                 board_name=args.board,
                 dry_run=args.dry_run,
                 verbose=args.verbose,

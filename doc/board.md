@@ -83,17 +83,19 @@ tkt board scan
 tkt board scan --repos owner/repo1,owner/repo2
 
 # Auto-discover repos: scan all repos owned by a user
-tkt board scan --user jpshackelford --since 21
+tkt board scan --user jpshackelford --updated-since 21
 
 # Auto-discover repos: scan all repos in an organization
-tkt board scan --org my-org --since 14
+tkt board scan --org my-org --updated-since 14
 
 # Only include items updated in the last 30 days
-tkt board scan --since 30
+tkt board scan --updated-since 30
 
 # Preview without making changes
 tkt board scan --dry-run --verbose
 ```
+
+`--since` was removed in 2.0; the error names `--updated-since`.
 
 The scan uses GitHub's Search API to find items where you are:
 - The author
@@ -110,10 +112,10 @@ manually add each one.
 
 ```bash
 # Find all your recent work in your personal repos
-tkt board scan --user myusername --since 21
+tkt board scan --user myusername --updated-since 21
 
 # Track work across an entire organization
-tkt board scan --org my-company --since 14
+tkt board scan --org my-company --updated-since 14
 ```
 
 With `--verbose`, auto-discovery mode shows which repos were found:
@@ -280,7 +282,7 @@ OpenHands Cloud).
 ```bash
 # Session 1: Initial setup
 tkt board init --create "My Board"
-tkt board scan --user myuser --since 21
+tkt board scan --user myuser --updated-since 21
 tkt board sync-config
 # → Saved to gist: https://gist.github.com/myuser/abc123
 
