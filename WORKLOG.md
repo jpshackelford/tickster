@@ -872,3 +872,12 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## Merge Worker: PR #189
+
+- [PR #189](https://github.com/jpshackelford/tickster/pull/189) squash-merged at head `2884cb6` as `f2909b5`: `feat(list): show --no-pr and --has-pr in the Filters line`. Issue #187 closed.
+- PR description updated with the final state and a link to the manual test comment (11/11 PASS, 2618 tests).
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
