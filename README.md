@@ -42,7 +42,7 @@ the API hands back.
 owe each PR* (`review`, `re-review`, `hold`, `approved`) and how long it has been
 waiting, instead of making you (or the agent) derive that from raw review events.
 
-**4. Query and filter at the source.** Author, reviewer, label (with AND/OR),
+**4. Query and filter at the source.** Author, reviewer, label (with AND/OR, and `--not-label` to leave labels out),
 repo, and board filters — plus stdin piping of refs — mean the agent fetches
 exactly the slice it needs rather than pulling everything and filtering in the
 model.

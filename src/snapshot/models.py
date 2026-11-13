@@ -112,6 +112,7 @@ class SnapshotScope:
     refs: tuple[str, ...] | None = None  # explicit owner/repo#N args, sorted
     states: tuple[str, ...] | None = None
     labels: tuple[str, ...] | None = None
+    not_labels: tuple[str, ...] | None = None  # issue list: --not-label, lowercased and sorted
     exclude_authors: tuple[str, ...] | None = None
     include_all: bool = False  # review: --all
     limit: int = 100
@@ -133,6 +134,8 @@ class SnapshotScope:
         # Omitted when unset so scopes saved before these options keep their hash.
         if self.all_authors:
             data["all_authors"] = True
+        if self.not_labels:
+            data["not_labels"] = list(self.not_labels)
         if self.window:
             data["window"] = self.window.to_dict()
         return data
@@ -148,6 +151,7 @@ class SnapshotScope:
             refs=tuple(data["refs"]) if data.get("refs") else None,
             states=tuple(data["states"]) if data.get("states") else None,
             labels=tuple(data["labels"]) if data.get("labels") else None,
+            not_labels=tuple(data["not_labels"]) if data.get("not_labels") else None,
             exclude_authors=(
                 tuple(data["exclude_authors"]) if data.get("exclude_authors") else None
             ),
@@ -196,6 +200,7 @@ class SnapshotScope:
         limit: int,
         window: DateWindow | None = None,
         all_authors: bool = False,
+        not_labels: list[str] | None = None,
     ) -> SnapshotScope:
         """Build the scope that `issue list` queries contribute to the hash."""
         return cls(
@@ -206,6 +211,7 @@ class SnapshotScope:
             refs=tuple(sorted(refs)) if refs else None,
             states=tuple(states) if states else None,
             labels=tuple(labels) if labels else None,
+            not_labels=tuple(sorted({lbl.lower() for lbl in not_labels})) if not_labels else None,
             limit=limit,
             window=WindowScope.from_window(window),
         )

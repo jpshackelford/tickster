@@ -39,6 +39,7 @@ def cmd_list(
     issue_refs: list[str] | None = None,
     states: list[str] | None = None,
     labels: list[str] | None = None,
+    not_labels: list[str] | None = None,
     board_name: str | None = None,
     limit: int = 100,
     show_title: bool = False,
@@ -62,6 +63,7 @@ def cmd_list(
         issue_refs: Specific issue references (owner/repo#number format)
         states: Filter by state (open, closed); defaults to open
         labels: Filter by labels (comma-separated = OR, multiple = AND)
+        not_labels: Leave out issues that have any of these labels (not with refs)
         board_name: Board to get repos from (default: default board)
         limit: Maximum number of issues to show
         show_title: Include issue titles in output
@@ -93,6 +95,13 @@ def cmd_list(
         return 1
     date_qualifier = window.to_qualifier() if window else None
 
+    if not_labels and issue_refs:
+        print_error(
+            "--not-label cannot be combined with explicit refs: refs list exactly the "
+            "issues named. Drop the refs to filter by label, or drop --not-label."
+        )
+        return 1
+
     try:
         target_repos = None if issue_refs else _get_repos(repos, board_name)
         if all_authors:
@@ -117,6 +126,7 @@ def cmd_list(
                     limit=limit,
                     sort_by_activity=sort_by_activity,
                     date_qualifier=date_qualifier,
+                    not_labels=not_labels,
                 )
 
             plan = SnapshotPlan.from_args(
@@ -138,6 +148,7 @@ def cmd_list(
                     refs=issue_refs,
                     states=states,
                     labels=labels,
+                    not_labels=not_labels,
                     limit=limit,
                     window=window,
                 )
