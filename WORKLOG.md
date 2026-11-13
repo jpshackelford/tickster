@@ -244,3 +244,15 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 06:30 UTC - Merge Worker
+
+✅ **Merged [PR #151](https://github.com/jpshackelford/tickster/pull/151)** (squash, `2ae8904`); closed #125
+
+- Was 1 commit behind `main` (worklog-only); rebased with no conflicts, re-ran pytest (1805), ruff, basedpyright; CI green on the new head `8bf8ef1`.
+- Updated the PR description to the final state; commit message keeps `Closes #125`.
+- #125 verified closed. PR #152 untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
