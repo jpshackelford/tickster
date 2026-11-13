@@ -12,10 +12,12 @@ from dataclasses import replace
 from enum import Enum
 from typing import Protocol
 
+from src.issue.models import IssueInfo
 from src.snapshot.models import ChangeKind, DiffResult
 
 REASON_NOT_FOUND = "not-found"
 REASON_STILL_OPEN = "still-open"
+REASON_PR_LINKED = "pr-linked"
 
 
 class _HasState(Protocol):
@@ -33,12 +35,20 @@ def resolve_removed(diff: DiffResult, fetch: FetchByRef) -> DiffResult:
     """Return `diff` with each REMOVED row's reason set to its current state.
 
     The reason becomes `closed`, `merged`, `still-open` (it is open but the
-    filters no longer match it) or `not-found`. Makes no call when no row is gone.
+    filters no longer match it) or `not-found`. Under a `--no-pr` scope an open
+    issue that now has a linked PR is `pr-linked`. Makes no call when no row is gone.
     """
     gone = [d.key for d in diff.deltas if d.kind is ChangeKind.REMOVED]
     if not gone:
         return diff
-    states = {f"{i.repo}#{i.number}".lower(): i.state.value for i in fetch(gone)}
+    no_pr_scope = diff.curr.scope.pr_filter == "no-pr"
+    states: dict[str, str] = {}
+    for item in fetch(gone):
+        key = f"{item.repo}#{item.number}".lower()
+        linked = no_pr_scope and isinstance(item, IssueInfo) and item.linked_pr is not None
+        states[key] = (
+            REASON_PR_LINKED if linked and item.state.value == "open" else item.state.value
+        )
     deltas = tuple(
         replace(d, disappearance_reason=_reason(states.get(d.key.lower())))
         if d.kind is ChangeKind.REMOVED

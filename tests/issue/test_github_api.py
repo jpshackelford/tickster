@@ -253,3 +253,132 @@ class TestListIssuesAllAuthors:
                 client.list_issues_by_author(None, repos=None)
             client.close()
         post.assert_not_called()
+
+
+class TestPrFilter:
+    """`pr_filter` keeps issues by `IssueInfo.linked_pr`, the PR column's definition."""
+
+    @staticmethod
+    def _node(number: int, *, pr: str | None = None, state: str = "OPEN", source="PullRequest"):
+        timeline = []
+        if pr is not None or source != "PullRequest":
+            timeline.append(
+                {
+                    "__typename": "CrossReferencedEvent",
+                    "actor": {"login": "dev"},
+                    "createdAt": "2024-01-02T00:00:00Z",
+                    "source": {
+                        "__typename": source,
+                        "number": 900 + number,
+                        "state": state,
+                        "repository": {"nameWithOwner": "o/r"},
+                    },
+                }
+            )
+        return {
+            "__typename": "Issue",
+            "number": number,
+            "title": "t",
+            "state": "OPEN",
+            "createdAt": f"2024-01-{number:02d}T00:00:00Z",
+            "closedAt": None,
+            "author": {"login": "someone"},
+            "repository": {"nameWithOwner": "o/r"},
+            "labels": {"nodes": []},
+            "blockedBy": {"totalCount": 0, "nodes": []},
+            "blocking": {"totalCount": 0, "nodes": []},
+            "parent": None,
+            "milestone": None,
+            "timelineItems": {"nodes": timeline},
+        }
+
+    @staticmethod
+    def _page(nodes: list[dict], *, has_next: bool, count: int) -> httpx.Response:
+        body = {
+            "data": {
+                "search": {
+                    "issueCount": count,
+                    "pageInfo": {"hasNextPage": has_next, "endCursor": "c" if has_next else None},
+                    "nodes": nodes,
+                }
+            }
+        }
+        return httpx.Response(200, json=body, request=httpx.Request("POST", "https://x"))
+
+    def _list(self, pages: list[httpx.Response], monkeypatch, **kwargs):
+        monkeypatch.setenv("GITHUB_USERNAME", "me-user")
+        with patch.object(httpx.Client, "post", side_effect=pages) as post:
+            client = IssueClient(token="test-token")
+            result = client.list_issues_by_author(None, repos=["o/r"], **kwargs)
+            client.close()
+        return result, post
+
+    def _mixed(self):
+        return [
+            self._node(1),
+            self._node(2, pr="x"),
+            self._node(3),
+            self._node(4, pr="x", state="CLOSED"),
+            self._node(5, pr="x", state="MERGED"),
+        ]
+
+    def test_no_pr_keeps_only_unlinked_issues(self, monkeypatch):
+        page = self._page(self._mixed(), has_next=False, count=5)
+        result, _ = self._list([page], monkeypatch, pr_filter="no-pr")
+        assert sorted(i.number for i in result.issues) == [1, 3]
+        assert all(i.linked_pr is None for i in result.issues)
+
+    def test_has_pr_is_the_complement_and_counts_closed_unmerged_prs(self, monkeypatch):
+        page = self._page(self._mixed(), has_next=False, count=5)
+        result, _ = self._list([page], monkeypatch, pr_filter="has-pr")
+        assert sorted(i.number for i in result.issues) == [2, 4, 5]
+
+    def test_a_mention_from_another_issue_is_not_a_linked_pr(self, monkeypatch):
+        nodes = [self._node(1, source="Issue"), self._node(2, pr="x")]
+        page = self._page(nodes, has_next=False, count=2)
+        no_pr, _ = self._list([page], monkeypatch, pr_filter="no-pr")
+        has_pr, _ = self._list([page], monkeypatch, pr_filter="has-pr")
+        assert [i.number for i in no_pr.issues] == [1]
+        assert [i.number for i in has_pr.issues] == [2]
+
+    def test_limit_counts_matches_and_cuts_the_scan(self, monkeypatch):
+        page = self._page(self._mixed(), has_next=False, count=5)
+        result, post = self._list([page], monkeypatch, pr_filter="no-pr", limit=1)
+        assert len(result.issues) == 1
+        assert post.call_count == 1
+        assert result.has_more is True
+
+    def test_pages_on_until_limit_matches_are_found(self, monkeypatch):
+        first = self._page(
+            [self._node(1, pr="x"), self._node(2, pr="x"), self._node(3)], has_next=True, count=9
+        )
+        second = self._page(
+            [self._node(4, pr="x"), self._node(5), self._node(6), self._node(7)],
+            has_next=True,
+            count=9,
+        )
+        result, post = self._list([first, second], monkeypatch, pr_filter="no-pr", limit=3)
+        assert sorted(i.number for i in result.issues) == [3, 5, 6]
+        assert post.call_count == 2
+        assert result.has_more is True
+
+    def test_limit_reached_on_the_last_node_of_a_page_looks_at_has_next_page(self, monkeypatch):
+        nodes = [self._node(1, pr="x"), self._node(2)]
+        more = self._page(nodes, has_next=True, count=50)
+        done = self._page(nodes, has_next=False, count=50)
+        assert self._list([more], monkeypatch, pr_filter="no-pr", limit=1)[0].has_more is True
+        assert self._list([done], monkeypatch, pr_filter="no-pr", limit=1)[0].has_more is False
+
+    def test_has_more_is_false_when_the_scan_ended_despite_a_larger_issue_count(self, monkeypatch):
+        page = self._page(self._mixed(), has_next=False, count=500)
+        result, _ = self._list([page], monkeypatch, pr_filter="no-pr", limit=10)
+        assert [i.number for i in result.issues] == [3, 1]
+        assert result.has_more is False
+        assert result.total_count == 500
+
+    def test_without_a_filter_has_more_and_total_count_are_unchanged(self, monkeypatch):
+        page = self._page(self._mixed(), has_next=False, count=500)
+        result, _ = self._list([page], monkeypatch, limit=10)
+        assert len(result.issues) == 5
+        assert result.has_more is True
+        assert result.total_count == 500

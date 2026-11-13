@@ -282,6 +282,8 @@ def _infer_removal_reason(
 
     - "scope": the two snapshots were produced by different scope filters,
       so the item may just have been filtered out.
+    - "pr-linked?": under `--no-pr` an open issue is gone, so a PR most likely
+      linked to it; closing does not remove it from the list without `--closed`.
     - "limit": the current query matched more rows than `--limit` kept and
       the item sat in the last positions of the previous result, as many as
       rows were added (`pushed_out`), so it was probably pushed past the limit.
@@ -296,6 +298,8 @@ def _infer_removal_reason(
         return "scope"
     if curr_snapshot.has_more and pushed_out:
         return "limit"
+    if curr_snapshot.scope.pr_filter == "no-pr" and prev_item.state == "open":
+        return "pr-linked?"
     if prev_item.state == "open" and (
         curr_snapshot.scope.states is None or "open" in curr_snapshot.scope.states
     ):

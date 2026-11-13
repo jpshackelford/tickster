@@ -146,6 +146,7 @@ class IssueClient:
         sort_by_activity: bool = False,
         date_qualifier: str | None = None,
         not_labels: list[str] | None = None,
+        pr_filter: str | None = None,
     ) -> IssueListResult:
         """List issues by author, optionally filtered by repos, states, and labels.
 
@@ -160,6 +161,8 @@ class IssueClient:
             date_qualifier: Optional GitHub search date qualifier
                 (e.g. "created:>=2026-08-01")
             not_labels: Leave out issues that have any of these labels
+            pr_filter: "no-pr" keeps issues with no linked PR, "has-pr" keeps issues
+                with one (the definition behind the PR column)
 
         Returns:
             IssueListResult with processed issue info
@@ -188,6 +191,7 @@ class IssueClient:
             or_groups=or_groups,
             sort_by_activity=sort_by_activity,
             excluded_labels=excluded,
+            pr_filter=pr_filter,
         )
 
     def get_issues_by_ref(
@@ -240,11 +244,14 @@ class IssueClient:
         or_groups: list[list[str]] | None = None,
         sort_by_activity: bool = False,
         excluded_labels: set[str] | None = None,
+        pr_filter: str | None = None,
     ) -> IssueListResult:
         """Execute a search query and process results.
 
         ``excluded_labels`` (lowercase) is also enforced on the returned rows, before
         ``limit`` is applied, so the search cannot let an excluded issue through.
+        ``pr_filter`` is applied client-side against ``IssueInfo.linked_pr``; with it,
+        ``has_more`` comes from the scan, since ``issueCount`` counts unfiltered rows.
         """
         from src.issue.history import process_issue_data
 
@@ -271,8 +278,9 @@ class IssueClient:
         total_count = 0
 
         # If we have OR groups, we may need to fetch more and filter
-        fetch_multiplier = 2 if or_groups else 1
+        fetch_multiplier = 2 if (or_groups or pr_filter) else 1
         page_size = SEARCH_PAGE_SIZE
+        has_more_matches = False
 
         while len(all_issues) < limit:
             search_result, page_size = fetch_search_page(
@@ -283,7 +291,8 @@ class IssueClient:
             )
             total_count = search_result["issueCount"]
 
-            for node in search_result["nodes"]:
+            nodes = search_result["nodes"]
+            for index, node in enumerate(nodes):
                 if node:
                     # Skip PRs that might appear in search results
                     if node.get("__typename") == "PullRequest":
@@ -300,12 +309,17 @@ class IssueClient:
                     if or_groups and not _matches_or_labels(issue_info.labels, or_groups):
                         continue
 
+                    if pr_filter and (issue_info.linked_pr is not None) != (pr_filter == "has-pr"):
+                        continue
+
                     all_issues.append(issue_info)
                     if len(all_issues) >= limit:
+                        has_more_matches = index + 1 < len(nodes)
                         break
 
             page_info = search_result["pageInfo"]
             if not page_info["hasNextPage"] or len(all_issues) >= limit:
+                has_more_matches = has_more_matches or page_info["hasNextPage"]
                 break
             cursor = page_info["endCursor"]
 
@@ -318,7 +332,7 @@ class IssueClient:
         return IssueListResult(
             issues=all_issues[:limit],
             total_count=total_count,
-            has_more=total_count > len(all_issues),
+            has_more=has_more_matches if pr_filter else total_count > len(all_issues),
             cursor=cursor,
         )
 

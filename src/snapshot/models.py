@@ -91,8 +91,8 @@ class SnapshotScope:
     """The query filter set that produced a snapshot.
 
     Two snapshots can only be meaningfully diffed when their scopes match
-    (same board, author or all-authors, repos, refs, states, labels, limit, date
-    window). `fingerprint`
+    (same board, author or all-authors, repos, refs, states, labels, PR filter, limit,
+    date window). `fingerprint`
     yields a stable short digest used to detect scope drift between runs.
 
     The `from_{pr,issue,review}_args` factories are the only supported way
@@ -115,6 +115,7 @@ class SnapshotScope:
     not_labels: tuple[str, ...] | None = None  # issue list: --not-label, lowercased and sorted
     exclude_authors: tuple[str, ...] | None = None
     include_all: bool = False  # review: --all
+    pr_filter: str | None = None  # issue list: "no-pr" (--no-pr) or "has-pr" (--has-pr)
     limit: int = 100
     window: WindowScope | None = None
 
@@ -136,6 +137,8 @@ class SnapshotScope:
             data["all_authors"] = True
         if self.not_labels:
             data["not_labels"] = list(self.not_labels)
+        if self.pr_filter:
+            data["pr_filter"] = self.pr_filter
         if self.window:
             data["window"] = self.window.to_dict()
         return data
@@ -156,6 +159,7 @@ class SnapshotScope:
                 tuple(data["exclude_authors"]) if data.get("exclude_authors") else None
             ),
             include_all=bool(data.get("include_all", False)),
+            pr_filter=data.get("pr_filter") or None,
             limit=int(data.get("limit", 100)),
             window=WindowScope.from_dict(data["window"]) if data.get("window") else None,
         )
@@ -201,6 +205,7 @@ class SnapshotScope:
         window: DateWindow | None = None,
         all_authors: bool = False,
         not_labels: list[str] | None = None,
+        pr_filter: str | None = None,
     ) -> SnapshotScope:
         """Build the scope that `issue list` queries contribute to the hash."""
         return cls(
@@ -212,6 +217,7 @@ class SnapshotScope:
             states=tuple(states) if states else None,
             labels=tuple(labels) if labels else None,
             not_labels=tuple(sorted({lbl.lower() for lbl in not_labels})) if not_labels else None,
+            pr_filter=pr_filter,
             limit=limit,
             window=WindowScope.from_window(window),
         )
