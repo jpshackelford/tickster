@@ -5,6 +5,17 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 18:58 UTC - Expansion Worker
+
+✅ **Expanded Issue #180**
+
+- Issue: [refactor(snapshot)!: one row model and one on-disk schema](https://github.com/jpshackelford/tickster/issues/180), enhancement, labelled `ready`.
+- Approach: one `ROW_FIELDS` table keyed by kind (new `src/snapshot/rows.py`) drives `ItemSnapshot.to_dict` / strict `from_dict`; the full row contract for #142 and #181 is in the comment. `head` and `reviewers` already match `pr show`; `review` rows gain the PR fields from data already fetched; `closed_at` added to `issue show`, `labels` to `pr show`.
+- Unreadable files are deleted with one stderr notice and raised as `FileNotFoundError` (replaces `SnapshotFormatError`); compat guards in `diff.py` go too. One PR, not split.
+- Note: `GITHUB_TOKEN` got 403 on comment and label, so the owner token was used.
+
+---
+
 ### 2026-11-13 14:20 UTC - Implementation worker
 
 - [Issue #150](https://github.com/jpshackelford/tickster/issues/150): `doc/usage.md` section "Which issues can I start now?" under `tkt issue list` (start-now command, one line per flag, waiting-list command, what the caller decides), the same two commands in the `issue list --help` epilog, and a test that they parse and name only real flags → [PR #178](https://github.com/jpshackelford/tickster/pull/178). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Notes: the issue had no technical-approach comment, so the description was the spec; could not create a repo, so the recipe was run against the private repo `jpshackelford/ga-test-01` (issues 1-5, PR 6, branch `fix-5`, `.agents/tickster.toml` with `[labels] rank` on `main`; issues 1 and 2 are closed, reopen them to repeat the chain); GitHub's search index lagged a few seconds after a close, and the doc says so; `GITHUB_TOKEN` got 403 on push, so the owner token was used.
