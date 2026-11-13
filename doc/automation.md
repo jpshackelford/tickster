@@ -128,6 +128,56 @@ It prints one `ref<TAB>step` line for each pending step. The two merged PRs have
 so it prints nothing. `.items[].step_status` holds the statuses only; run
 [`tkt pr steps REF`](usage.md#tkt-pr-steps) for the evidence.
 
+## An example: act on three cases only
+
+A job that wants only three things (broken CI, a new review comment, a new test
+report) uses the same loop and narrows the delta with `jq`. Every other change, such as a
+push or a label, still exits 10 and is acked, and the filter prints nothing for it. Save as
+`triage.sh`; the snapshot has its own name, `doc-triage`.
+
+```bash
+REFS="jpshackelford/tickster#60 jpshackelford/tickster#62"   # or --board / --repo
+tkt pr list $REFS --diff doc-triage --format json --exit-code --max-body 60 > poll.json; rc=$?
+[ $rc -eq 10 ] || exit $rc
+jq -c '
+  def report: (.body // "") | test("test results"; "i");
+  .deltas[] | select(.change == "added" or .change == "changed") | . as $d
+  | ($d.events_since // []) as $ev
+  | {ref: $d.ref,
+     broken_ci: (($d.changed_fields // [] | index("ci")) != null and $d.curr.ci == "red"),
+     review_comments: [$ev[] | select(.kind == "review" or .kind == "comment")
+                       | select(report | not)
+                       | select(.actor_class != "me" and .actor_class != "me_agent")
+                       | {at, kind, actor}],
+     test_results: [$ev[] | select(.kind == "comment" and report) | {at, actor}]}
+  | select(.broken_ci or (.review_comments | length > 0) or (.test_results | length > 0))' poll.json
+tkt snapshot ack pr/doc-triage
+```
+
+| Case | What the filter reads |
+| --- | --- |
+| Broken CI | `ci` is in `changed_fields` and `curr.ci` is `red` (`green`, `red`, `pending`, `conflict` or `--`) |
+| A new review comment | An event in `events_since` of `kind` `review` or `comment`, not from you (`actor_class` is not `me` or `me_agent`), and not a test report |
+| A new test report | A `comment` event whose body matches `test results`. Match your own reports' heading. If the repo's norms define `[reports.manual_test]`, read `step_changes` for `manually test` and `address test findings` instead |
+
+The first run has no baseline, so both rows print. The second run changes nothing and
+prints nothing. Rewind #62 as in the first recipe, on `pr-doc-triage.json`, then run again:
+
+```json
+{"ref":"jpshackelford/tickster#62","broken_ci":false,"review_comments":[{"at":"2026-11-05T11:49:39Z","kind":"review","actor":"github-actions"}],"test_results":[{"at":"2026-11-05T11:39:10Z","actor":"jpshackelford"}]}
+```
+
+Neither PR has red CI, so `broken_ci` is `false`. The row printed because of the other two
+cases.
+
+- **A change, not a state.** `broken_ci` fires on the tick where `ci` moves. A PR that stays
+  red is reported once. To ask what is red now, add the sweep with
+  `select(.step_status["fix CI"] == "needed")` on the `.items[]` of `tkt pr list --format json`.
+- **Review comments in threads.** `unresolved_threads` and the `address review findings` step
+  count threads. This filter reads the events only.
+- **Where the baseline lives.** It is a file in `$TKT_HOME/snapshots`. A job whose files do
+  not survive a run, such as a cloud sandbox, has to keep that directory somewhere that does.
+
 ## What `tkt` decides, and what it does not
 
 | `tkt` decides | You decide |
