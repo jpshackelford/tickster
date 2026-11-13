@@ -1588,19 +1588,33 @@ def _validate_snapshot_args(parser: argparse.ArgumentParser, args: argparse.Name
         parser.error("--watch cannot be combined with --snapshot or --diff")
 
 
+class _RemovedShowSince(argparse.Action):
+    """Hidden stub: fail at parse time, before any GitHub call, and name the replacement."""
+
+    def __call__(self, parser, namespace, values, option_string=None):  # noqa: ARG002
+        parser.error("--since was removed on show: use --since-time TS")
+
+
 def _add_show_args(parser: argparse.ArgumentParser) -> None:
     """Attach the options `pr show` and `issue show` share."""
     since_group = parser.add_mutually_exclusive_group()
     since_group.add_argument(
-        "--since",
+        "--since-time",
+        dest="since_time",
         metavar="TS",
-        help="Only events after this ISO-8601 time (a time with no zone is UTC)",
+        help="Only events after this ISO-8601 time (a date or a time with no zone is UTC)",
     )
     since_group.add_argument(
         "--since-snapshot",
         dest="since_snapshot",
         metavar="KIND/NAME",
         help="Only events after the last_activity this snapshot stored for the item",
+    )
+    parser.add_argument(
+        "--since",
+        nargs="?",
+        action=_RemovedShowSince,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--max-body",
@@ -1624,7 +1638,7 @@ def _add_show_args(parser: argparse.ArgumentParser) -> None:
 def _show_kwargs(args: argparse.Namespace) -> dict:
     return {
         "ref": args.ref,
-        "since": args.since,
+        "since_time": args.since_time,
         "since_snapshot": args.since_snapshot,
         "max_body": args.max_body,
         "output_format": args.output_format,

@@ -40,7 +40,7 @@ tkt pr list $REFS --watch "$NAME" --format json > poll.json
 jq -r '.deltas[] | select(.kind == "added" or .kind == "changed")
        | [.key, (.prev.last_activity // "")] | @tsv' poll.json |
 while IFS=$'\t' read -r ref since; do
-  if [ -n "$since" ]; then tkt pr show "$ref" --since "$since" --format json
+  if [ -n "$since" ]; then tkt pr show "$ref" --since-time "$since" --format json
   else                     tkt pr show "$ref" --format json
   fi
   tkt pr steps "$ref" --format json
@@ -180,12 +180,13 @@ loop's `prev.last_activity` is `2026-11-08T00:51:09Z`.
 
 ### 2. Read: only the new text
 
-`tkt pr show REF --since TIME` prints the PR header and the events strictly after
+`tkt pr show REF --since-time TIME` prints the PR header and the events strictly after
 `TIME`. For a `changed` row, `TIME` is `prev.last_activity`. For an `added` row there
 is nothing to compare with, so read the whole timeline.
+The output is the same as the removed `--since TIME` printed.
 
 ```text
-$ tkt pr show jpshackelford/tickster#62 --since 2026-11-05T11:31:49Z --max-body 40
+$ tkt pr show jpshackelford/tickster#62 --since-time 2026-11-05T11:31:49Z --max-body 40
 jpshackelford/tickster#62 pr merged ready ci:green 💬0 "feat(pr): tkt pr changes --since SHA: what changed since a commit, and does it matter"
 history: sVnFnFnVm
 author: jpshackelford  created: 2026-11-05T10:58:46Z  last activity: 2026-11-05T11:56:18Z
@@ -206,7 +207,7 @@ _Trimmed: the `Legend:` line. `--max-body 40` shortens each body; the default is
 For the live row above, `TIME` is its `prev.last_activity`:
 
 ```text
-$ tkt pr show jpshackelford/tickster#95 --since 2026-11-08T00:51:09Z --max-body 40
+$ tkt pr show jpshackelford/tickster#95 --since-time 2026-11-08T00:51:09Z --max-body 40
 jpshackelford/tickster#95 pr open draft ci:pending 💬0 "docs: add an automation how-to (poll, read what changed, decide what a PR needs)"
 history: s
 author: jpshackelford  created: 2026-11-08T00:51:09Z  last activity: 2026-11-08T00:51:24Z
@@ -237,7 +238,7 @@ poll above._
 
 Two ways to read new text work. Use the first.
 
-1. **`--watch`, then `show --since prev.last_activity`** (the loop above). One query
+1. **`--watch`, then `show --since-time prev.last_activity`** (the loop above). One query
    decides what moved, and the baseline you act on is the one you saved.
 2. **`--diff NAME`, then `show --since-snapshot pr/NAME`, then `--snapshot NAME`.**
    `--diff` reads without saving. The baseline advances only at the last command,
@@ -385,7 +386,7 @@ Each claim below was checked by running the command.
 | Command | stdout | stderr | Exit code |
 | --- | --- | --- | --- |
 | `tkt pr list … --watch NAME --format json` | One JSON document | Notices, such as `No snapshot pr/NAME found; …`, and errors | 0, whether or not rows changed. A scope mismatch exits 2 with `Error: scope mismatch between snapshots (use --diff-force to proceed anyway)` on stderr, empty stdout, and leaves the baseline untouched. Pass `--diff-force` to proceed. Any other failure, such as a bad token or no network, exits 1 with the `Error:` line on stderr and empty stdout. If only the save fails, stdout still holds the document and the exit code is 1 |
-| `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref, a bad time, an unknown snapshot or a snapshot with no row for the PR exits 1. `--since` with `--since-snapshot` exits 2 |
+| `tkt pr show REF --format json` | One JSON document | Errors | 0. A bad ref, a bad time, an unknown snapshot or a snapshot with no row for the PR exits 1. `--since-time` with `--since-snapshot` exits 2 |
 | `tkt pr steps REF… --format json` | One JSON document | Notices and errors | 0 whatever the statuses. A PR that is not found exits 1, with empty stdout |
 | `tkt pr changes REF --since SHA --format json` | One JSON document | Errors | 0 whether or not the change is significant. A PR that is not found exits 1. A `--since` that is not a 7 to 40 character hex SHA, so also a branch or a tag, exits 2, with no GitHub call |
 
