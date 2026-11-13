@@ -478,6 +478,17 @@ Expanding [issue #142](https://github.com/jpshackelford/tickster/issues/142): on
 - Only release [PR #119](https://github.com/jpshackelford/tickster/pull/119) is open (release-please, untouched)
 - Ready: #143 (waiting on #142, #181)
 - Needs expansion: #142 (in flight), #181 (waiting on #142)
+### 2026-11-13 20:30 UTC - Expansion Worker
+
+✅ **Expanded Issue #142**
+
+- Issue: [feat(list): one compact JSON document for issue list, pr list and review](https://github.com/jpshackelford/tickster/issues/142)
+- Type: Enhancement
+- Status: Ready for implementation (`ready` added)
+- Approach: `Snapshot.to_dict` becomes the one document (`schema`, optional `snapshot`, `filters`, `total_count`, `has_more`, `items`); scope omits unset keys and records the resolved login; `total_count` is exact or `null` (client-side filters, review cut off); one `to_json()` helper for list, file and `snapshot show`.
+- Found on `main`: review `total_count` is counted after `--limit`, PR `client_side_states` never sets `has_more`, issue OR-labels are counted as if unfiltered. All in the plan.
+- `GITHUB_TOKEN` got 403 on the issue edit and comment; the owner token was used.
+- #181 and #143 untouched. Soft ordering: #181 after #142.
 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
