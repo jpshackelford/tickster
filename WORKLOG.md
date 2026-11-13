@@ -478,3 +478,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 11:00 UTC - Implementation worker
+
+- Issue: [#131 feat(list): explicit date flags on pr list](https://github.com/jpshackelford/tickster/issues/131)
+- PR: [#156](https://github.com/jpshackelford/tickster/pull/156), CI green, marked ready for review.
+- Done: `pr list` takes the 12 `--{created,updated,closed,merged}-{since,after,before}` flags through #154's helper. Merged and closed state errors name the typed flag and the state flag to add. `doc/usage.md` updated.
+- Not done here: the manual-test report (separate conversation).
+- Note: `GITHUB_TOKEN` could not push; used `JPSHACKELFORD_GITHUB_TOKEN`. Another PR may conflict in `doc/usage.md`.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
