@@ -119,7 +119,11 @@ def _print_summary(diff: DiffResult, *, console: Console) -> None:
         f"{counts[ChangeKind.UNCHANGED]} unchanged){scope_tag}"
     )
     print_note(console, header)
-    for note in (window_note(prev, curr), pr_filter_note(prev, curr)):
+    for note in (
+        window_note(prev, curr),
+        pr_filter_note(prev, curr),
+        blocked_filter_note(prev, curr),
+    ):
         if note:
             print_note(console, f"[dim]{note}[/]")
 
@@ -139,6 +143,14 @@ def pr_filter_note(prev: Snapshot, curr: Snapshot) -> str | None:
     if prev.scope.pr_filter == curr.scope.pr_filter:
         return None
     return f"pr filter: {prev.scope.pr_filter or 'none'} → {curr.scope.pr_filter or 'none'}"
+
+
+def blocked_filter_note(prev: Snapshot, curr: Snapshot) -> str | None:
+    """Name the blocked filter change (`--blocked` / `--unblocked`) that makes two scopes differ."""
+    if prev.scope.blocked_filter == curr.scope.blocked_filter:
+        return None
+    before = prev.scope.blocked_filter or "none"
+    return f"blocked filter: {before} → {curr.scope.blocked_filter or 'none'}"
 
 
 def _print_table(

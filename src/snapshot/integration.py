@@ -206,6 +206,8 @@ class SnapshotPlan:
                 msg.print(f"[dim]{render_module.window_note(prev, curr)}[/]")
             if prev.scope.pr_filter != curr.scope.pr_filter:
                 msg.print(f"[dim]{render_module.pr_filter_note(prev, curr)}[/]")
+            if prev.scope.blocked_filter != curr.scope.blocked_filter:
+                msg.print(f"[dim]{render_module.blocked_filter_note(prev, curr)}[/]")
             return 2
         if enrich is not None and self.output_format == "json":
             result = enrich(result)

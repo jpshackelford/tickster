@@ -147,6 +147,7 @@ class IssueClient:
         date_qualifier: str | None = None,
         not_labels: list[str] | None = None,
         pr_filter: str | None = None,
+        blocked_filter: str | None = None,
     ) -> IssueListResult:
         """List issues by author, optionally filtered by repos, states, and labels.
 
@@ -163,6 +164,8 @@ class IssueClient:
             not_labels: Leave out issues that have any of these labels
             pr_filter: "no-pr" keeps issues with no linked PR, "has-pr" keeps issues
                 with one (the definition behind the PR column)
+            blocked_filter: "unblocked" keeps issues with no open blocker, "blocked"
+                those with at least one (an unreadable blocker, "?", counts as open)
 
         Returns:
             IssueListResult with processed issue info
@@ -192,6 +195,7 @@ class IssueClient:
             sort_by_activity=sort_by_activity,
             excluded_labels=excluded,
             pr_filter=pr_filter,
+            blocked_filter=blocked_filter,
         )
 
     def get_issues_by_ref(
@@ -245,12 +249,14 @@ class IssueClient:
         sort_by_activity: bool = False,
         excluded_labels: set[str] | None = None,
         pr_filter: str | None = None,
+        blocked_filter: str | None = None,
     ) -> IssueListResult:
         """Execute a search query and process results.
 
         ``excluded_labels`` (lowercase) is also enforced on the returned rows, before
         ``limit`` is applied, so the search cannot let an excluded issue through.
-        ``pr_filter`` is applied client-side against ``IssueInfo.linked_pr``; with it,
+        ``pr_filter`` is applied client-side against ``IssueInfo.linked_pr`` and
+        ``blocked_filter`` against ``IssueInfo.open_blockers``; with either,
         ``has_more`` comes from the scan, since ``issueCount`` counts unfiltered rows.
         """
         from src.issue.history import process_issue_data
@@ -278,7 +284,8 @@ class IssueClient:
         total_count = 0
 
         # If we have OR groups, we may need to fetch more and filter
-        fetch_multiplier = 2 if (or_groups or pr_filter) else 1
+        client_filtered = bool(pr_filter or blocked_filter)
+        fetch_multiplier = 2 if (or_groups or client_filtered) else 1
         page_size = SEARCH_PAGE_SIZE
         has_more_matches = False
 
@@ -312,6 +319,11 @@ class IssueClient:
                     if pr_filter and (issue_info.linked_pr is not None) != (pr_filter == "has-pr"):
                         continue
 
+                    if blocked_filter and bool(issue_info.open_blockers) != (
+                        blocked_filter == "blocked"
+                    ):
+                        continue
+
                     all_issues.append(issue_info)
                     if len(all_issues) >= limit:
                         has_more_matches = index + 1 < len(nodes)
@@ -332,7 +344,7 @@ class IssueClient:
         return IssueListResult(
             issues=all_issues[:limit],
             total_count=total_count,
-            has_more=has_more_matches if pr_filter else total_count > len(all_issues),
+            has_more=has_more_matches if client_filtered else total_count > len(all_issues),
             cursor=cursor,
         )
 
