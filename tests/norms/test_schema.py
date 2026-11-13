@@ -222,3 +222,35 @@ def test_absent_required_keys_are_still_reported_missing():
         ("reports.m.marker", "missing required key"),
         ("reports.m.impact_line.pattern", "missing required key"),
     }
+
+
+RANK = ["priority:critical", "priority:high", "priority:medium", "priority:low"]
+
+
+def test_labels_rank_defaults_to_empty_and_parses_in_order():
+    assert parse_norms("schema = 1\n").norms.labels.rank == ()
+    text = f"schema = 1\n[labels]\nrank = {RANK!r}\n".replace("'", '"')
+    result = parse_norms(text, strict=True)
+    assert result.issues == []
+    assert result.norms.labels.rank == tuple(RANK)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ['"priority:high"', "[1, 2]", '["a", 2]', '["a", "A"]', '["priority:high", "priority:high"]'],
+)
+def test_labels_rank_rejects_a_non_list_a_non_string_item_and_a_duplicate(value):
+    result = parse_norms(f"schema = 1\n[labels]\nrank = {value}\n", strict=True)
+    assert result.norms is None
+    assert keys(result, "error") == {"labels.rank"}
+
+
+def test_duplicate_rank_error_names_the_label():
+    result = parse_norms('schema = 1\n[labels]\nrank = ["a", "b", "B"]\n')
+    assert "duplicate value 'b'" in result.errors[0].message
+    assert "duplicate value 'B'" not in result.errors[0].message
+
+
+def test_stale_labels_may_repeat():
+    result = parse_norms('schema = 1\n[labels]\nstale = ["x", "x"]\n', strict=True)
+    assert result.issues == []

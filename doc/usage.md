@@ -121,7 +121,7 @@ tkt issue list [OWNER/REPO#NUM ...]
 | `--title, -t` | Show issue titles |
 | `--deps` | Add `Blocked by` (open blockers, `--` for none) and `Blocks` (open issues this one blocks) columns. See [Issue dependencies](#issue-dependencies) |
 | `--activity, -s` | Sort by recent activity instead of creation date. Not with `--sort` |
-| `--sort KEY[,KEY...]` | Order the list by `number`, `created`, `updated` or `blocking`, then apply `--limit`. See [Sorting](#sorting-issues). Not with `--activity` |
+| `--sort KEY[,KEY...]` | Order the list by `number`, `created`, `updated`, `blocking` or `rank`, then apply `--limit`. See [Sorting](#sorting-issues). Not with `--activity` |
 | `--created-since DAYS` | Only issues created since the start of the UTC day N days ago (`0` = today) |
 | `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only issues created on/after, on/before this UTC date (inclusive) |
 | `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
@@ -176,6 +176,7 @@ See [Date-window filtering](#date-window-filtering) for the semantics of the
 | `created` | Oldest first |
 | `updated` | Least recently updated first (the time in the `Last` column) |
 | `blocking` | Most open issues blocked first (the `Blocks` count) |
+| `rank` | Best label first, in the order of the repo's [`[labels] rank`](#tkt-norms) list; issues with none of those labels last |
 
 Later keys break ties. A final tie is broken by `number`, then by repo.
 `--sort -created` puts the newest first; `--sort -blocking` puts the issues that
@@ -188,6 +189,15 @@ that blocks the most open issues, even when GitHub would not list it on the firs
 page. A query that matches more than 500 issues exits 1 with
 `more than 500 issues match; narrow the query`, and prints no rows: tickster never
 sorts part of the set.
+
+`rank` reads the label order from each repo's norms file, so tickster has no
+built-in label names. An issue ranks by the first label of the list that it has
+(the best position when it has several); the match ignores case. `--sort rank,blocking,number`
+puts the most important issues first, then the ones that block the most, then the
+oldest. `--sort -rank` reverses the order, so unranked issues come first. If any repo
+in the query has no `[labels] rank`, the command exits 1 with
+`no [labels] rank in the norms of OWNER/REPO` and prints no rows. Other keys still work
+in that repo.
 
 An unknown key exits 2 and lists the valid keys. Without `--sort`, the order and
 the `--limit` behavior are as before. `--sort` works with the table, `--format json`
@@ -985,6 +995,7 @@ bots = []                                 # non-AI automation without a [bot] su
 
 [labels]
 stale = ["stale"]                         # closed_by_bot; this is the fallback; [] disables
+rank = ["priority:critical", "priority:high", "priority:low"]  # issue list --sort rank; best first
 
 [review]
 count_reviews_from = ["humans", "agents"] # humans | agents | bots
@@ -1038,6 +1049,8 @@ new optional keys do not bump it.
   false, and a rule that needs it prints a one-time warning pointing to
   `tkt norms init --from github:jpshackelford/tickster`.
 - `$closed_by_bot` also matches the `[labels] stale` labels.
+- `tkt issue list --sort rank` orders issues by `[labels] rank`: a list of label names, best
+  first, with no repeats (case ignored). It defaults to empty, and `--sort rank` needs it.
 - `tkt pr steps` reads `[review] count_reviews_from`, `[review] rerequest_labels`,
   `[ci] ignore_checks`, `[commits]` and every `[reports.<name>]`; with no file it counts
   humans and agents, and the report steps are `not configured`.

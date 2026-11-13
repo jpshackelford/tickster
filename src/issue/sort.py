@@ -4,10 +4,42 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from src.issue.models import IssueInfo
+from src.norms.store import get_repo_norms
 
 SORT_CAP = 500
 
 SORT_TOO_MANY_MESSAGE = f"more than {SORT_CAP} issues match; narrow the query"
+
+MISSING_RANK_MESSAGE = "no [labels] rank in the norms of {repo}"
+
+
+class MissingRankError(Exception):
+    """`--sort rank` needs the repo's `[labels] rank`, and it has none."""
+
+    def __init__(self, repo: str) -> None:
+        super().__init__(MISSING_RANK_MESSAGE.format(repo=repo))
+
+
+def _rank_order(repo: str) -> tuple[str, ...]:
+    norms = get_repo_norms(repo)
+    if norms is None or not norms.labels.rank:
+        raise MissingRankError(repo)
+    return tuple(label.lower() for label in norms.labels.rank)
+
+
+def _rank(issue: IssueInfo) -> int:
+    """Position of the issue's best ranked label; past the end when it has none."""
+    order = _rank_order(issue.repo)
+    held = {label.lower() for label in issue.labels}
+    return next((pos for pos, label in enumerate(order) if label in held), len(order))
+
+
+def require_rank(keys: Sequence[str], repos: Sequence[str]) -> None:
+    """Raise MissingRankError for the first of `repos` without a rank, when `keys` sort by rank."""
+    if any(key.removeprefix("-") == "rank" for key in keys):
+        for repo in repos:
+            _rank_order(repo)
+
 
 # Each key maps to its natural-order value and the direction a bare key sorts in.
 _KEYS: dict[str, tuple[Callable[[IssueInfo], Any], bool]] = {
@@ -15,6 +47,7 @@ _KEYS: dict[str, tuple[Callable[[IssueInfo], Any], bool]] = {
     "created": (lambda i: i.created_at, False),
     "updated": (lambda i: i.last_activity, False),
     "blocking": (lambda i: i.blocking, True),
+    "rank": (_rank, False),
 }
 
 VALID_KEYS = tuple(_KEYS)

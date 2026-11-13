@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from src.all_authors import all_authors_error
@@ -23,7 +24,7 @@ from src.date_window import (
 from src.issue.dependencies import short_ref
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
-from src.issue.sort import TooManyCandidatesError, sort_issues
+from src.issue.sort import MissingRankError, TooManyCandidatesError, require_rank, sort_issues
 from src.list_table import (
     add_shrinkable_column,
     print_filters,
@@ -85,7 +86,7 @@ def cmd_list(
         show_title: Include issue titles in output
         show_deps: Add Blocked by and Blocks columns
         sort_by_activity: Sort by recent activity instead of creation date
-        sort: Sort keys (number, created, updated, blocking; `-` reverses); applied before limit
+        sort: Sort keys (number, created, updated, blocking, rank; `-` reverses); applied before limit
         field_dates: Per-field flag values keyed by dest, e.g. ``created_since``
 
     Returns:
@@ -134,6 +135,9 @@ def cmd_list(
             if error:
                 print_error(error)
                 return 1
+
+        if sort:
+            require_rank(sort, target_repos or _ref_repos(issue_refs))
 
         with IssueClient() as client:
             filters: list[tuple[str, str]]
@@ -249,8 +253,8 @@ def cmd_list(
 
     except BrokenPipeError:
         raise
-    except TooManyCandidatesError as e:
-        print_error(str(e))
+    except (TooManyCandidatesError, MissingRankError) as e:
+        print_error(escape(str(e)))
         return 1
     except Exception as e:
         logger.debug("Full traceback:\n%s", traceback.format_exc())
@@ -292,6 +296,11 @@ def _issue_filters(
         parts.append(("sort", ",".join(sort)))
     parts.append(("limit", str(limit)))
     return parts
+
+
+def _ref_repos(issue_refs: Sequence[str] | None) -> list[str]:
+    """The distinct repos named by `owner/repo#N` refs, in order of first appearance."""
+    return list(dict.fromkeys(ref.rsplit("#", 1)[0] for ref in issue_refs or () if "#" in ref))
 
 
 def _get_repos(

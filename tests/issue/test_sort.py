@@ -15,7 +15,16 @@ from src.__main__ import main
 from src.issue.cli import list_cmd as issue_list
 from src.issue.github_api import IssueClient
 from src.issue.models import IssueInfo, IssueState
-from src.issue.sort import SORT_CAP, VALID_KEYS, parse_sort, sort_issues
+from src.issue.sort import (
+    SORT_CAP,
+    VALID_KEYS,
+    MissingRankError,
+    parse_sort,
+    require_rank,
+    sort_issues,
+)
+from src.norms.model import Labels, Norms
+from src.norms.store import set_loader
 from src.snapshot import store
 from src.snapshot.diff import diff_snapshots
 from src.snapshot.models import SnapshotScope
@@ -55,7 +64,7 @@ def test_parse_keeps_keys_in_order_with_their_prefix():
     assert parse_sort("blocking,-created, number") == ("blocking", "-created", "number")
 
 
-@pytest.mark.parametrize("text", ["rank", "created,bogus", "--created", "", "created,"])
+@pytest.mark.parametrize("text", ["priority", "created,bogus", "--created", "", "created,"])
 def test_parse_rejects_unknown_keys_and_names_the_valid_ones(text):
     with pytest.raises(ValueError) as exc:
         parse_sort(text)
@@ -212,10 +221,10 @@ def test_more_than_the_cap_exits_1_with_the_message_and_no_rows(github_env, monk
 
 def test_unknown_key_exits_2_and_names_the_valid_keys(capsys):
     with pytest.raises(SystemExit) as exc:
-        main(["issue", "list", "--sort", "created,rank"])
+        main(["issue", "list", "--sort", "created,priority"])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "'rank'" in err
+    assert "'priority'" in err
     assert all(key in err for key in VALID_KEYS)
 
 
@@ -384,3 +393,117 @@ def test_a_reversed_first_key_is_attached_to_the_flag(argv, expected):
     from src.__main__ import _join_reversed_sort_keys
 
     assert _join_reversed_sort_keys(argv) == expected
+
+
+# --- rank --------------------------------------------------------------------
+
+RANK = ("priority:critical", "priority:high", "priority:medium", "priority:low")
+
+
+def _ranked(number: int, *labels: str, repo: str = "o/r", blocking: int = 0) -> IssueInfo:
+    issue = _issue(number, repo=repo, blocking=blocking)
+    issue.labels = list(labels)
+    return issue
+
+
+def _install_norms(**rank_by_repo: tuple[str, ...]) -> None:
+    """Give each `owner_name` repo the rank (`owner/name` in the loader); others have no norms."""
+
+    def load(repo: str) -> Norms | None:
+        rank = rank_by_repo.get(repo.replace("/", "_"))
+        return None if rank is None else Norms(labels=Labels(rank=rank))
+
+    set_loader(load)
+
+
+RANK_FIXTURE = [
+    _ranked(1, "bug"),
+    _ranked(2, "priority:low"),
+    _ranked(3, "priority:critical"),
+    _ranked(4, "priority:medium", "enhancement"),
+    _ranked(5, "priority:high"),
+    _ranked(6, "priority:low", "priority:high"),
+    _ranked(7, "Priority:Critical"),
+]
+
+
+def test_rank_orders_best_first_then_unranked_and_uses_the_better_of_two_labels():
+    _install_norms(o_r=RANK)
+    assert _numbers(sort_issues(RANK_FIXTURE, ["rank"])) == [3, 7, 5, 6, 4, 2, 1]
+
+
+def test_reversed_rank_puts_unranked_first():
+    _install_norms(o_r=RANK)
+    assert _numbers(sort_issues(RANK_FIXTURE, ["-rank"])) == [1, 2, 4, 5, 6, 3, 7]
+
+
+def test_rank_ties_are_broken_by_the_next_keys():
+    _install_norms(o_r=RANK)
+    issues = [
+        _ranked(10, "priority:high"),
+        _ranked(11, "priority:high", blocking=3),
+        _ranked(12, "priority:critical"),
+        _ranked(13, "priority:high", blocking=3),
+    ]
+    assert _numbers(sort_issues(issues, ["rank", "blocking", "number"])) == [12, 11, 13, 10]
+    assert _numbers(sort_issues(issues, ["rank", "-number"])) == [12, 13, 11, 10]
+
+
+def test_each_repo_uses_its_own_rank():
+    _install_norms(a_x=("p1", "p2"), b_x=("p2", "p1"))
+    issues = [
+        _ranked(1, "p1", repo="a/x"),
+        _ranked(2, "p2", repo="a/x"),
+        _ranked(3, "p1", repo="b/x"),
+        _ranked(4, "p2", repo="b/x"),
+    ]
+    by_repo = [(i.repo, i.number) for i in sort_issues(issues, ["rank", "number"])]
+    assert by_repo == [("a/x", 1), ("b/x", 4), ("a/x", 2), ("b/x", 3)]
+
+
+def test_a_repo_without_rank_raises_and_names_it():
+    _install_norms()
+    with pytest.raises(MissingRankError, match=r"no \[labels\] rank in the norms of o/r"):
+        sort_issues(RANK_FIXTURE, ["rank"])
+
+
+def test_a_repo_with_norms_but_an_empty_rank_raises():
+    _install_norms(o_r=())
+    with pytest.raises(MissingRankError):
+        sort_issues(RANK_FIXTURE, ["number", "-rank"])
+
+
+def test_other_keys_do_not_need_a_rank():
+    _install_norms()
+    assert _numbers(sort_issues(RANK_FIXTURE, ["-number"])) == [7, 6, 5, 4, 3, 2, 1]
+
+
+def test_require_rank_checks_every_repo_only_when_sorting_by_rank():
+    _install_norms(a_x=RANK)
+    require_rank(["number"], ["a/x", "b/x"])
+    require_rank(["rank"], ["a/x"])
+    with pytest.raises(MissingRankError, match="b/x"):
+        require_rank(["created", "-rank"], ["a/x", "b/x"])
+
+
+def test_sort_rank_with_a_repo_lacking_rank_exits_1_and_prints_no_rows(stub_client, capsys):  # noqa: ARG001
+    _install_norms(a_x=RANK)
+    argv = ["issue", "list", "--all-authors", "--repo", "a/x", "--repo", "b/x", "--sort", "rank"]
+    assert main(argv) == 1
+    captured = capsys.readouterr()
+    assert "no [labels] rank in the norms of b/x" in captured.err
+    assert "#1" not in captured.out
+    assert _Client.seen == []
+
+
+def test_other_sort_keys_still_work_in_a_repo_lacking_rank(stub_client):  # noqa: ARG001
+    _install_norms()
+    assert main(["issue", "list", "--all-authors", "--repo", "a/x", "--sort", "number"]) == 0
+    assert len(_Client.seen) == 1
+
+
+def test_sort_rank_checks_the_repos_of_explicit_refs(stub_client, capsys):  # noqa: ARG001
+    _install_norms(a_x=RANK, o_r=RANK)
+    assert main(["issue", "list", "a/x#1", "b/x#2", "--sort", "rank"]) == 1
+    assert "no [labels] rank in the norms of b/x" in capsys.readouterr().err
+    assert main(["issue", "list", "a/x#1", "--sort", "rank"]) == 0

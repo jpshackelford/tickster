@@ -16,6 +16,8 @@ bots = []
 [labels]
 # Labels that mean a bot closed an issue as stale. [] disables the check.
 stale = ["stale"]
+# Label order for `tkt issue list --sort rank`, best first, e.g. ["priority:high", "priority:low"].
+# rank = []
 
 [review]
 # Whose review settles "review the PR": humans | agents | bots
