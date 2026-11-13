@@ -943,3 +943,11 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+## 2026-11-13 — Impl #146 done
+
+- Impl #146 (`priority:medium`, `--blocked` / `--unblocked` on issue list) → [PR #169](https://github.com/jpshackelford/tickster/pull/169), CI green, marked ready for review. Manual test, review and merge are separate conversations.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
