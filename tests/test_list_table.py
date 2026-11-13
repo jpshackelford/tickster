@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from src.__main__ import main
 from src.connection_paging import TRUNCATION_MARKER
 from src.history_legend import chars_text, history_legend
 from src.issue.cli import list_cmd as issue_cmd
@@ -27,7 +28,7 @@ from src.pr.cli import list_cmd as pr_cmd
 from src.pr.models import CIStatus, PRInfo, PRState
 from src.pr.reviewers import REVIEWER_LEGEND
 from src.pr.step_types import StepResult, StepStatus
-from src.pr.steps import STEP_LETTERS, STEPS_LEGEND, steps_mark
+from src.pr.steps import MARK_DONE, MARK_NA, STEP_LETTERS, STEPS_LEGEND, steps_mark
 from src.review.cli import list_cmd as review_cmd
 from src.review.models import ReviewInfo, ReviewStatus
 from src.show.render import ISSUE_LEGEND, PR_LEGEND
@@ -570,3 +571,18 @@ class TestShowLegendsUseTheTables:
 
     def test_issue_legend_names_every_character(self):
         assert chars_text("issue") in ISSUE_LEGEND
+
+
+class TestStepsHelpGlyphs:
+    @staticmethod
+    def _steps_help(capsys) -> str:
+        with pytest.raises(SystemExit) as exc:
+            main(["pr", "list", "--help"])
+        assert exc.value.code == 0
+        return " ".join(capsys.readouterr().out.split())
+
+    def test_names_the_same_glyphs_as_the_table(self, capsys):
+        assert f"{MARK_DONE} done, {MARK_NA} n/a," in self._steps_help(capsys)
+
+    def test_no_longer_uses_a_dot_for_done(self, capsys):
+        assert ". done or n/a" not in self._steps_help(capsys)
