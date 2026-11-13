@@ -35,13 +35,15 @@ class ReviewListResult:
     """Result of a review queue query."""
 
     reviews: list[ReviewInfo] = field(default_factory=list)
-    total_count: int = 0
+    total_count: int | None = 0  # matching PRs before --limit; None = a source was cut off
     has_more: bool = False
     action_count: int = 0  # PRs needing action
 
 
 class ReviewClient:
     """Client for fetching PR data from reviewer's perspective."""
+
+    _cut_off = False  # a search in `list_reviews` stopped at `limit` with rows left
 
     def __init__(self, token: str | None = None):
         self.token = token or get_github_token()
@@ -104,6 +106,7 @@ class ReviewClient:
         include_closed = "closed" in states_set
 
         all_prs: dict[str, dict] = {}
+        self._cut_off = False
 
         # Fetch open PRs (both requested and reviewed)
         if include_open:
@@ -158,6 +161,8 @@ class ReviewClient:
         if not include_all and include_open and not include_merged and not include_closed:
             reviews = [r for r in reviews if r.needs_action]
 
+        matched = len(reviews)
+
         # Apply limit after filtering
         reviews = reviews[:limit]
 
@@ -165,8 +170,8 @@ class ReviewClient:
 
         return ReviewListResult(
             reviews=reviews,
-            total_count=len(reviews),
-            has_more=len(all_prs) > limit,
+            total_count=None if self._cut_off else matched,
+            has_more=matched > limit or self._cut_off,
             action_count=action_count,
         )
 
@@ -270,15 +275,18 @@ class ReviewClient:
                 min(page_size, limit - len(all_prs)),
             )
 
-            for node in search_result["nodes"]:
+            nodes = search_result["nodes"]
+            for index, node in enumerate(nodes):
                 if node:  # Skip null nodes
                     complete_pr_connections(self._client, node)
                     all_prs.append(node)
                     if len(all_prs) >= limit:
+                        self._cut_off = self._cut_off or index + 1 < len(nodes)
                         break
 
             page_info = search_result["pageInfo"]
             if not page_info["hasNextPage"] or len(all_prs) >= limit:
+                self._cut_off = self._cut_off or page_info["hasNextPage"]
                 break
             cursor = page_info["endCursor"]
 

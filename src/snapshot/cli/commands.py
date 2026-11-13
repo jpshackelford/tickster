@@ -7,7 +7,6 @@ touch the GitHub API.
 
 from __future__ import annotations
 
-import json
 import logging
 
 from rich import box
@@ -81,7 +80,7 @@ def cmd_show(ref: str, *, output_format: str = "table") -> int:
         return 1
 
     if output_format == "json":
-        print(json.dumps(snap.to_dict(), indent=2))
+        print(snap.to_json())
         return 0
 
     print_note(

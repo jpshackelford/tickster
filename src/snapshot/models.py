@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -40,6 +40,17 @@ from src.snapshot.rows import (
 SCHEMA_VERSION = 2
 
 __all__ = ["KIND_ISSUE", "KIND_PR", "KIND_REVIEW", "VALID_KINDS"]
+
+
+def _reject_unknown(data: dict, known: Sequence[str]) -> None:
+    for name in data:
+        if name not in known:
+            raise ValueError(f"unexpected field {name!r}")
+
+
+def _read_optional(data: dict, name: str, decode: Callable[[Any], Any], default: Any) -> Any:
+    """Decode `data[name]`, or return `default` when the key is absent (unset filters are omitted)."""
+    return read_field(data, name, decode) if name in data else default
 
 
 class ChangeKind(Enum):
@@ -77,20 +88,20 @@ class WindowScope:
         )
 
     def to_dict(self) -> dict:
-        return {
-            "field": self.field,
-            "since_days": self.since_days,
-            "after": self.after,
-            "before": self.before,
-        }
+        out: dict[str, Any] = {"field": self.field}
+        for key in ("since_days", "after", "before"):
+            if (value := getattr(self, key)) is not None:
+                out[key] = value
+        return out
 
     @classmethod
     def from_dict(cls, data: dict) -> WindowScope:
+        _reject_unknown(data, ("field", "since_days", "after", "before"))
         return cls(
             field=read_field(data, "field", as_str),
-            since_days=read_field(data, "since_days", as_opt_int),
-            after=read_field(data, "after", as_opt_str),
-            before=read_field(data, "before", as_opt_str),
+            since_days=_read_optional(data, "since_days", as_opt_int, None),
+            after=_read_optional(data, "after", as_opt_str, None),
+            before=_read_optional(data, "before", as_opt_str, None),
         )
 
     def describe(self) -> str:
@@ -101,6 +112,26 @@ class WindowScope:
         if self.after:
             return f"{self.field} ≥ {self.after}"
         return f"{self.field} ≤ {self.before}"
+
+
+_SCOPE_KEYS = (
+    "board",
+    "author",
+    "all_authors",
+    "reviewer",
+    "repos",
+    "refs",
+    "states",
+    "labels",
+    "not_labels",
+    "exclude_authors",
+    "include_all",
+    "pr_filter",
+    "blocked_filter",
+    "sort",
+    "limit",
+    "window",
+)
 
 
 @dataclass(frozen=True)
@@ -139,43 +170,42 @@ class SnapshotScope:
     window: WindowScope | None = None
 
     def to_dict(self) -> dict:
-        return {
-            "board": self.board,
-            "author": self.author,
-            "all_authors": self.all_authors,
-            "reviewer": self.reviewer,
-            "repos": list(self.repos) if self.repos else None,
-            "refs": list(self.refs) if self.refs else None,
-            "states": list(self.states) if self.states else None,
-            "labels": list(self.labels) if self.labels else None,
-            "not_labels": list(self.not_labels) if self.not_labels else None,
-            "exclude_authors": list(self.exclude_authors) if self.exclude_authors else None,
-            "include_all": self.include_all,
-            "pr_filter": self.pr_filter,
-            "blocked_filter": self.blocked_filter,
-            "sort": list(self.sort) if self.sort else None,
-            "limit": self.limit,
-            "window": self.window.to_dict() if self.window else None,
-        }
+        """The filters as the document shows them: unset keys (None, False, empty) are omitted."""
+        out: dict[str, Any] = {}
+        for name in _SCOPE_KEYS:
+            value = getattr(self, name)
+            if name == "limit":
+                out[name] = value
+            elif isinstance(value, tuple):
+                if value:
+                    out[name] = list(value)
+            elif isinstance(value, WindowScope):
+                out[name] = value.to_dict()
+            elif value:
+                out[name] = value
+        return out
 
     @classmethod
-    def from_dict(cls, data: dict) -> SnapshotScope:
-        window = read_field(data, "window", lambda w: w)
+    def from_dict(cls, data: Any) -> SnapshotScope:
+        if not isinstance(data, dict):
+            raise ValueError("field 'filters' has the wrong type")
+        _reject_unknown(data, _SCOPE_KEYS)
+        window = _read_optional(data, "window", lambda w: w, None)
         return cls(
-            board=read_field(data, "board", as_opt_str),
-            author=read_field(data, "author", as_opt_str),
-            all_authors=read_field(data, "all_authors", as_bool),
-            reviewer=read_field(data, "reviewer", as_opt_str),
-            repos=read_field(data, "repos", as_opt_strs),
-            refs=read_field(data, "refs", as_opt_strs),
-            states=read_field(data, "states", as_opt_strs),
-            labels=read_field(data, "labels", as_opt_strs),
-            not_labels=read_field(data, "not_labels", as_opt_strs),
-            exclude_authors=read_field(data, "exclude_authors", as_opt_strs),
-            include_all=read_field(data, "include_all", as_bool),
-            pr_filter=read_field(data, "pr_filter", as_opt_str),
-            blocked_filter=read_field(data, "blocked_filter", as_opt_str),
-            sort=read_field(data, "sort", as_opt_strs),
+            board=_read_optional(data, "board", as_opt_str, None),
+            author=_read_optional(data, "author", as_opt_str, None),
+            all_authors=_read_optional(data, "all_authors", as_bool, False),
+            reviewer=_read_optional(data, "reviewer", as_opt_str, None),
+            repos=_read_optional(data, "repos", as_opt_strs, None),
+            refs=_read_optional(data, "refs", as_opt_strs, None),
+            states=_read_optional(data, "states", as_opt_strs, None),
+            labels=_read_optional(data, "labels", as_opt_strs, None),
+            not_labels=_read_optional(data, "not_labels", as_opt_strs, None),
+            exclude_authors=_read_optional(data, "exclude_authors", as_opt_strs, None),
+            include_all=_read_optional(data, "include_all", as_bool, False),
+            pr_filter=_read_optional(data, "pr_filter", as_opt_str, None),
+            blocked_filter=_read_optional(data, "blocked_filter", as_opt_str, None),
+            sort=_read_optional(data, "sort", as_opt_strs, None),
             limit=read_field(data, "limit", as_int),
             window=WindowScope.from_dict(window) if window is not None else None,
         )
@@ -281,6 +311,12 @@ def _as_list(value: Any) -> list:
     return value
 
 
+def _as_dict(value: Any) -> dict:
+    if not isinstance(value, dict):
+        raise TypeError(value)
+    return value
+
+
 @dataclass(frozen=True)
 class ItemSnapshot:
     """One row: an issue, PR or review.
@@ -339,6 +375,7 @@ class Snapshot:
     items: tuple[ItemSnapshot, ...]
     schema: int = SCHEMA_VERSION
     has_more: bool = False  # the query matched more rows than `--limit` kept
+    total_count: int | None = None  # rows that matched the filters; None = unknown
 
     @property
     def scope_hash(self) -> str:
@@ -349,29 +386,41 @@ class Snapshot:
         return {it.ref: it for it in self.items}
 
     def to_dict(self) -> dict:
-        return {
-            "schema": self.schema,
-            "kind": self.kind,
-            "name": self.name,
-            "captured_at": self.captured_at,
-            "scope": self.scope.to_dict(),
-            "scope_hash": self.scope_hash,
-            "has_more": self.has_more,
-            "items": [it.to_dict() for it in self.items],
-        }
+        doc: dict[str, Any] = {"schema": self.schema}
+        if self.name:
+            doc["snapshot"] = {"name": self.name, "captured_at": self.captured_at}
+        doc["filters"] = self.scope.to_dict()
+        doc["total_count"] = self.total_count
+        doc["has_more"] = self.has_more
+        doc["items"] = [it.to_dict() for it in self.items]
+        return doc
+
+    def to_json(self) -> str:
+        """The document as every command prints and stores it."""
+        return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
-    def from_dict(cls, data: Any) -> Snapshot:
-        """Read a snapshot; `ValueError` says why `data` is not one written by this tkt."""
+    def from_dict(cls, data: Any, kind: str, name: str = "") -> Snapshot:
+        """Read a document; `ValueError` says why `data` is not one written by this tkt.
+
+        The document has no kind: the caller knows it (from the file name). `name` is used
+        when the document carries no `snapshot` key.
+        """
+        if kind not in VALID_KINDS:
+            raise ValueError(f"invalid snapshot kind: {kind!r}")
         if not isinstance(data, dict):
             raise ValueError("the top level is not a JSON object")
         schema = read_field(data, "schema", lambda v: v)
         if schema != SCHEMA_VERSION:
             raise ValueError(f"schema {schema}, this tkt writes schema {SCHEMA_VERSION}")
-        kind = read_field(data, "kind", as_str)
-        if kind not in VALID_KINDS:
-            raise ValueError(f"field 'kind' has the wrong type: {kind!r}")
-        scope = read_field(data, "scope", SnapshotScope.from_dict)
+        _reject_unknown(data, ("schema", "snapshot", "filters", "total_count", "has_more", "items"))
+        captured_at = ""
+        if "snapshot" in data:
+            meta = read_field(data, "snapshot", _as_dict)
+            _reject_unknown(meta, ("name", "captured_at"))
+            name = read_field(meta, "name", as_str)
+            captured_at = read_field(meta, "captured_at", as_str)
+        scope = read_field(data, "filters", SnapshotScope.from_dict)
         raw_items = read_field(data, "items", _as_list)
         items = tuple(ItemSnapshot.from_dict(it) for it in raw_items)
         for it in items:
@@ -380,11 +429,12 @@ class Snapshot:
         return cls(
             schema=schema,
             kind=kind,
-            name=read_field(data, "name", as_str),
-            captured_at=read_field(data, "captured_at", as_str),
+            name=name,
+            captured_at=captured_at,
             scope=scope,
             items=items,
             has_more=read_field(data, "has_more", as_bool),
+            total_count=read_field(data, "total_count", as_opt_int),
         )
 
     @classmethod
@@ -396,6 +446,7 @@ class Snapshot:
         scope: SnapshotScope,
         items: list[ItemSnapshot],
         has_more: bool = False,
+        total_count: int | None = None,
     ) -> Snapshot:
         """Build a fresh snapshot with captured_at = now (UTC)."""
         if kind not in VALID_KINDS:
@@ -407,6 +458,7 @@ class Snapshot:
             scope=scope,
             items=tuple(items),
             has_more=has_more,
+            total_count=total_count,
         )
 
 

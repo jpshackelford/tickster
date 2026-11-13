@@ -118,6 +118,7 @@ def snapshot_from_prs(
     scope: SnapshotScope,
     name: str,
     has_more: bool = False,
+    total_count: int | None = None,
     steps: dict[str, tuple[StepResult, ...]] | None = None,
 ) -> Snapshot:
     return Snapshot.make(
@@ -129,11 +130,17 @@ def snapshot_from_prs(
             for p in prs
         ],
         has_more=has_more,
+        total_count=total_count,
     )
 
 
 def snapshot_from_issues(
-    issues: list[IssueInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
+    issues: list[IssueInfo],
+    *,
+    scope: SnapshotScope,
+    name: str,
+    has_more: bool = False,
+    total_count: int | None = None,
 ) -> Snapshot:
     return Snapshot.make(
         kind=KIND_ISSUE,
@@ -141,11 +148,17 @@ def snapshot_from_issues(
         scope=scope,
         items=[item_from_issue(i) for i in issues],
         has_more=has_more,
+        total_count=total_count,
     )
 
 
 def snapshot_from_reviews(
-    reviews: list[ReviewInfo], *, scope: SnapshotScope, name: str, has_more: bool = False
+    reviews: list[ReviewInfo],
+    *,
+    scope: SnapshotScope,
+    name: str,
+    has_more: bool = False,
+    total_count: int | None = None,
 ) -> Snapshot:
     return Snapshot.make(
         kind=KIND_REVIEW,
@@ -153,6 +166,7 @@ def snapshot_from_reviews(
         scope=scope,
         items=[item_from_review(r) for r in reviews],
         has_more=has_more,
+        total_count=total_count,
     )
 
 

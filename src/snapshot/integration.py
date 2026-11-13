@@ -26,7 +26,6 @@ snapshot is how `--watch` reports that the last item in scope went away.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
@@ -162,11 +161,12 @@ class SnapshotPlan:
                     store.save_pending(replace(curr, name=self.diff_name))
             return rc
         if self.output_format == "json":
-            print(json.dumps(curr.to_dict(), indent=2))
+            saved = self.save(curr) if self.wants_save else curr
+            print(saved.to_json())
         else:
             print_table()
-        if self.wants_save:
-            self.save(curr)
+            if self.wants_save:
+                self.save(curr)
         return 0
 
     def render_diff(
@@ -232,12 +232,14 @@ class SnapshotPlan:
             return EXIT_CHANGED
         return 0
 
-    def save(self, snapshot: Snapshot) -> None:
-        """Persist `snapshot` under the configured save name.
+    def save(self, snapshot: Snapshot) -> Snapshot:
+        """Persist `snapshot` under the configured save name; returns what was stored.
 
         A newer saved baseline supersedes any baseline staged for that name.
         """
         if self.save_name is None:
             raise RuntimeError("save called without --snapshot / --watch")
-        store.save(replace(snapshot, name=self.save_name))
+        saved = replace(snapshot, name=self.save_name)
+        store.save(saved)
         store.delete_pending(snapshot.kind, self.save_name)
+        return saved

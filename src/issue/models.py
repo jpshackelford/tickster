@@ -96,6 +96,8 @@ class IssueListResult:
     """Result of an issue list query."""
 
     issues: list[IssueInfo] = field(default_factory=list)
-    total_count: int = 0
+    total_count: int | None = (
+        0  # rows that matched; None = unknown (client-side filter, more pages)
+    )
     has_more: bool = False
     cursor: str | None = None

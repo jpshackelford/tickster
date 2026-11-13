@@ -133,7 +133,7 @@ def test_has_more_comes_from_the_scan_not_the_unfiltered_count(monkeypatch):
     page = _page(_mixed(), has_next=False, count=500)
     result, _ = _list([page], monkeypatch, blocked_filter="unblocked", limit=10)
     assert result.has_more is False
-    assert result.total_count == 500
+    assert result.total_count == len(result.issues)
 
 
 def test_combines_with_the_pr_filter(monkeypatch):

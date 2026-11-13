@@ -79,9 +79,8 @@ def pending_path_for(kind: str, name: str) -> Path:
 def _write(snapshot: Snapshot, dst: Path) -> Path:
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_suffix(".json.tmp")
-    payload = json.dumps(snapshot.to_dict(), indent=2, sort_keys=False)
     with tmp.open("w", encoding="utf-8") as f:
-        f.write(payload)
+        f.write(snapshot.to_json())
         f.flush()
         os.fsync(f.fileno())
     tmp.replace(dst)
@@ -129,7 +128,7 @@ def _read(p: Path, kind: str, name: str, what: str = "snapshot") -> Snapshot:
     if not p.exists():
         raise missing
     try:
-        return Snapshot.from_dict(json.loads(p.read_text()))
+        return Snapshot.from_dict(json.loads(p.read_text()), kind, name)
     except json.JSONDecodeError as e:
         reason = f"invalid JSON at line {e.lineno} column {e.colno}"
     except ValueError as e:

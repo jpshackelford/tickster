@@ -742,7 +742,10 @@ class TestListColumn:
 def snapshot_of(*prs: PRInfo, with_steps: bool = True) -> Snapshot:
     steps = {f"{p.repo}#{p.number}": evaluate_steps(p, None) for p in prs}
     return snapshot_from_prs(
-        list(prs), scope=SnapshotScope(), name="s", steps=steps if with_steps else None
+        list(prs),
+        scope=SnapshotScope(author="octocat"),
+        name="s",
+        steps=steps if with_steps else None,
     )
 
 
@@ -761,7 +764,7 @@ class TestSnapshots:
             STEP_REREVIEW: "needed",
             **dict.fromkeys(MANUAL_TEST_STEPS, "not configured"),
         }
-        again = Snapshot.from_dict(json.loads(json.dumps(snap.to_dict())))
+        again = Snapshot.from_dict(json.loads(snap.to_json()), "pr", "s")
         assert again.items[0].step_status == snap.items[0].step_status
 
     def test_not_evaluated_is_null_in_the_json(self):

@@ -160,7 +160,7 @@ output — see [Snapshots & diffs](#snapshots--diffs).
 
 `--format json` prints the current result as one JSON document instead of the
 table, the same document `tkt snapshot show KIND/NAME --format json` prints,
-with `name` set to the `--snapshot` name or `""`. See
+with `snapshot` present only for a named snapshot. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
 See [Date-window filtering](#date-window-filtering) for the semantics of the
@@ -392,7 +392,7 @@ output — see [Snapshots & diffs](#snapshots--diffs).
 
 `--format json` prints the current result as one JSON document instead of the
 table, the same document `tkt snapshot show KIND/NAME --format json` prints,
-with `name` set to the `--snapshot` name or `""`. See
+with `snapshot` present only for a named snapshot. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
 See [Date-window filtering](#date-window-filtering) for the semantics of the
@@ -901,7 +901,7 @@ output — see [Snapshots & diffs](#snapshots--diffs).
 
 `--format json` prints the current result as one JSON document instead of the
 table, the same document `tkt snapshot show KIND/NAME --format json` prints,
-with `name` set to the `--snapshot` name or `""`. See
+with `snapshot` present only for a named snapshot. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
 ### Effective filters line (`tkt review`)
@@ -1199,6 +1199,15 @@ new spellings and need no change. For the rest: a flag that took days goes to
 `--<field>-before`. Before 2.0 the field was `--date-field`, or when you gave none, `merged`
 for a `--merged`-only listing, `closed` for a `--closed`-only listing and `updated` for
 everything else. A bare `--since 14` was therefore `--updated-since 14` on an open listing.
+
+**List JSON.** `--format json` on `issue list`, `pr list` and `review`, and `tkt snapshot show
+--format json`, print one compact document: `schema`, `filters`, `total_count`, `has_more`,
+`items`, plus `snapshot` for a named snapshot ([`--format json` on list
+commands](#--format-json-on-list-commands)). The old top-level `kind`, `name`, `captured_at`,
+`scope` and `scope_hash` are gone: `scope` is `filters` (unset keys left out, and `author`
+and `reviewer` are the login that was queried), and the name and capture time are under
+`snapshot`. A script that reads `.scope`, `.kind` or `.name` has to change. A schema 2 file in
+the old layout is not readable: it is deleted with a notice, as below.
 
 **Saved snapshots.** The snapshot file has a new schema (2), and tkt does not read schema 1.
 A snapshot or pending baseline that tkt cannot read is deleted, and tkt prints one notice on
@@ -1590,14 +1599,42 @@ With `json`, stdout holds one JSON document and nothing else. Notices and
 errors go to stderr.
 
 - With `--diff` or `--watch`, the document is the diff.
-- Without them, it is the current result, in the same schema as
-  `tkt snapshot show KIND/NAME --format json`: `kind`, `name`, `captured_at`,
-  `scope`, `has_more` and `items`. `name` is the `--snapshot` name, or `""` when none is given.
-- `--snapshot NAME --format json` still saves the snapshot, and prints the
-  document instead of the table.
+- Without them, it is the current result: one compact document, and only that on stdout.
+  The legend, the `Filters:` line and the footer are not printed.
+- `--snapshot NAME --format json` saves the snapshot and prints the document instead of the
+  table. The saved file is that same document, byte for byte, and
+  `tkt snapshot show KIND/NAME --format json` prints it again.
+
+```json
+{
+  "schema": 2,
+  "filters": {"repos": ["jpshackelford/tickster"], "author": "jpshackelford",
+              "states": ["open"], "pr_filter": "no-pr",
+              "window": {"field": "created", "since_days": 14}, "limit": 100},
+  "total_count": 31,
+  "has_more": false,
+  "items": [{"ref": "jpshackelford/tickster#142", "kind": "issue", "...": "see Row fields"}]
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `schema` | The format version, `2` |
+| `snapshot` | Only with `--snapshot NAME` (and in a stored file): `{"name", "captured_at"}`, placed after `schema`. `captured_at` is UTC ISO-8601 |
+| `filters` | The query that ran, as the machine form of the `Filters:` line. Unset keys (`null`, `false`, empty list) are left out, and `limit` is always there. `author` and `reviewer` hold the login that was queried: never `null` and never `me`. With explicit refs there is `refs` and no `author`. `window` has only the keys that are set: `field` with `since_days`, or with `after` and / or `before` |
+| `total_count` | How many rows matched `filters`. It is larger than the number of `items` when `has_more` is `true`. It is never the count of the unfiltered search. It is `null` when it cannot be known without reading every page: a client-side filter (`--no-pr`, `--has-pr`, `--blocked`, `--unblocked`, OR labels, `pr list` with two states such as `open,merged`) or a `review` search that stopped at `--limit` with more pages left. With explicit refs it is the number of refs resolved |
+| `has_more` | Always present, `true` or `false`: more rows match than `items` holds |
+| `items` | The rows ([Row fields](#row-fields)). Each has `kind`. `[]` for an empty result, with exit 0 |
+
+There is no top-level `kind`, `name`, `captured_at` or `scope_hash`. The scope hash that
+`tkt snapshot list` shows is computed from `filters`. `review` reports `total_count` as the
+number of matching PRs before `--limit`. A closed pipe (`| head -1`) ends the command with exit
+141 and no traceback.
 
 ```bash
 tkt pr list octocat/hello-world#7 --format json | python -m json.tool
+tkt issue list --all-authors --repo o/r --created-since 14 --no-pr --format json | jq '.items | length'
+tkt review --format json | jq '{total_count, has_more, n: (.items | length)}'
 tkt pr list --author me --snapshot mine --format json   # save and print
 ```
 

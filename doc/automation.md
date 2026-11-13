@@ -46,8 +46,8 @@ To see a `changed` row, rewind the baseline as if #62 had not been approved and 
 yet, then run the recipe again:
 
 ```bash
-jq '(.items[] | select(.key | endswith("#62"))) |= (.history = "sVnFnFn"
-    | .last_activity = "2026-11-05T11:31:49Z" | .events |= .[:-2])' \
+jq '(.items[] | select(.ref | endswith("#62"))) |= (.history = "sVnFnFn"
+    | .last_activity = "2026-11-05T11:31:49Z")' \
   "$TKT_HOME/snapshots/pr-doc-poll.json" > rewound.json &&
   mv rewound.json "$TKT_HOME/snapshots/pr-doc-poll.json"
 ```
@@ -113,12 +113,12 @@ and then goes quiet never moves again. A level-triggered sweep ignores history a
 what is pending now. Run it on a slower schedule:
 
 ```bash
-tkt pr list $REFS --format json | jq -r '.items[] | .key as $k
-  | .steps | to_entries[] | select(.value == "needed") | "\($k)\t\(.key)"'
+tkt pr list $REFS --format json | jq -r '.items[] | .ref as $k
+  | .step_status | to_entries[] | select(.value == "needed") | "\($k)\t\(.key)"'
 ```
 
 It prints one `ref<TAB>step` line for each pending step. The two merged PRs have none,
-so it prints nothing. `.items[].steps` holds the statuses only; run
+so it prints nothing. `.items[].step_status` holds the statuses only; run
 [`tkt pr steps REF`](usage.md#tkt-pr-steps) for the evidence.
 
 ## What `tkt` decides, and what it does not

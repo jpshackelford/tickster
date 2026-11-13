@@ -110,6 +110,6 @@ class PRListResult:
     """Result of a PR list query."""
 
     prs: list[PRInfo] = field(default_factory=list)
-    total_count: int = 0
+    total_count: int | None = 0  # rows that matched; None = unknown (client-side state filter)
     has_more: bool = False
     cursor: str | None = None

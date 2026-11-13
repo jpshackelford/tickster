@@ -290,3 +290,24 @@ def test_a_snapshot_named_x_pending_does_not_collide_with_the_pending_file_of_x(
     assert [it.ref for it in store.load_pending("pr", "x").items] == ["a/b#3"]
     pending = {r.name: r.pending for r in store.list_()}
     assert pending == {"x": True, "x.pending": False}
+
+
+def test_a_document_without_a_snapshot_key_takes_its_name_from_the_file(tkt_home):  # noqa: ARG001
+    path = store.save(make_snapshot(name="hourly", items=[make_item(ref="a/b#1")]))
+    doc = json.loads(path.read_text())
+    del doc["snapshot"]
+    path.write_text(json.dumps(doc))
+    loaded = store.load("pr", "hourly")
+    assert loaded.name == "hourly"
+    assert loaded.items[0].ref == "a/b#1"
+    assert [r.name for r in store.list_("pr")] == ["hourly"]
+
+
+def test_a_file_with_the_old_top_level_keys_is_discarded(tkt_home, caplog):  # noqa: ARG001
+    path = store.save(make_snapshot(name="hourly", items=[make_item(ref="a/b#1")]))
+    doc = json.loads(path.read_text())
+    path.write_text(json.dumps({**doc, "kind": "pr", "scope_hash": "abc"}))
+    with pytest.raises(FileNotFoundError):
+        store.load("pr", "hourly")
+    assert not path.exists()
+    assert "unexpected field" in caplog.text

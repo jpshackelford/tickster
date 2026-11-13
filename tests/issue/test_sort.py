@@ -302,7 +302,7 @@ def test_json_output_is_in_sort_order(stub_client, tkt_home, capsys):  # noqa: A
     assert main(["issue", "list", "--sort", "-blocking", "--format", "json"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert [item["number"] for item in data["items"]] == [1, 3, 2, 4]
-    assert data["scope"]["sort"] == ["-blocking"]
+    assert data["filters"]["sort"] == ["-blocking"]
 
 
 # --- snapshot scope ----------------------------------------------------------
