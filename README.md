@@ -126,9 +126,9 @@ Documentation:
   [Upgrading to 1.0](doc/usage.md#upgrading-to-10). Upgrading from 1.x (the
   renamed date flags)? See [Upgrading to 2.0](doc/usage.md#upgrading-to-20).
   [Recipes](doc/usage.md#recipes) has the date-window one-liners.
-- **[doc/automation.md](doc/automation.md)** — a worked loop for scheduled jobs
-  and agents: poll, read what changed, and decide what a PR needs, with the norms
-  each command reads, exit codes and known limits.
+- **[doc/automation.md](doc/automation.md)** — a short recipe for scheduled jobs
+  and agents: poll with `--diff`, act on each delta, then `tkt snapshot ack`; plus a
+  level-triggered sweep, the norms each command reads, exit codes and known limits.
 - **[doc/board.md](doc/board.md)** — full board reference: scopes, workflow
   columns, column assignment rules, YAML configuration, macros, and gist sync.
 
