@@ -341,6 +341,12 @@ class TestShow:
         assert "[reports.manual_test.impact_line]" in out
         assert "codecov/*" in out
 
+    def test_prints_the_label_rank(self, monkeypatch, capsys):
+        monkeypatch.setenv("GITHUB_TOKEN", "tok")
+        text = 'schema = 1\n[labels]\nrank = ["priority:high", "priority:low"]\n'
+        assert cmd_show("octo/hello", client=FakeGitHub(text).client()) == 0
+        assert 'rank = [\n    "priority:high",\n    "priority:low",\n]' in capsys.readouterr().out
+
     def test_no_file(self, monkeypatch, capsys):
         monkeypatch.setenv("GITHUB_TOKEN", "tok")
         assert cmd_show("octo/hello", client=FakeGitHub(None).client()) == 0

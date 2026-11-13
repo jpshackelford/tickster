@@ -42,6 +42,7 @@ class Key:
     kind: str  # strs | str | int | bool | regex | enum
     choices: tuple[str, ...] = ()
     required: bool = False
+    unique: bool = False  # strs only: no repeats, ignoring case
 
 
 @dataclass(frozen=True)
@@ -71,7 +72,7 @@ SPEC: Spec = {
         "agent_disclosure": Key("regex"),
         "bots": Key("strs"),
     },
-    "labels": {"stale": Key("strs")},
+    "labels": {"stale": Key("strs"), "rank": Key("strs", unique=True)},
     "review": {
         "count_reviews_from": Key("strs", choices=ACTOR_CLASSES),
         "rerequest_labels": Key("strs"),
@@ -155,7 +156,12 @@ def _check_key(value: Any, spec: Key, path: str, issues: list[Issue]) -> tuple[b
                     _err(path, f"unknown value {bad[0]!r}; expected {', '.join(spec.choices)}")
                 )
             else:
-                return True, tuple(value)
+                folded = [v.lower() for v in value]
+                dup = next((v for v in value if spec.unique and folded.count(v.lower()) > 1), None)
+                if dup is not None:
+                    issues.append(_err(path, f"duplicate value {dup!r} (case-insensitive)"))
+                else:
+                    return True, tuple(value)
     return False, None
 
 
@@ -238,7 +244,7 @@ def _build(schema: int, d: Mapping[str, Any], issues: list[Issue]) -> Norms:
             agent_disclosure=actors.get("agent_disclosure"),
             bots=actors.get("bots", ()),
         ),
-        labels=Labels(stale=labels.get("stale", DEFAULT_STALE_LABELS)),
+        labels=Labels(stale=labels.get("stale", DEFAULT_STALE_LABELS), rank=labels.get("rank", ())),
         review=Review(
             count_reviews_from=review.get("count_reviews_from", Review().count_reviews_from),
             rerequest_labels=review.get("rerequest_labels", ()),

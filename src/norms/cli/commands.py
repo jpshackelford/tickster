@@ -211,7 +211,7 @@ def _norms_to_dict(norms: Norms) -> dict[str, Any]:
     out: dict[str, Any] = {
         "schema": norms.schema,
         "actors": actors,
-        "labels": {"stale": list(norms.labels.stale)},
+        "labels": {"stale": list(norms.labels.stale), "rank": list(norms.labels.rank)},
         "review": {
             "count_reviews_from": list(norms.review.count_reviews_from),
             "rerequest_labels": list(norms.review.rerequest_labels),

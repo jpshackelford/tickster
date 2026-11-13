@@ -1036,9 +1036,9 @@ Examples:
         dest="sort",
         type=_issue_sort_keys,
         metavar="KEY[,KEY...]",
-        help="Sort by number, created, updated or blocking; prefix a key with - to reverse "
-        "it; later keys break ties, then number. Fetches every match (at most 500), sorts, "
-        "then applies --limit. Not with --activity",
+        help="Sort by number, created, updated, blocking or rank (the repo's [labels] rank "
+        "order); prefix a key with - to reverse it; later keys break ties, then number. "
+        "Fetches every match (at most 500), sorts, then applies --limit. Not with --activity",
     )
     _add_removed_date_flag_stubs(issue_list_parser, ISSUE_DATE_FIELDS)
     _add_field_date_args(issue_list_parser, ISSUE_DATE_FIELDS, noun="issues")

@@ -9,6 +9,7 @@ bots = []
 
 [labels]
 stale = ["stale"]
+rank = ["priority:critical", "priority:high", "priority:medium", "priority:low"]
 
 [review]
 count_reviews_from = ["humans", "agents"]

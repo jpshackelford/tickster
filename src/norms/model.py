@@ -62,6 +62,7 @@ class Actors:
 @dataclass(frozen=True)
 class Labels:
     stale: tuple[str, ...] = DEFAULT_STALE_LABELS
+    rank: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
