@@ -423,3 +423,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+### 2026-11-13 07:58 UTC - Merge worker (PR #159)
+
+✅ **Merged [PR #159](https://github.com/jpshackelford/tickster/pull/159) and closed #132**
+
+- Squash-merged as [`733be82`](https://github.com/jpshackelford/tickster/commit/733be82667c679237088713ca58a20d4252a2a29): `feat(review): explicit date flags on review (#159)`; head `94021de` was green, approved, 11/11 manual scenarios passed.
+- PR description updated with a link to the manual test results; "Closes #132" kept, and #132 closed on merge.
+- #133 (remove old date flags) is no longer blocked by #132. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
