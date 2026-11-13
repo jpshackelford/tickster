@@ -444,3 +444,16 @@ Merging [PR #182](https://github.com/jpshackelford/tickster/pull/182): one row m
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 20:00 UTC - Merge worker
+
+✅ **Merged: PR #182**
+
+- [PR #182](https://github.com/jpshackelford/tickster/pull/182) squash-merged as [`4f2b805`](https://github.com/jpshackelford/tickster/commit/4f2b805) with `refactor!:` and a `BREAKING CHANGE:` footer. Head was `a3b4603`. The body has `Closes #180`; issue #180 is closed.
+- Breaking: schema 2. Snapshots written by 1.x are discarded once, and row keys were renamed.
+- PR description updated first (key decisions, test coverage, manual test link). `GITHUB_TOKEN` got 403 on the PR edit and the merge, so the owner token was used.
+- Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched (still open). #142 and #181 are unblocked and need expansion.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
