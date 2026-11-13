@@ -139,6 +139,24 @@ def test_not_label_appears_only_when_given(run):
     assert line.endswith("label=any · not-label=hold,wip · limit=100")
 
 
+def test_pr_appears_only_with_no_pr_or_has_pr(run):
+    assert "pr=" not in _filters(run())[0]
+    assert _filters(run(pr_filter="no-pr"))[0].endswith("label=any · pr=none · limit=100")
+    assert _filters(run(pr_filter="has-pr"))[0].endswith("label=any · pr=linked · limit=100")
+
+
+def test_pr_sits_between_not_label_and_blocked(run):
+    line = _filters(run(not_labels=["hold"], pr_filter="no-pr", blocked_filter="unblocked"))[0]
+    assert line.endswith("label=any · not-label=hold · pr=none · blocked=no · limit=100")
+
+
+def test_empty_result_with_no_pr_still_prints_the_field(run):
+    Client.numbers = []
+    lines = run(pr_filter="no-pr")
+    assert lines[0] == "No issues found."
+    assert "pr=none" in _filters(lines)[0]
+
+
 def test_label_with_brackets_is_printed_literally(run):
     line = _filters(run(labels=["[bug]"]))[0]
     assert "label=[bug]" in line
