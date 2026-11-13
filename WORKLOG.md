@@ -519,6 +519,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 - Waiting on blockers: #123, #124, #127, #145, #146, #148, #149, #150
 - Needing expansion next: #134–#137, #139–#143 (#129, #138 tracking)
 
+### 2026-11-13 06:10 UTC - Implementation Worker
+
+🛠 **Implemented Issue #121**
+
+- Issue: [feat(list)!: replace --diff-format with --format](https://github.com/jpshackelford/tickster/issues/121)
+- PR: [#152](https://github.com/jpshackelford/tickster/pull/152) (CI green, marked ready). Manual test, review and docs polish are left for the testing and review workers.
+- Follow-ups: with `--format json` the table-only notes (`--graph`, the "Showing N of M" line) are skipped; `has_more` in the document carries the truncation fact. #127 still owns the `doc/automation.md` rewrite.
+
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
