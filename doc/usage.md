@@ -241,12 +241,20 @@ tkt pr list [OWNER/REPO#NUM ...]
 | `--after YYYY-MM-DD` | Only PRs on/after this date (inclusive) |
 | `--before YYYY-MM-DD` | Only PRs on/before this date (inclusive) |
 | `--date-field FIELD` | Date field to filter on: `created`, `updated`, `merged`, `closed` (default: inferred from state) |
+| `--created-since DAYS` | Only PRs created since the start of the UTC day N days ago (`0` = today) |
+| `--created-after YYYY-MM-DD`, `--created-before YYYY-MM-DD` | Only PRs created on/after, on/before this UTC date (inclusive) |
+| `--updated-since DAYS`, `--updated-after YYYY-MM-DD`, `--updated-before YYYY-MM-DD` | The same, on the last-updated date |
+| `--closed-since DAYS`, `--closed-after YYYY-MM-DD`, `--closed-before YYYY-MM-DD` | The same, on the close date. Needs `--closed`, `--merged` or `--all` |
+| `--merged-since DAYS`, `--merged-after YYYY-MM-DD`, `--merged-before YYYY-MM-DD` | The same, on the merge date. Needs `--merged` or `--all` |
+
+The old `--since` / `--after` / `--before` / `--date-field` flags still work.
 
 ```bash
 tkt pr list --author me                     # your open PRs
 tkt pr list --merged --graph                # merge cadence graph
 tkt pr list octocat/hello-world#7           # a specific PR
-tkt pr list --author ak684 --merged --since 14   # merged in the last 2 weeks
+tkt pr list --author ak684 --merged --merged-since 14   # merged in the last 2 weeks
+tkt pr list --created-since 7                    # opened this week
 tkt pr list --board oh --all-authors --watch factory   # everyone's open PRs, diffed
 ```
 
@@ -259,7 +267,9 @@ with `name` set to the `--snapshot` name or `""`. See
 [`--format json` on list commands](#--format-json-on-list-commands).
 
 See [Date-window filtering](#date-window-filtering) for the shared semantics of
-`--since` / `--after` / `--before` / `--date-field`.
+`--since` / `--after` / `--before` / `--date-field`, and
+[Date flags by field](#date-flags-by-field) for the `--created-*` /
+`--updated-*` / `--closed-*` / `--merged-*` spelling.
 
 ### `tkt pr checks`
 
@@ -1331,18 +1341,19 @@ tkt review --merged --since 7                         # reviewed & merged this w
 ### Date flags by field
 
 `--since` filters on the *updated* date unless `--date-field` says otherwise, so
-`--since 14` does not mean "filed in the last 14 days". On `tkt issue list`,
-flags that name the field remove the guess:
+`--since 14` does not mean "filed in the last 14 days". On `tkt issue list` and
+`tkt pr list`, flags that name the field remove the guess:
 
 | Field | Days back (UTC day boundary) | Absolute (UTC date, inclusive) |
 | --- | --- | --- |
 | created | `--created-since N` | `--created-after DATE`, `--created-before DATE` |
 | updated | `--updated-since N` | `--updated-after DATE`, `--updated-before DATE` |
 | closed | `--closed-since N` | `--closed-after DATE`, `--closed-before DATE` |
+| merged (PRs only) | `--merged-since N` | `--merged-after DATE`, `--merged-before DATE` |
 
-There is no `--merged-*` on `tkt issue list`: argparse rejects it as an
-unrecognized argument (exit 2). `tkt pr list` and `tkt review` do not have the
-by-field flags yet.
+`tkt pr list` offers all four fields. There is no `--merged-*` on
+`tkt issue list`: argparse rejects it as an unrecognized argument (exit 2).
+`tkt review` does not have the by-field flags yet.
 
 - The rules are the ones above, spelled per field: `--created-since 0` is
   today (UTC), a negative number or a bad date is an error naming the flag you
@@ -1353,7 +1364,13 @@ by-field flags yet.
 - The old flags keep working but cannot be mixed with the new ones in one
   invocation.
 - The field is always the one in the flag name; it is never inferred from the
-  state. `--closed-*` needs `--closed` or `--all`, as `--date-field closed` does.
+  state. The state filter must still be able to match the field, as with
+  `--date-field`: `--merged-*` needs `--merged` or `--all`, and `--closed-*`
+  needs `--closed` (on `tkt pr list` also `--merged`) or `--all`. The error
+  names the flag you typed and the state flag to add, for example
+  `--merged-since only matches merged items, but the state filter is open: add --merged (or --all)`.
+- Explicit refs cannot be narrowed by any date flag; the error names the flag
+  you typed.
 - The `Window:` line and the empty-result message name the field as before.
 - A window typed either way records the same snapshot scope, so
   `--since 14 --date-field created --snapshot a` and

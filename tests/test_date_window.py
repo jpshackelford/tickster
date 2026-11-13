@@ -155,6 +155,62 @@ class TestExplicitFieldMustBeMatchable:
     def test_closed_field_with_merged_state_ok(self):
         assert build_date_window(["merged"], since_days=7, date_field="closed", now=NOW)
 
+    @pytest.mark.parametrize("kind", ["since", "after", "before"])
+    def test_typed_merged_flag_names_itself_and_the_state_flags(self, kind):
+        names = _typed_names("merged")
+        with pytest.raises(DateWindowError) as err:
+            build_date_window(
+                ["open"],
+                since_days=7 if kind == "since" else None,
+                after="2026-08-01" if kind == "after" else None,
+                before="2026-08-01" if kind == "before" else None,
+                date_field="merged",
+                flag_names=names,
+            )
+        assert str(err.value) == (
+            f"{names[kind]} only matches merged items, but the state filter is open: "
+            "add --merged (or --all)"
+        )
+
+    def test_typed_merged_flag_ok_with_merged_or_all(self):
+        names = _typed_names("merged")
+        for states in (["merged"], ["open", "merged", "closed"]):
+            window = build_date_window(
+                states, since_days=7, date_field="merged", flag_names=names, now=NOW
+            )
+            assert window is not None and window.field == "merged"
+
+    def test_typed_closed_flag_on_prs_offers_merged_too(self):
+        with pytest.raises(DateWindowError) as err:
+            build_date_window(
+                ["open"], since_days=7, date_field="closed", flag_names=_typed_names("closed")
+            )
+        assert str(err.value) == (
+            "--closed-since only matches closed items, but the state filter is open: "
+            "add --closed, --merged or --all"
+        )
+
+    def test_typed_closed_flag_on_issues_does_not_offer_merged(self):
+        with pytest.raises(DateWindowError) as err:
+            build_date_window(
+                ["open"],
+                since_days=7,
+                date_field="closed",
+                merged_ok=False,
+                flag_names=_typed_names("closed"),
+            )
+        assert str(err.value).endswith("add --closed (or --all)")
+
+    def test_typed_closed_flag_ok_with_merged_state_on_prs(self):
+        window = build_date_window(
+            ["merged"],
+            since_days=7,
+            date_field="closed",
+            flag_names=_typed_names("closed"),
+            now=NOW,
+        )
+        assert window is not None and window.field == "closed"
+
     def test_issues_have_no_merged_date(self):
         with pytest.raises(DateWindowError, match="Issues have no merged date"):
             build_date_window(

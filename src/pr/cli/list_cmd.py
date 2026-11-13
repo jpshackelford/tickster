@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+from collections.abc import Mapping
 
 from rich import box
 from rich.console import Console
@@ -12,9 +13,11 @@ from src.all_authors import all_authors_error
 from src.cli_errors import VERBOSE_HINT, print_error
 from src.connection_paging import TRUNCATION_MARKER
 from src.date_window import (
+    PR_DATE_FIELDS,
     DateWindow,
     DateWindowError,
     build_date_window,
+    resolve_field_flags,
     window_line,
     window_suffix,
 )
@@ -61,6 +64,7 @@ def cmd_list(
     after: str | None = None,
     before: str | None = None,
     date_field: str | None = None,
+    field_dates: Mapping[str, int | str | None] | None = None,
 ) -> int:
     """List PRs with history visualization.
 
@@ -85,6 +89,7 @@ def cmd_list(
         before: Only include PRs on/before this date (YYYY-MM-DD)
         date_field: Search date field to filter on
             (created/updated/merged/closed)
+        field_dates: Per-field flag values keyed by dest, e.g. ``merged_since``
 
     Returns:
         Exit code (0 for success)
@@ -97,13 +102,22 @@ def cmd_list(
     reviewers_mode = "names" if reviewer_names else "counts" if show_reviewers else None
 
     try:
-        window = build_date_window(
-            states,
+        resolved = resolve_field_flags(
+            PR_DATE_FIELDS,
+            field_dates or {},
             since_days=since_days,
             after=after,
             before=before,
             date_field=date_field,
+        )
+        window = build_date_window(
+            states,
+            since_days=resolved.since_days,
+            after=resolved.after,
+            before=resolved.before,
+            date_field=resolved.date_field,
             refs=pr_refs,
+            flag_names=resolved.flag_names,
         )
     except DateWindowError as e:
         print_error(str(e))

@@ -18,6 +18,7 @@ from rich.console import Console
 from src.date_window import (
     FIELD_FLAG_KINDS,
     ISSUE_DATE_FIELDS,
+    PR_DATE_FIELDS,
     field_flag,
     field_flag_dest,
 )
@@ -594,6 +595,7 @@ Examples:
         "record the statuses; with --diff / --watch, --steps also reports step moves in the table",
     )
     _add_date_window_args(pr_list_parser)
+    _add_field_date_args(pr_list_parser, PR_DATE_FIELDS, noun="PRs")
     _add_snapshot_flags(pr_list_parser)
 
     # pr show
@@ -1323,6 +1325,7 @@ Examples:
                 after=args.after,
                 before=args.before,
                 date_field=args.date_field,
+                field_dates=_field_date_values(args, PR_DATE_FIELDS),
             )
 
     # Handle review command

@@ -60,11 +60,10 @@ class TestRegistration:
         assert exc.value.code == 2
         assert "unrecognized arguments" in capsys.readouterr().err
 
-    @pytest.mark.parametrize("command", [["pr", "list"], ["review"]])
     @pytest.mark.parametrize("flag", NEW_FLAGS)
-    def test_other_commands_do_not_get_the_flags(self, command, flag):
+    def test_review_does_not_get_the_flags(self, flag):
         with pytest.raises(SystemExit) as exc:
-            main([*command, flag, "7"])
+            main(["review", flag, "7"])
         assert exc.value.code == 2
 
     def test_non_integer_days_is_an_argparse_error(self, capsys):
