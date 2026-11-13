@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime, timedelta
 
 VALID_DATE_FIELDS = ("created", "updated", "merged", "closed")
 ISSUE_DATE_FIELDS = ("created", "updated", "closed")
+PR_DATE_FIELDS = VALID_DATE_FIELDS
 FIELD_FLAG_KINDS = ("since", "after", "before")
 DEFAULT_FLAG_NAMES: Mapping[str, str] = {
     "since": "--since",
@@ -72,24 +73,27 @@ def _check_field_can_match(
     without it the message names ``--date-field``.
     """
     states_set = {s.lower() for s in (states or [])} or {"open"}
-    if typed_flag and field == "closed" and not states_set & {"closed", "merged"}:
-        raise DateWindowError(
-            f"{typed_flag} only matches closed items, but the state filter "
-            f"is {'/'.join(sorted(states_set))}: add --closed (or --all)"
-        )
+    state_text = "/".join(sorted(states_set))
     if field == "merged" and not merged_ok:
         raise DateWindowError(
             "Issues have no merged date: use --date-field created, updated or closed"
         )
     if field == "merged" and "merged" not in states_set:
+        name = typed_flag or "--date-field merged"
+        remedy = "add --merged (or --all)" if typed_flag else "add --merged"
         raise DateWindowError(
-            "--date-field merged only matches merged items, but the state filter "
-            f"is {'/'.join(sorted(states_set))}: add --merged"
+            f"{name} only matches merged items, but the state filter is {state_text}: {remedy}"
         )
     if field == "closed" and not states_set & {"closed", "merged"}:
+        name = typed_flag or "--date-field closed"
+        if not typed_flag:
+            remedy = "add --closed (or --merged)"
+        elif merged_ok:
+            remedy = "add --closed, --merged or --all"
+        else:
+            remedy = "add --closed (or --all)"
         raise DateWindowError(
-            "--date-field closed only matches closed items, but the state filter "
-            f"is {'/'.join(sorted(states_set))}: add --closed (or --merged)"
+            f"{name} only matches closed items, but the state filter is {state_text}: {remedy}"
         )
 
 
