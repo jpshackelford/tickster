@@ -5,6 +5,10 @@ The orchestrator appends entries and commits them to `main`. Humans can leave `#
 
 ## Log
 
+### 2026-11-13 23:30 UTC - Merge worker
+
+- [PR #188](https://github.com/jpshackelford/tickster/pull/188) squash-merged as `34e7903` (pinned to head `5ed3848`): `doc/automation.md` example of a job that acts on three cases only (broken CI, new review comment, new test report). Docs only. CI green, 8 manual scenarios passed, bot review APPROVED; no linked issue. PR description updated with the manual test link. Note: `GITHUB_TOKEN` could not edit or merge the PR, so the owner token was used. The release PR (#119) was not touched.
+
 ### 2026-11-13 22:20 UTC - Implementation worker
 
 - [Issue #143](https://github.com/jpshackelford/tickster/issues/143): `issue list --help` Examples block (question-shaped recipes: no-PR, has-PR, updated-since, JSON), the no-PR recipe in the `tkt --help` epilog, option help that defines "linked" for `--no-pr` / `--has-pr` and names the `--format json` document, no-PR / has-PR / JSON recipes in the `doc/usage.md` Recipes section, parse tests, and the `single-command-eval` skill with an author dry run → [PR #185](https://github.com/jpshackelford/tickster/pull/185). CI green, marked ready for review. Manual test per `.openhands/skills/manual-test` is still to do. Not done: the fresh-agent eval runs (the LLM proxy rejected calls, "Request rejected by proxy policy", so only the author dry run is saved) and the `openhands-issues-and-prs` skill update (outside this repo); both are listed on the PR and on the issue. Note: the `Filters:` line does not name `--no-pr`; left alone as a behavior change. `GITHUB_TOKEN` got 403 on push and PR create, so the owner token was used.
