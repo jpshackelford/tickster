@@ -560,3 +560,14 @@ Merging [PR #184](https://github.com/jpshackelford/tickster/pull/184): the diff 
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 21:41 UTC - Merge Worker
+
+✅ **Merged [PR #184](https://github.com/jpshackelford/tickster/pull/184)** (squash, [`51a62ce`](https://github.com/jpshackelford/tickster/commit/51a62ce66d71ef87beb09a4479e8a1746ec3e7af)) and closed [#181](https://github.com/jpshackelford/tickster/issues/181)
+- Breaking: diff JSON `key`→`ref`, `kind`→`change`, new row `kind`, `activity`→`last_activity`; `prev`/`curr` lose `kind`
+- Merged at head `ce8e0aa`: CI green, 18/18 manual checks, 2604 tests. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+- Unblocks #143. Nit left open: the `doc/usage.md` Diff JSON `@tsv` example hides its tabs.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
