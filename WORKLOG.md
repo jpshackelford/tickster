@@ -1230,3 +1230,14 @@ _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 _Created by an AI agent (OpenHands) on behalf of @jpshackelford._
 
 ---
+
+### 2026-11-13 12:30 UTC - Merge worker
+
+- [PR #172](https://github.com/jpshackelford/tickster/pull/172) (`--sort` on `issue list`) squash-merged as `d70e78e`, pinned to head `3f88890`. [Issue #148](https://github.com/jpshackelford/tickster/issues/148) closed. Unblocks #149 and #150.
+- Merge gate: CI green, bot review APPROVED on the head, [manual test](https://github.com/jpshackelford/tickster/pull/172#issuecomment-6852400496) (19 CLI tests pass) run on `ffd85e8`. The only later commit, `3f88890`, is a 3-line refactor with identical ordering, so no re-test. PR description rewritten to final state.
+- Follow-up (not filed): the `doc/usage.md` example `--sort -blocking,number … # the two best issues to start` lists the issues that block the fewest first. Reword the comment or use `--sort blocking,number`.
+- Note: `GITHUB_TOKEN` in this environment cannot edit PRs or merge (`Resource not accessible by integration`). I used `JPSHACKELFORD_GITHUB_TOKEN` for the PR edit and merge. Release [PR #119](https://github.com/jpshackelford/tickster/pull/119) untouched.
+
+_Created by an AI agent (OpenHands) on behalf of @jpshackelford._
+
+---
