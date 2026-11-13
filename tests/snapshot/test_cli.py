@@ -255,3 +255,59 @@ def test_list_piped_prints_full_columns_on_narrow_console(seed, monkeypatch):  #
         assert item in out
     header = next(line for line in out.splitlines() if "Ref" in line)
     assert all(h in header for h in ("Captured at", "Items", "Scope#"))
+
+
+def test_ack_commits_the_pending_baseline(seed, capsys):  # noqa: ARG001
+    store.save_pending(make_snapshot(kind="pr", name="hourly", items=[make_item(key="a/b#9")]))
+
+    assert cli.cmd_ack("pr/hourly") == 0
+
+    assert "acked pr/hourly" in capsys.readouterr().out
+    assert [it.key for it in store.load("pr", "hourly").items] == ["a/b#9"]
+    assert not store.has_pending("pr", "hourly")
+
+
+def test_ack_without_pending_exits_1_and_changes_nothing(seed, capsys):  # noqa: ARG001
+    before = store.path_for("pr", "hourly").read_bytes()
+
+    assert cli.cmd_ack("pr/hourly") == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "Error: nothing to ack: pr/hourly has no pending baseline (run a --diff hourly first)"
+    ]
+    assert store.path_for("pr", "hourly").read_bytes() == before
+
+
+def test_ack_rejects_a_bad_ref(seed, capsys):  # noqa: ARG001
+    assert cli.cmd_ack("hourly") == 2
+    assert "KIND/NAME" in capsys.readouterr().err
+
+
+def test_ack_of_a_corrupt_pending_file_is_an_error_line(seed, capsys):  # noqa: ARG001
+    path = store.pending_path_for("pr", "hourly")
+    path.parent.mkdir()
+    path.write_text("{")
+
+    assert cli.cmd_ack("pr/hourly") == 1
+
+    assert "pending baseline pr/hourly cannot be read" in capsys.readouterr().err
+
+
+def test_list_marks_a_snapshot_with_a_pending_baseline(seed, capsys):  # noqa: ARG001
+    store.save_pending(make_snapshot(kind="pr", name="hourly"))
+
+    assert cli.cmd_list() == 0
+
+    lines = capsys.readouterr().out.splitlines()
+    assert any("pr/hourly" in ln and "(pending ack)" in ln for ln in lines)
+    assert not any("pr/later" in ln and "pending" in ln for ln in lines)
+
+
+def test_rm_removes_the_pending_baseline_too(seed, capsys):  # noqa: ARG001
+    store.save_pending(make_snapshot(kind="pr", name="hourly"))
+
+    assert cli.cmd_rm(["pr/hourly"]) == 0
+
+    assert not store.has_pending("pr", "hourly")

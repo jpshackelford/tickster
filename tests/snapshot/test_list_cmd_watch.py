@@ -662,3 +662,160 @@ def test_snapshot_name_that_is_changed_on_disk_is_announced_once(
     ]
     assert (store.snapshots_dir() / f"{kind}-pr-hourly.json").exists()
     assert "tkt: snapshot name" not in capsys.readouterr().out
+
+
+def _json_out(capsys) -> dict:
+    return json.loads(capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_bare_diff_stages_pending_and_leaves_baseline_untouched(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="poll") == 0
+    baseline = store.path_for(kind, "poll")
+    before = baseline.read_bytes()
+
+    fake_client.numbers = [1, 2]
+    capsys.readouterr()
+    assert cmd_list(diff_name="poll") == 0
+
+    assert baseline.read_bytes() == before
+    pending = store.pending_path_for(kind, "poll")
+    assert pending.parent.name == "pending"
+    assert pending.name == f"{kind}-poll.json"
+    assert [it.key for it in store.load_pending(kind, "poll").items] == ["o/r#1", "o/r#2"]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_reports_rows_again_until_acked(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="poll") == 0
+
+    fake_client.numbers = [1, 2]
+    for _ in range(2):
+        capsys.readouterr()
+        assert cmd_list(diff_name="poll", diff_format="json") == 0
+        assert _json_out(capsys)["counts"]["added"] == 1
+
+    assert store.ack(kind, "poll")
+    assert [it.key for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2"]
+    assert not store.has_pending(kind, "poll")
+
+    capsys.readouterr()
+    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    counts = _json_out(capsys)["counts"]
+    assert counts["added"] == 0 and counts["changed"] == 0 and counts["removed"] == 0
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_two_diffs_and_one_ack_leave_the_second_result_as_baseline(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="poll") == 0
+
+    fake_client.numbers = [1, 2]
+    assert cmd_list(diff_name="poll") == 0
+    fake_client.numbers = [1, 2, 3]
+    assert cmd_list(diff_name="poll") == 0
+    assert store.ack(kind, "poll")
+
+    assert [it.key for it in store.load(kind, "poll").items] == ["o/r#1", "o/r#2", "o/r#3"]
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_diff_json_reports_whether_the_baseline_was_found(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+
+    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    captured = capsys.readouterr()
+    doc = json.loads(captured.out)
+    assert doc["baseline"] == "missing"
+    assert doc["counts"]["added"] == 1
+    assert "No snapshot" in captured.err
+    assert not store.exists(kind, "poll")
+
+    assert store.ack(kind, "poll")
+    assert cmd_list(diff_name="poll", diff_format="json") == 0
+    assert _json_out(capsys)["baseline"] == "found"
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_scope_mismatch_writes_no_pending_and_keeps_an_existing_one(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+    capsys,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="poll", since_days=14) == 0
+
+    assert cmd_list(diff_name="poll", since_days=14) == 0
+    pending = store.pending_path_for(kind, "poll")
+    staged = pending.read_bytes()
+
+    fake_client.numbers = [1, 2, 3]
+    capsys.readouterr()
+    assert cmd_list(diff_name="poll", since_days=3) == 2
+    assert pending.read_bytes() == staged
+
+    assert store.delete_pending(kind, "poll")
+    assert cmd_list(diff_name="poll", since_days=3) == 2
+    assert not pending.exists()
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_snapshot_and_watch_delete_the_pending_baseline(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(snapshot_name="poll") == 0
+
+    fake_client.numbers = [1, 2]
+    assert cmd_list(diff_name="poll") == 0
+    assert store.has_pending(kind, "poll")
+    assert cmd_list(snapshot_name="poll") == 0
+    assert not store.has_pending(kind, "poll")
+
+    assert cmd_list(diff_name="poll") == 0
+    assert store.has_pending(kind, "poll")
+    assert cmd_list(watch_name="poll") == 0
+    assert not store.has_pending(kind, "poll")
+
+
+@pytest.mark.parametrize("command", list(COMMANDS))
+def test_saving_another_name_keeps_the_pending_baseline(
+    command,
+    tkt_home,  # noqa: ARG001
+    fake_client,
+):
+    kind, cmd_list = COMMANDS[command]
+    fake_client.numbers = [1]
+    assert cmd_list(diff_name="poll") == 0
+    assert cmd_list(snapshot_name="other") == 0
+    assert store.has_pending(kind, "poll")

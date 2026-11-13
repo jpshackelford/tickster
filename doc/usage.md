@@ -939,6 +939,7 @@ are the raw input to the diff view documented in
 tkt snapshot list [--kind {pr,issue,review}]
 tkt snapshot show KIND/NAME [--format {table,json}]
 tkt snapshot rm   KIND/NAME [KIND/NAME ...]
+tkt snapshot ack  KIND/NAME
 tkt snapshot diff PREV CURR  [--all] [--format {table,json}] [--detail]
 ```
 
@@ -953,6 +954,12 @@ tkt snapshot diff PREV CURR  [--all] [--format {table,json}] [--detail]
   On a terminal, `snapshot show` fits to the width (`#` and State kept whole,
   Repo gives up width first, History cropped with `>` and a one-line legend), and
   `snapshot list` prints as before. `--format json` is unchanged.
+- `snapshot ack KIND/NAME` makes the result staged by the last `--diff NAME` the
+  new baseline and deletes the staged file. With nothing staged it changes nothing
+  and exits 1: `nothing to ack: pr/NAME has no pending baseline (run a --diff NAME first)`.
+  See [Staging a baseline with `--diff`](#staging-a-baseline-with---diff).
+- `snapshot list` marks a snapshot that has a staged baseline with `(pending ack)`,
+  so a forgotten ack is visible. `snapshot rm` deletes the staged baseline too.
 
 ```bash
 tkt snapshot list                               # all stored snapshots
@@ -960,6 +967,7 @@ tkt snapshot show pr/hourly                     # dump a snapshot as a table
 tkt snapshot diff pr/hourly pr/last-week        # compare two snapshots
 tkt snapshot diff pr/hourly pr/later --format json  # machine-readable
 tkt snapshot rm pr/hourly issue/hourly
+tkt snapshot ack pr/hourly                      # commit the baseline a --diff staged
 ```
 
 ---
@@ -1117,7 +1125,7 @@ All three list commands accept the same snapshot flags:
 | Flag | Meaning |
 | --- | --- |
 | `--snapshot [NAME]` | Save the result. With NAME, overwrites that snapshot. Without NAME, auto-timestamps. |
-| `--diff NAME` | Diff the current query result against snapshot NAME. |
+| `--diff NAME` | Diff the current query result against snapshot NAME. Alone (without `--snapshot` or `--watch`), it leaves NAME as it is and stages the result; `tkt snapshot ack` makes it the new baseline. See [Staging a baseline with `--diff`](#staging-a-baseline-with---diff). |
 | `--watch NAME` | Shortcut for `--diff NAME --snapshot NAME` — the hourly-cron idiom. |
 | `--diff-format {table,json}` | Format for `--diff`/`--watch` output (default `table`). |
 | `--diff-include-unchanged` | Include unchanged rows in the diff view (default: only changes shown). |
@@ -1129,6 +1137,41 @@ All three list commands accept the same snapshot flags:
 diffs against *this* hour. An empty result is still a snapshot: when the
 last item in scope closes, `--watch` reports it as a `-` row and saves an
 empty baseline.
+
+### Staging a baseline with `--diff`
+
+A person at a terminal uses `--watch NAME`. A job uses `--diff NAME`, handles the
+rows, then runs `tkt snapshot ack`:
+
+```bash
+tkt pr list --diff poll --diff-format json > poll.json   # diff against baseline "poll"
+handle poll.json                                         # your code; may fail
+tkt snapshot ack pr/poll                                 # only now: "poll" becomes this result
+```
+
+A bare `--diff NAME` (no `--snapshot`, no `--watch`) never writes the baseline
+`NAME`. After a successful diff it writes the current result to
+`snapshots/pending/<kind>-<name>.json` instead. That directory is separate, so a
+pending file never collides with a snapshot name, and `snapshot list` does not
+read it as a snapshot.
+
+- If the job fails before the ack, run `--diff NAME` again. It diffs against the
+  same, older baseline, so the rows are reported again, and it replaces the
+  pending file with the newest result.
+- `tkt snapshot ack KIND/NAME` replaces the baseline with the pending result and
+  deletes the pending file. With no pending file it exits 1 and changes nothing.
+- A scope mismatch (exit 2) writes no pending file and leaves an existing one as
+  it was.
+- `--snapshot NAME`, `--watch NAME` and `tkt snapshot rm KIND/NAME` delete the
+  pending file for NAME.
+- The first `--diff NAME` with no baseline reports every row as `+` and still
+  stages the result, so the first `ack` creates the baseline.
+- Rule of use: one consumer per name, one tick at a time.
+
+With `--diff-format json`, the document has a top-level `"baseline"`: `"found"`
+or `"missing"`. When it is `"missing"`, the rows are all `added`, and the notice
+`No snapshot … found` goes to stderr. A job can treat a first run differently
+without parsing stderr.
 
 ### Scope matching
 

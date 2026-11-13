@@ -187,3 +187,77 @@ def test_save_says_when_the_name_is_stored_under_another_name(tkt_home, caplog):
 def test_save_is_silent_when_the_name_is_kept(tkt_home, caplog, name):  # noqa: ARG001
     store.save(make_snapshot(name=name))
     assert caplog.records == []
+
+
+def test_pending_lives_in_its_own_directory(tkt_home):  # noqa: ARG001
+    path = store.save_pending(make_snapshot(name="poll", items=[make_item(key="a/b#1")]))
+    assert path == store.snapshots_dir() / "pending" / "pr-poll.json"
+    assert not store.exists("pr", "poll")
+    assert store.list_() == []
+    assert store.load_pending("pr", "poll").items[0].key == "a/b#1"
+
+
+def test_ack_replaces_baseline_and_deletes_pending(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="poll", items=[make_item(key="a/b#1")]))
+    store.save_pending(make_snapshot(name="poll", items=[make_item(key="a/b#2")]))
+
+    assert store.ack("pr", "poll") is True
+
+    assert [it.key for it in store.load("pr", "poll").items] == ["a/b#2"]
+    assert not store.has_pending("pr", "poll")
+
+
+def test_ack_without_pending_changes_nothing(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="poll", items=[make_item(key="a/b#1")]))
+    before = store.path_for("pr", "poll").read_bytes()
+
+    assert store.ack("pr", "poll") is False
+
+    assert store.path_for("pr", "poll").read_bytes() == before
+
+
+def test_ack_of_a_corrupt_pending_file_keeps_the_baseline(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="poll", items=[make_item(key="a/b#1")]))
+    store.pending_path_for("pr", "poll").parent.mkdir()
+    store.pending_path_for("pr", "poll").write_text("{")
+
+    with pytest.raises(store.SnapshotFormatError, match="pending baseline pr/poll"):
+        store.ack("pr", "poll")
+
+    assert [it.key for it in store.load("pr", "poll").items] == ["a/b#1"]
+
+
+def test_delete_removes_the_pending_baseline_too(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="poll"))
+    store.save_pending(make_snapshot(name="poll"))
+
+    assert store.delete("pr", "poll") is True
+
+    assert not store.exists("pr", "poll")
+    assert not store.has_pending("pr", "poll")
+
+
+def test_delete_of_a_pending_only_name_reports_removed(tkt_home):  # noqa: ARG001
+    store.save_pending(make_snapshot(name="poll"))
+    assert store.delete("pr", "poll") is True
+    assert store.delete("pr", "poll") is False
+
+
+def test_list_marks_only_snapshots_with_a_pending_baseline(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="poll"))
+    store.save(make_snapshot(name="other"))
+    store.save_pending(make_snapshot(name="poll"))
+
+    assert {r.name: r.pending for r in store.list_()} == {"poll": True, "other": False}
+
+
+def test_a_snapshot_named_x_pending_does_not_collide_with_the_pending_file_of_x(tkt_home):  # noqa: ARG001
+    store.save(make_snapshot(name="x", items=[make_item(key="a/b#1")]))
+    store.save(make_snapshot(name="x.pending", items=[make_item(key="a/b#2")]))
+    store.save_pending(make_snapshot(name="x", items=[make_item(key="a/b#3")]))
+
+    assert [it.key for it in store.load("pr", "x.pending").items] == ["a/b#2"]
+    assert [it.key for it in store.load("pr", "x").items] == ["a/b#1"]
+    assert [it.key for it in store.load_pending("pr", "x").items] == ["a/b#3"]
+    pending = {r.name: r.pending for r in store.list_()}
+    assert pending == {"x": True, "x.pending": False}
