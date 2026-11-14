@@ -1,5 +1,65 @@
 # Changelog
 
+## [2.0.0](https://github.com/jpshackelford/tickster/compare/v1.0.0...v2.0.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **snapshot:** in each delta of the diff JSON, `key` is now `ref`, the change type moves from `kind` to `change`, and `kind` is now the row kind (`issue`, `pr` or `review`). `activity` in `changed_fields` is now `last_activity`. The top-level `prev` and `curr` no longer have `kind`. A script that reads `.deltas[].key` or `.deltas[].kind` must change to `.ref` and `.change`; an unchanged `.kind == "changed"` filter never matches.
+* **list:** the JSON output of `issue list`, `pr list`, `review` and `snapshot show` no longer has the top-level `kind`, `name`, `captured_at`, `scope` and `scope_hash` keys. `scope` is now `filters`; the name and capture time are under `snapshot`. Saved snapshots in the old layout are deleted on first read.
+* snapshots are now schema 2. Snapshots written by 1.x are discarded once, so the first --diff or --watch after upgrading has no baseline. List JSON, snapshot and diff row keys were renamed (ci_status->ci, is_draft->draft, head_sha->head, unresolved_thread_count->unresolved_threads, key->ref, steps->step_status; events removed); scripts that read the old names must change. See "Upgrading to 2.0" in doc/usage.md.
+* **show:** `--since-snapshot` is removed from `pr show` and `issue show`. Use `--since-time` with `prev.last_activity`.
+* **board:** tkt board scan --since DAYS was removed; use tkt board scan --updated-since DAYS
+* **pr:** `tkt pr changes --since SHA` is now `--since-sha SHA`; the old flag exits 2.
+* **list:** --since, --after, --before and --date-field are removed from issue list, pr list and review. Use --{created,updated,closed}-{since,after,before} (and --merged-* on pr list and review) instead.
+* **show:** `tkt pr show` and `tkt issue show` no longer accept `--since TS`; use `--since-time TS`.
+* **list:** `--diff-format` is removed; use `--format`.
+
+### Features
+
+* **board:** rename board scan --since DAYS to --updated-since DAYS ([#164](https://github.com/jpshackelford/tickster/issues/164)) ([e6c4b61](https://github.com/jpshackelford/tickster/commit/e6c4b61958a0c7760b00665bb73ea61c1a42aeb2)), closes [#136](https://github.com/jpshackelford/tickster/issues/136)
+* **issue:** --no-pr and --has-pr filters on issue list ([#166](https://github.com/jpshackelford/tickster/issues/166)) ([f24992d](https://github.com/jpshackelford/tickster/commit/f24992d35c265b0fd22d13f0d79aa8a812f7df17)), closes [#139](https://github.com/jpshackelford/tickster/issues/139)
+* **issue:** record dependency facts on every issue ([#158](https://github.com/jpshackelford/tickster/issues/158)) ([0bce9f1](https://github.com/jpshackelford/tickster/commit/0bce9f1edc989b84a1ab0b2584f70190df4af3c9)), closes [#145](https://github.com/jpshackelford/tickster/issues/145)
+* **list:** --blocked and --unblocked filters on issue list ([#169](https://github.com/jpshackelford/tickster/issues/169)) ([78a9a3d](https://github.com/jpshackelford/tickster/commit/78a9a3d9e525eb38d5322cf3e678226549c3bbaa)), closes [#146](https://github.com/jpshackelford/tickster/issues/146)
+* **list:** --exit-code makes --diff and --watch exit 10 when something changed ([#174](https://github.com/jpshackelford/tickster/issues/174)) ([bafb8bf](https://github.com/jpshackelford/tickster/commit/bafb8bfeee5c0edae7948dfed4f658637a5b409d))
+* **list:** --not-label LABEL on issue list ([#165](https://github.com/jpshackelford/tickster/issues/165)) ([bfc7016](https://github.com/jpshackelford/tickster/commit/bfc70167667495eca073813c23e8a4b5a430b7d4)), closes [#147](https://github.com/jpshackelford/tickster/issues/147)
+* **list:** --sort on issue list (number, created, updated, blocking) ([#172](https://github.com/jpshackelford/tickster/issues/172)) ([d70e78e](https://github.com/jpshackelford/tickster/commit/d70e78e4e8df1334c9004d7bd29c38843ea25e29)), closes [#148](https://github.com/jpshackelford/tickster/issues/148)
+* **list:** add a legend for the History and Steps columns ([#173](https://github.com/jpshackelford/tickster/issues/173)) ([97b29da](https://github.com/jpshackelford/tickster/commit/97b29da8f0ad073462fbef68433a9b7201ee8556)), closes [#155](https://github.com/jpshackelford/tickster/issues/155)
+* **list:** explicit date flags on issue list (--created-since and friends) ([645e704](https://github.com/jpshackelford/tickster/commit/645e7048ae3f0e5dd1ce8a967100c58cbb6e32f8)), closes [#130](https://github.com/jpshackelford/tickster/issues/130) [#154](https://github.com/jpshackelford/tickster/issues/154)
+* **list:** explicit date flags on pr list ([#156](https://github.com/jpshackelford/tickster/issues/156)) ([22d0352](https://github.com/jpshackelford/tickster/commit/22d03527b2ac1151a834e0a078f37cfb7eb6a0fa)), closes [#131](https://github.com/jpshackelford/tickster/issues/131)
+* **list:** one compact JSON document for issue list, pr list and review ([#183](https://github.com/jpshackelford/tickster/issues/183)) ([1b81b20](https://github.com/jpshackelford/tickster/commit/1b81b203a0a94ae5ee31a5ad050646afbd8df10e)), closes [#142](https://github.com/jpshackelford/tickster/issues/142)
+* **list:** print the effective filters under every issue list ([#167](https://github.com/jpshackelford/tickster/issues/167)) ([3b46365](https://github.com/jpshackelford/tickster/commit/3b463653253d41f00696abb78d1c2ad73b15f9fa)), closes [#140](https://github.com/jpshackelford/tickster/issues/140)
+* **list:** print the effective filters under pr list and review ([#171](https://github.com/jpshackelford/tickster/issues/171)) ([5ef87f9](https://github.com/jpshackelford/tickster/commit/5ef87f922e58df995554b552ab984440075ba311)), closes [#141](https://github.com/jpshackelford/tickster/issues/141)
+* **list:** remove --since/--after/--before/--date-field from issue list, pr list and review ([#161](https://github.com/jpshackelford/tickster/issues/161)) ([0470a0c](https://github.com/jpshackelford/tickster/commit/0470a0c5582733a94c630e82aec7d32011defb59))
+* **list:** replace --diff-format with --format ([#152](https://github.com/jpshackelford/tickster/issues/152)) ([b5fa055](https://github.com/jpshackelford/tickster/commit/b5fa055800a45727e458a61732ebe14ec5eb6188)), closes [#121](https://github.com/jpshackelford/tickster/issues/121)
+* **list:** show --no-pr and --has-pr in the Filters line ([#189](https://github.com/jpshackelford/tickster/issues/189)) ([f2909b5](https://github.com/jpshackelford/tickster/commit/f2909b5dc38c2209317fac3afa72e74cf79167ac)), closes [#187](https://github.com/jpshackelford/tickster/issues/187)
+* **list:** tell done from n/a in the Steps column (✓ and ·) ([#176](https://github.com/jpshackelford/tickster/issues/176)) ([47d4856](https://github.com/jpshackelford/tickster/commit/47d485682413cf5dea9420575f0fcfad5961b05f)), closes [#157](https://github.com/jpshackelford/tickster/issues/157)
+* **norms:** [labels] rank and --sort rank on issue list ([#175](https://github.com/jpshackelford/tickster/issues/175)) ([43813d5](https://github.com/jpshackelford/tickster/commit/43813d5a0c04e010b34cc34daf7d2db356febb95)), closes [#149](https://github.com/jpshackelford/tickster/issues/149)
+* **pr:** rename pr changes --since SHA to --since-sha SHA ([#163](https://github.com/jpshackelford/tickster/issues/163)) ([38a0795](https://github.com/jpshackelford/tickster/commit/38a0795430e2eb8d1c738b80eba4b1092478c13d))
+* **review:** explicit date flags on review ([#159](https://github.com/jpshackelford/tickster/issues/159)) ([733be82](https://github.com/jpshackelford/tickster/commit/733be82667c679237088713ca58a20d4252a2a29)), closes [#132](https://github.com/jpshackelford/tickster/issues/132)
+* **show:** rename show --since TS to --since-time ([#160](https://github.com/jpshackelford/tickster/issues/160)) ([5fa5456](https://github.com/jpshackelford/tickster/commit/5fa54561cbe2c3845b281e1a20f73a2895c6f1c6)), closes [#134](https://github.com/jpshackelford/tickster/issues/134)
+* **snapshot:** --diff stages the new baseline; add snapshot ack ([#151](https://github.com/jpshackelford/tickster/issues/151)) ([2ae8904](https://github.com/jpshackelford/tickster/commit/2ae8904353d76ab8214551b9172b05b7d7a80779))
+* **snapshot:** always record step statuses in JSON output and snapshots ([a982e11](https://github.com/jpshackelford/tickster/commit/a982e1143f7993aad74cb4e312cc417e1a4b4bbd)), closes [#123](https://github.com/jpshackelford/tickster/issues/123) [#153](https://github.com/jpshackelford/tickster/issues/153)
+* **snapshot:** diff JSON carries new events and step evidence ([#162](https://github.com/jpshackelford/tickster/issues/162)) ([8ecdc09](https://github.com/jpshackelford/tickster/commit/8ecdc09c8132db6b19701307d90940d1c37b0211))
+* **snapshot:** the diff document uses the same rows and names ([#184](https://github.com/jpshackelford/tickster/issues/184)) ([51a62ce](https://github.com/jpshackelford/tickster/commit/51a62ce66d71ef87beb09a4479e8a1746ec3e7af))
+
+
+### Documentation
+
+* add an automation example that acts on three cases only ([#188](https://github.com/jpshackelford/tickster/issues/188)) ([34e7903](https://github.com/jpshackelford/tickster/commit/34e79039bf9ed1608c26595fe970e4888384475e))
+* **agents:** worklog commits go straight to main and are typed chore ([#118](https://github.com/jpshackelford/tickster/issues/118)) ([ae2ccd9](https://github.com/jpshackelford/tickster/commit/ae2ccd9133cc7385065420b25931788ccbb7f897))
+* **issue:** recipe for picking the next issues by dependency order ([#178](https://github.com/jpshackelford/tickster/issues/178)) ([ed505ca](https://github.com/jpshackelford/tickster/commit/ed505ca1c527932a3c2a8d3ad93b24205156ada0))
+* make the one-command recipes discoverable and add the single-command eval ([#185](https://github.com/jpshackelford/tickster/issues/185)) ([4325725](https://github.com/jpshackelford/tickster/commit/43257258977f7202a8a661f49457cc4d2cdf8035)), closes [#143](https://github.com/jpshackelford/tickster/issues/143)
+* rewrite doc/automation.md as a short recipe for the poll loop ([#177](https://github.com/jpshackelford/tickster/issues/177)) ([40e642a](https://github.com/jpshackelford/tickster/commit/40e642a759168e79c271f29063426179ab08be99)), closes [#127](https://github.com/jpshackelford/tickster/issues/127)
+* say that --all includes closed issues ([#186](https://github.com/jpshackelford/tickster/issues/186)) ([3df828b](https://github.com/jpshackelford/tickster/commit/3df828b620d07d34153e09f7bf86305ac35a0e1b))
+* Upgrading to 2.0 guide and docs sweep for renamed date flags ([#168](https://github.com/jpshackelford/tickster/issues/168)) ([ae12bcf](https://github.com/jpshackelford/tickster/commit/ae12bcfa11540b3c08d806e5a8224f608b4c93ba)), closes [#137](https://github.com/jpshackelford/tickster/issues/137)
+
+
+### Code Refactoring
+
+* **show:** remove --since-snapshot from pr show and issue show ([#170](https://github.com/jpshackelford/tickster/issues/170)) ([5c248aa](https://github.com/jpshackelford/tickster/commit/5c248aa5927df14c7dcf8031abcade380f253172)), closes [#122](https://github.com/jpshackelford/tickster/issues/122)
+* use one row model and one snapshot schema for list, snapshot and diff ([#182](https://github.com/jpshackelford/tickster/issues/182)) ([4f2b805](https://github.com/jpshackelford/tickster/commit/4f2b80588879e130fdffe42e4a76fa9b691d0897))
+
 ## [1.0.0](https://github.com/jpshackelford/tickster/compare/v0.3.0...v1.0.0) (2026-11-10)
 
 
